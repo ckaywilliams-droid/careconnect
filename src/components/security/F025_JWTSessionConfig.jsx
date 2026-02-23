@@ -3,13 +3,23 @@
  * 
  * THIS IS A DOCUMENTATION COMPONENT - NOT FUNCTIONAL CODE
  * 
- * Documents Base44 platform configuration for JWT-based session management.
- * Implements secure token generation, refresh token rotation, token blacklisting,
- * and session lifecycle management with 15-minute access tokens and 30-day refresh tokens.
+ * STATUS: Phase 1 — Platform-Managed
  * 
- * STATUS: Phase 1 - Authentication & User Registration
- * PRIORITY: CRITICAL
- * DEPENDENCIES: Base44 native JWT, RefreshToken entity, TokenBlacklist entity
+ * ============================================================================
+ * PLATFORM-MANAGED vs BUILD REQUIRED
+ * ============================================================================
+ * 
+ * PLATFORM-MANAGED (No Build Required):
+ * - JWT token generation, validation, and expiry
+ * - Refresh token rotation and management
+ * - Token storage and cookie configuration
+ * - Token blacklisting and replay detection
+ * - Session lifecycle management
+ * 
+ * BUILD REQUIRED:
+ * - Session invalidation logic when User.is_suspended is set to true
+ * - Backend functions that check user role via base44.auth.me() instead of JWT claims
+ * - Remove RefreshToken and TokenBlacklist entities from data model (not needed)
  * 
  * ============================================================================
  * CRITICAL SECURITY REQUIREMENTS
@@ -19,82 +29,49 @@
 const F025_JWT_SESSION_SPECIFICATION = {
   
   /**
-   * DATA MODEL & CONSTRAINTS (Data.1-4)
-   * JWT tokens, refresh tokens, and blacklist
+   * PLATFORM SESSION MANAGEMENT
+   * Base44 handles JWT lifecycle automatically
    */
-  data_model: {
+  platform_session_management: {
     
-    jwt_tokens: {
-      // Data.1: Base44 manages JWT generation natively
-      management: 'Base44 Native',
-      no_storage: 'JWT tokens NOT stored in database',
-      stateless: 'JWTs are self-contained and stateless',
-      
-      note: 'JWTs generated and validated by Base44 platform - no custom implementation needed'
+    what_base44_handles: {
+      jwt_generation: 'Base44 generates and validates JWT tokens automatically',
+      token_rotation: 'Refresh tokens are rotated automatically on each use',
+      token_storage: 'Base44 manages secure token storage (httpOnly cookies)',
+      session_expiry: 'Access and refresh token expiry handled by platform',
+      blacklisting: 'Platform handles token invalidation and blacklisting',
+      no_entities_needed: 'Do NOT create RefreshToken or TokenBlacklist entities'
     },
     
-    refresh_token_entity: {
-      // Data.2: RefreshToken collection (if Base44 doesn't manage natively)
-      entity_name: 'RefreshToken',
-      purpose: 'Long-lived tokens for obtaining new access tokens',
-      
-      fields: {
-        id: 'UUID (auto)',
-        user_id: 'Relation to User (required)',
-        token_hash: 'Bcrypt hash of refresh token (NOT plaintext)',
-        issued_at: 'DateTime (auto)',
-        expires_at: 'DateTime (now + 30 days)',
-        revoked_at: 'DateTime (nullable - set on logout/rotation)',
-        device_hint: 'Text (optional - user agent truncated to 100 chars)',
-        ip_address: 'IP where token issued (for theft detection)',
-        last_used_at: 'DateTime (updated on each refresh)'
-      },
-      
-      security: {
-        hashing: 'Use bcrypt to hash tokens before storage',
-        never_plaintext: 'NEVER store raw refresh tokens in database',
-        rotation: 'Rotate refresh token on each use (States.2)'
-      }
+    security_outcomes: {
+      short_lived_access: 'Access tokens are short-lived (platform default)',
+      rotation: 'Refresh tokens automatically rotate on use',
+      suspension_invalidation: 'Sessions invalidated when user suspended (BUILD REQUIRED)',
+      role_check: 'Role checked via live DB read, not JWT claim (BUILD REQUIRED)'
     },
     
-    token_ttl: {
-      // Data.3: Token time-to-live values
-      access_token_ttl: '15 minutes',
-      refresh_token_ttl: '30 days',
-      
-      configuration: 'MUST be configurable via environment variables',
-      environment_variables: {
-        ACCESS_TOKEN_TTL_MINUTES: 15,
-        REFRESH_TOKEN_TTL_DAYS: 30
-      },
-      
-      rationale: {
-        short_access: 'Short-lived access tokens limit damage if stolen',
-        long_refresh: 'Long-lived refresh tokens reduce re-authentication friction'
-      }
+    developer_action: {
+      remove_entities: 'Remove RefreshToken and TokenBlacklist from data model',
+      use_auth_me: 'Use base44.auth.me() to get current authenticated user',
+      session_invalidation: 'Add logic to invalidate session when is_suspended=true'
+    }
+  },
+  
+  /**
+   * ENTITIES TO REMOVE FROM DATA MODEL
+   * These are NOT needed - Base44 handles internally
+   */
+  entities_to_remove: {
+    RefreshToken: {
+      status: 'REMOVE FROM DATA MODEL',
+      reason: 'Base44 manages refresh tokens internally',
+      action: 'Delete entities/RefreshToken.json if it exists'
     },
     
-    token_blacklist_entity: {
-      // Data.4: TokenBlacklist for immediate invalidation
-      entity_name: 'TokenBlacklist',
-      purpose: 'Immediate token invalidation (logout, suspension)',
-      
-      fields: {
-        id: 'UUID (auto)',
-        jti: 'Text (unique - JWT ID claim)',
-        user_id: 'Relation to User',
-        revoked_at: 'DateTime (auto)',
-        reason: 'Text (logout/suspension/admin-forced)',
-        expires_at: 'DateTime (original token expiry for cleanup)'
-      },
-      
-      critical_index: {
-        // Abuse.2: MUST index jti for fast lookup
-        field: 'jti',
-        requirement: 'Index TokenBlacklist on jti field',
-        reason: 'Every API request checks blacklist - must be fast (<10ms)',
-        without_index: 'Full table scan on every request - catastrophic at scale'
-      }
+    TokenBlacklist: {
+      status: 'REMOVE FROM DATA MODEL',
+      reason: 'Base44 manages token blacklisting internally',
+      action: 'Delete entities/TokenBlacklist.json if it exists'
     }
   },
   
