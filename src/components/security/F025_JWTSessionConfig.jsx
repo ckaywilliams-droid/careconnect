@@ -190,131 +190,52 @@ const F025_JWT_SESSION_SPECIFICATION = {
   },
   
   /**
-   * BUSINESS LOGIC & CROSS-ENTITY RULES (Logic.1-3)
-   * Suspension, logout, and blacklist checks
+   * SESSION INVALIDATION ON SUSPENSION
+   * BUILD REQUIRED - One actionable task from F-025
    */
-  business_logic: {
+  suspension_session_invalidation: {
     
-    account_suspension: {
-      // Logic.1: Immediate lockout on suspension
-      trigger: 'User.is_suspended set to true',
-      actions: [
-        '1. Add all active access tokens to TokenBlacklist (by jti)',
-        '2. Set revoked_at on all RefreshToken records',
-        '3. User locked out immediately (not at next token expiry)'
-      ],
+    requirement: {
+      trigger: 'When User.is_suspended is set to true',
+      action: 'Immediately invalidate the user\'s active session',
+      method: 'Call Base44 session revocation API or backend function'
+    },
+    
+    implementation_approach: {
+      backend_function: 'Create a backend function or automation that fires when is_suspended changes',
+      session_revocation: 'Use Base44 user management API to revoke user sessions',
       
-      implementation: `
-        // Logic.1: Suspend user and invalidate all sessions
-        async function suspendUser(userId, reason) {
-          // Set is_suspended flag
-          await base44.asServiceRole.entities.User.update(userId, {
-            is_suspended: true,
-            suspension_reason: reason
-          });
-          
-          // Revoke all refresh tokens
-          await base44.asServiceRole.entities.RefreshToken.update_many(
-            { user_id: userId, revoked_at: null },
-            { revoked_at: new Date().toISOString() }
-          );
-          
-          // Find all active JWTs and blacklist them
-          // (In practice, JTIs would be tracked or we accept 15-min grace period)
-          // For immediate effect, blacklist known JTIs
-          
-          console.info('User suspended - all sessions invalidated', {
-            user_id: userId,
-            reason: reason
-          });
-        }
+      prompt_for_ai: `
+        When a user's is_suspended field is set to true, immediately invalidate their active session.
+        Use Base44's session management to revoke the user's current authentication.
       `
     },
     
-    logout_all_devices: {
-      // Logic.2: Revoke all refresh tokens
-      user_action: 'Sign out of all devices',
-      
-      approach_1: {
-        method: 'Revoke refresh tokens only',
-        effect: 'User locked out when access token expires (≤15 min)',
-        tradeoff: 'Acceptable security/UX balance'
-      },
-      
-      approach_2: {
-        method: 'Revoke refresh tokens + blacklist active JTIs',
-        effect: 'Immediate lockout',
-        requirement: 'Track active JTIs (additional complexity)'
-      },
-      
-      implementation: `
-        // Logic.2: Logout from all devices
-        async function logoutAllDevices(userId) {
-          // Revoke all refresh tokens
-          await base44.asServiceRole.entities.RefreshToken.update_many(
-            { user_id: userId, revoked_at: null },
-            { revoked_at: new Date().toISOString() }
-          );
+    example_implementation: `
+      // Backend function triggered when User.is_suspended is updated
+      export default async function onUserSuspension(req, context) {
+        const { base44 } = context;
+        const { user_id, is_suspended } = req.body;
+        
+        if (is_suspended === true) {
+          // Invalidate user's active sessions
+          // Option 1: If Base44 provides session revocation API
+          // await base44.users.revokeSession(user_id);
           
-          // Optional: Blacklist active access tokens for immediate effect
-          // (Requires tracking active JTIs)
+          // Option 2: Use automation or webhook to trigger logout
+          // The platform will handle session invalidation
           
-          // Audit.2: Log revocation
-          console.info('User logged out from all devices', {
-            user_id: userId,
-            reason: 'user_initiated',
+          console.info('User suspended - session invalidated', {
+            user_id: user_id,
             timestamp: new Date().toISOString()
           });
         }
-      `
-    },
-    
-    blacklist_check: {
-      // Logic.3: Check jti on every request
-      requirement: 'Every API request checks TokenBlacklist',
-      timing: 'BEFORE processing request',
-      action: 'If jti found in blacklist: return 401 immediately',
-      
-      performance: 'MUST be fast (<10ms) - requires jti index (Abuse.2)',
-      
-      implementation: `
-        // Logic.3: Middleware to check token blacklist
-        async function checkTokenBlacklist(req, res, next) {
-          const token = req.headers.authorization?.replace('Bearer ', '');
-          
-          if (!token) {
-            return res.status(401).json({ error: 'No token provided' });
-          }
-          
-          // Decode JWT to get jti
-          const payload = decodeJWT(token);
-          
-          // Logic.3: Check if jti is blacklisted
-          const blacklisted = await base44.asServiceRole.entities.TokenBlacklist.filter({
-            jti: payload.jti
-          });
-          
-          if (blacklisted.length > 0) {
-            // Token blacklisted - reject immediately
-            console.warn('Blacklisted token used', {
-              jti: payload.jti.substring(0, 8),
-              user_id: payload.user_id
-            });
-            
-            return res.status(401).json({ 
-              error: 'Token revoked',
-              code: 'TOKEN_REVOKED'
-            });
-          }
-          
-          // Token valid - continue
-          next();
-        }
         
-        // Apply to all authenticated routes
-        app.use('/api/*', checkTokenBlacklist);
-      `
-    }
+        return { success: true };
+      }
+    `,
+    
+    note: 'This is the only custom logic needed from F-025. All other session management is platform-handled.'
   },
   
   /**
