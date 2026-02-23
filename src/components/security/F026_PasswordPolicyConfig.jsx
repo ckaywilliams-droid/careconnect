@@ -222,128 +222,43 @@ const F026_PASSWORD_POLICY_SPECIFICATION = {
   },
   
   /**
-   * EVENT TRIGGERS & AUTOMATION (Triggers.1-3)
-   * Registration hashing, reset flow, session invalidation
+   * CLIENT-SIDE PASSWORD UI
+   * Optional: Real-time validation feedback
    */
-  event_triggers: {
+  client_side_validation: {
     
-    registration_hashing: {
-      // Triggers.1: Hash password on registration
-      timing: 'BEFORE User record creation',
-      guarantee: 'Plaintext password NEVER touches database or logs',
+    password_complexity_indicator: {
+      component: 'Use PasswordComplexityIndicator component (already exists)',
+      location: 'components/PasswordComplexityIndicator',
       
-      implementation: `
-        // Triggers.1: Registration with password hashing
-        async function registerUser(formData) {
-          // Validate complexity
-          validatePasswordComplexity(formData.password);
-          
-          // Triggers.1: Hash password BEFORE creating User
-          const passwordHash = await hashPassword(formData.password);
-          
-          // Create User with hash (plaintext never stored)
-          const user = await base44.asServiceRole.entities.User.create({
-            email: formData.email.toLowerCase(),
-            full_name: formData.full_name,
-            role: formData.role,
-            password_hash: passwordHash  // Hashed
-          });
-          
-          // plaintext formData.password discarded (garbage collected)
-          // Never logged, never persisted
-          
-          return user;
-        }
-      `
-    },
-    
-    password_reset_automation: {
-      // Triggers.2: Complete password reset sequence
-      steps: [
-        '1. Validate token hash',
-        '2. Validate new password complexity',
-        '3. Hash new password',
-        '4. Update User.password_hash',
-        '5. Set token.used_at',
-        '6. Invalidate all active sessions',
-        '7. Send confirmation email'
+      features: [
+        'Real-time visual feedback as user types',
+        'Shows each complexity rule with checkmark or X',
+        'Indicates when password meets all requirements',
+        'Client-side validation for immediate UX feedback'
       ],
       
-      atomic: 'All steps must complete or rollback',
-      
-      full_implementation: `
-        // Triggers.2: Password reset automation
-        async function resetPassword(resetToken, newPassword) {
-          // Step 1: Validate token
-          const tokenRecord = await validatePasswordResetToken(resetToken);
-          
-          // Step 2: Validate new password complexity
-          validatePasswordComplexity(newPassword);
-          
-          // Step 3: Hash new password
-          const newPasswordHash = await hashPassword(newPassword);
-          
-          // Step 4: Update User.password_hash
-          await base44.asServiceRole.entities.User.update(tokenRecord.user_id, {
-            password_hash: newPasswordHash
-          });
-          
-          // Step 5: Mark token as used
-          await base44.asServiceRole.entities.PasswordResetToken.update(tokenRecord.id, {
-            used_at: new Date().toISOString()
-          });
-          
-          // Step 6: Invalidate all active sessions (Triggers.3)
-          await base44.asServiceRole.entities.RefreshToken.update_many(
-            { user_id: tokenRecord.user_id, revoked_at: null },
-            { revoked_at: new Date().toISOString() }
-          );
-          
-          // Optional: Blacklist active access tokens for immediate effect
-          // (Requires tracking active JTIs)
-          
-          // Step 7: Send confirmation email
-          const user = await base44.asServiceRole.entities.User.read(tokenRecord.user_id);
-          await sendPasswordChangedEmail(user.email);
-          
-          // Audit.2: Log password change
-          console.info('Password reset completed', {
-            user_id: tokenRecord.user_id,
-            method: 'reset',
-            timestamp: new Date().toISOString()
-          });
-          
-          return { success: true };
-        }
-      `
-    },
-    
-    session_invalidation: {
-      // Triggers.3: Mandatory session invalidation on reset
-      requirement: 'All active sessions MUST be invalidated on password reset',
-      security_rationale: 'If attacker reset password, legitimate user sessions revoked',
-      detection: 'Legitimate user experiences unexpected logout',
-      
-      implementation: `
-        // Triggers.3: Invalidate sessions on password reset
-        async function invalidateAllSessions(userId) {
-          // Revoke all refresh tokens
-          await base44.asServiceRole.entities.RefreshToken.update_many(
-            { user_id: userId, revoked_at: null },
-            { revoked_at: new Date().toISOString() }
-          );
-          
-          // Audit.2: Log session revocation
-          console.info('All sessions invalidated', {
-            user_id: userId,
-            reason: 'password_reset',
-            timestamp: new Date().toISOString()
-          });
-        }
+      usage: `
+        import PasswordComplexityIndicator from '@/components/PasswordComplexityIndicator';
+        
+        <PasswordComplexityIndicator password={password} />
       `,
       
-      user_impact: 'User logged out on all devices - must re-authenticate',
-      security_benefit: 'Attacker cannot maintain access after password reset'
+      note: 'Server-side validation is still authoritative - Base44 validates on submit'
+    },
+    
+    forgot_password_pages: {
+      forgot_password: 'pages/ForgotPassword.js (already exists)',
+      reset_password: 'pages/ResetPassword.js (already exists)',
+      
+      integration: [
+        'ForgotPassword page submits email to Base44 reset endpoint',
+        'Base44 sends reset email with secure token',
+        'ResetPassword page validates token and submits new password',
+        'Base44 handles all backend logic automatically'
+      ],
+      
+      developer_action: 'Pages already built - no changes needed'
     }
   },
   
