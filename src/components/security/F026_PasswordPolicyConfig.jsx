@@ -309,273 +309,77 @@ const F026_PASSWORD_POLICY_SPECIFICATION = {
   },
   
   /**
-   * ERROR HANDLING (Errors.1-3, Edge.1-3)
-   * Validation errors and edge cases
+   * CONFIGURATION CHECKLIST
+   * What to configure in Base44 Dashboard
    */
-  error_handling: {
-    
-    non_existent_email: {
-      // Errors.1: Password reset for non-existent email
-      response: 'If an account exists with this email, you will receive a reset link.',
-      consistency: 'SAME response whether account exists or not',
-      security: 'Prevents email enumeration attack',
-      
-      implementation: `
-        // Errors.1: Prevent email enumeration
-        async function handlePasswordResetRequest(email) {
-          const user = await findUserByEmail(email);
-          
-          if (user) {
-            // User exists - send reset email
-            await sendResetEmail(user);
-          } else {
-            // User does NOT exist - same response
-            // Do nothing, but return success message
-          }
-          
-          // Errors.1: Same response either way
-          return {
-            message: 'If an account exists with this email, you will receive a reset link.'
-          };
-        }
-      `
-    },
-    
-    complexity_errors: {
-      // Errors.2: Show all unmet rules simultaneously
-      requirement: 'Display ALL validation errors at once',
-      bad_ux: 'Revealing rules one at a time',
-      good_ux: 'Show all requirements with current status',
-      
-      examples: [
-        'Password must be at least 8 characters.',
-        'Password must contain at least one uppercase letter.',
-        'Password must contain at least one number.',
-        'Password must contain at least one special character.'
+  configuration_checklist: [
+    {
+      task: 'Configure password complexity requirements',
+      location: 'Dashboard → App Login and Registration → Password settings',
+      requirements: [
+        'Minimum length (recommend 8+ characters)',
+        'Uppercase letter requirement',
+        'Number requirement',
+        'Special character requirement'
       ],
-      
-      implementation: `
-        // Errors.2: Collect all complexity errors
-        function getPasswordComplexityErrors(password) {
-          const errors = [];
-          
-          if (password.length < 8) {
-            errors.push('Password must be at least 8 characters.');
-          }
-          
-          if (!/[A-Z]/.test(password)) {
-            errors.push('Password must contain at least one uppercase letter.');
-          }
-          
-          if (!/[0-9]/.test(password)) {
-            errors.push('Password must contain at least one number.');
-          }
-          
-          if (!/[!@#$%^&*()_+\-=\[\]{}|;':",./<>?]/.test(password)) {
-            errors.push('Password must contain at least one special character.');
-          }
-          
-          return errors;
-        }
-        
-        // Return all errors at once
-        const errors = getPasswordComplexityErrors(password);
-        if (errors.length > 0) {
-          throw new Error(errors.join(' '));
-        }
-      `
+      status: 'required'
     },
-    
-    expired_reset_token: {
-      // Errors.3: Expired token message
-      message: 'This reset link has expired. Please request a new one.',
-      cta: 'Link back to forgot-password page',
-      
-      ui: `
-        <div className="error-container">
-          <h2>Link Expired</h2>
-          <p>This reset link has expired.</p>
-          <Button onClick={() => navigate('/forgot-password')}>
-            Request a new reset link
-          </Button>
-        </div>
-      `
+    {
+      task: 'Optional: Customize password reset email',
+      location: 'Dashboard → Settings → Email Templates',
+      customizations: [
+        'Add brand logo',
+        'Customize email copy',
+        'Add company footer'
+      ],
+      status: 'optional'
     },
-    
-    token_replay_protection: {
-      // Edge.1: Cannot reverse bcrypt hash
-      security: 'Token hashed with bcrypt before storage',
-      protection: 'Even if database compromised, attacker cannot get raw token',
-      brute_force: 'Infeasible for 64-char hex token (256 bits entropy)',
-      
-      threat_model: `
-        Attacker gains read access to database
-        ↓
-        Sees token_hash: $2b$12$abc...xyz
-        ↓
-        Cannot reverse bcrypt hash to get raw token
-        ↓
-        Cannot send reset request (no raw token)
-        ↓
-        64-char hex = 2^256 possibilities = brute-force infeasible
-      `
+    {
+      task: 'Remove PasswordResetToken entity',
+      action: 'Delete entities/PasswordResetToken.json if it exists',
+      reason: 'Base44 manages password reset tokens internally',
+      status: 'required'
     },
-    
-    cost_factor_upgrade: {
-      // Edge.2: Progressive hash upgrade
-      scenario: 'Bcrypt cost factor increased from 12 to 13',
-      old_hashes: 'Remain valid (use cost factor 12)',
-      new_hashes: 'Use new cost factor 13',
-      upgrade: 'Old hashes upgraded on next successful login',
-      
-      implementation: `
-        // Edge.2: Progressive bcrypt cost factor upgrade
-        async function loginUser(email, password) {
-          const user = await findUserByEmail(email);
-          
-          // Verify password
-          const valid = await bcrypt.compare(password, user.password_hash);
-          
-          if (!valid) {
-            throw new Error('Invalid credentials');
-          }
-          
-          // Check if hash uses old cost factor
-          const currentCost = parseInt(process.env.BCRYPT_COST_FACTOR) || 12;
-          const hashCost = bcrypt.getRounds(user.password_hash);
-          
-          if (hashCost < currentCost) {
-            // Upgrade hash on successful login
-            const newHash = await bcrypt.hash(password, currentCost);
-            await base44.asServiceRole.entities.User.update(user.id, {
-              password_hash: newHash
-            });
-            
-            console.info('Password hash upgraded', {
-              user_id: user.id,
-              old_cost: hashCost,
-              new_cost: currentCost
-            });
-          }
-          
-          return user;
-        }
-      `
-    },
-    
-    timing_safe_comparison: {
-      // Edge.3: Constant-time token comparison
-      requirement: 'Use time-safe comparison for token validation',
-      threat: 'Timing attacks could reveal valid token prefixes',
-      
-      implementation: `
-        // Edge.3: Time-safe token comparison
-        import crypto from 'crypto';
-        
-        async function validatePasswordResetToken(rawToken) {
-          const tokenRecords = await base44.asServiceRole.entities.PasswordResetToken.filter({
-            expires_at: { $gte: new Date().toISOString() },
-            used_at: null
-          });
-          
-          // Edge.3: Use bcrypt.compare (inherently constant-time)
-          for (const record of tokenRecords) {
-            const matches = await bcrypt.compare(rawToken, record.token_hash);
-            
-            if (matches) {
-              return record;
-            }
-          }
-          
-          // Token not found or invalid
-          throw new Error('TOKEN_INVALID');
-        }
-        
-        // bcrypt.compare is constant-time by design
-        // Prevents timing attacks
-      `
+    {
+      task: 'Verify User entity has NO password_hash field',
+      action: 'Check entities/User.json - must NOT contain password_hash',
+      reason: 'Base44 manages password_hash internally',
+      status: 'critical'
     }
-  },
-  
-  /**
-   * LOGGING & AUDIT (Audit.1-3)
-   * Reset requests, password changes, complexity failures
-   */
-  logging_audit: {
-    
-    reset_requests: {
-      // Audit.1: Log password reset requests
-      log_level: 'INFO',
-      fields: [
-        'email (masked - first 3 chars + domain)',
-        'ip_address',
-        'timestamp',
-        'success (true/false)'
-      ],
-      
-      log_both: 'Success and failure both logged',
-      
-      implementation: `
-        // Audit.1: Log password reset request
-        console.info('Password reset requested', {
-          email: maskEmail(email),
-          ip: req.ip,
-          success: userExists,
-          timestamp: new Date().toISOString()
-        });
-      `
-    },
-    
-    password_changes: {
-      // Audit.2: Log password change events
-      log_level: 'INFO',
-      fields: [
-        'user_id',
-        'method (reset / change)',
-        'timestamp'
-      ],
-      
-      never_log: 'New password hash',
-      
-      implementation: `
-        // Audit.2: Log password change
-        console.info('Password changed', {
-          user_id: userId,
-          method: 'reset',  // or 'change' for user-initiated
-          timestamp: new Date().toISOString()
-          // NEVER log password or password_hash
-        });
-      `
-    },
-    
-    complexity_failures: {
-      // Audit.3: Log failed complexity checks
-      purpose: 'Understand UX friction',
-      fields: [
-        'reason (too_short / missing_number / missing_special)',
-        'user_id (if available)',
-        'timestamp'
-      ],
-      
-      implementation: `
-        // Audit.3: Log complexity validation failures
-        function validatePasswordWithLogging(password, userId = null) {
-          const errors = getPasswordComplexityErrors(password);
-          
-          if (errors.length > 0) {
-            console.info('Password complexity check failed', {
-              reasons: errors,
-              user_id: userId,
-              timestamp: new Date().toISOString()
-            });
-            
-            throw new Error(errors.join(' '));
-          }
-        }
-      `
-    }
-  }
+  ]
 };
+    
+/**
+ * ============================================================================
+ * IMPLEMENTATION SUMMARY
+ * ============================================================================
+ * 
+ * PLATFORM-MANAGED (No Code Required):
+ * 1. Password hashing with bcrypt (automatic)
+ * 2. Password reset flow and token management
+ * 3. Reset email generation and delivery
+ * 4. Token expiry and single-use enforcement
+ * 5. Session invalidation on password reset
+ * 6. Rate limiting and email enumeration prevention
+ * 
+ * BUILD REQUIRED:
+ * 1. Configure password complexity in Dashboard → App Login and Registration
+ * 2. Optional: Customize password reset email template in Dashboard
+ * 3. Remove PasswordResetToken entity from data model (not needed)
+ * 4. Verify User entity has NO password_hash field (platform-managed)
+ * 
+ * ENTITIES TO REMOVE:
+ * - entities/PasswordResetToken.json (if exists) - Base44 manages internally
+ * 
+ * CRITICAL: Do NOT define password_hash in User.json
+ * - Base44 manages password_hash internally
+ * - Defining it will cause validation error
+ * 
+ * UI COMPONENTS:
+ * - pages/ForgotPassword.js (already exists)
+ * - pages/ResetPassword.js (already exists)
+ * - components/PasswordComplexityIndicator (already exists)
+ */
 
 /**
  * ============================================================================
