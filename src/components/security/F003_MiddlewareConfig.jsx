@@ -319,310 +319,368 @@ const F003_AUTHORIZATION_SPECIFICATION = {
   },
   
   /**
-   * SPECIAL CASE: Webhook Authorization (Edge.2)
-   * Webhooks (e.g., Stripe) must also validate authorization before executing business logic
+   * SHARED authGuard BACKEND FUNCTION
+   * BUILD REQUIRED: Create and call at start of every backend function
    */
-  webhook_authorization: {
-    challenge: 'External webhook payloads bypass standard JWT authentication',
-    solution: [
-      'Verify webhook signature (e.g., Stripe signature verification)',
-      'Webhook handler must validate that the webhook event relates to a valid, non-suspended user',
-      'If webhook triggers admin action (e.g., subscription cancellation), log to AdminActionLog',
-      'Webhook-triggered automations must respect same four-gate model where applicable'
-    ],
-    implementation_note: `
-      // Pseudocode for Stripe webhook handler
-      const webhookEvent = verifyStripeSignature(request.body, request.headers['stripe-signature']);
-      
-      // Extract user context from webhook payload
-      const userId = webhookEvent.metadata.user_id;
-      const user = await base44.entities.User.read(userId);
-      
-      // Apply Gate 2 & 3 even though it's a webhook
-      if (user.is_suspended) {
-        await logRejection('gate_2_user_suspended', { endpoint: 'webhook/stripe', user_id: userId });
-        return 403;  // Don't process webhook for suspended users
-      }
-      
-      // Execute webhook business logic
-      // Log any admin actions to AdminActionLog
-    `
-  },
-  
-  /**
-   * REJECTION LOGGING & ABUSE DETECTION (Audit.1, Audit.2)
-   */
-  rejection_logging: {
-    log_every_rejection: {
-      entity: 'MiddlewareRejectionLog',
-      required_fields: [
-        'user_id (if extractable from JWT)',
-        'user_role (from live DB if available)',
-        'action_attempted (endpoint + method + entity)',
-        'gate_failed (gate_1/2/3/4)',
-        'ip_address',
-        'rejection_timestamp'
-      ]
-    },
+  auth_guard_implementation: {
     
-    abuse_detection: {
-      // Audit.2: Flag account if >10 rejections in 10 minutes
-      threshold: 10,
-      window: '10 minutes',
-      action: [
-        'Set MiddlewareRejectionLog.is_flagged_for_review = true for all rejections in window',
-        'Create entry in moderation queue (Phase 2)',
-        'Send admin alert with user_id, rejection count, time window',
-        'Consider temporary suspension if pattern indicates malicious activity'
-      ],
-      implementation_note: `
-        // After logging each rejection, check for abuse pattern
-        const recentRejections = await base44.entities.MiddlewareRejectionLog.filter({
-          user_id: user.id,
-          rejection_timestamp: { $gte: tenMinutesAgo }
-        });
-        
-        if (recentRejections.length > 10) {
-          // Flag all rejections and alert admin
-          await base44.entities.MiddlewareRejectionLog.update(
-            { user_id: user.id, rejection_timestamp: { $gte: tenMinutesAgo } },
-            { is_flagged_for_review: true }
+    purpose: 'Centralized Gates 1 & 2 enforcement',
+    
+    location: 'functions/authGuard.ts',
+    
+    implementation: `
+      // functions/authGuard.ts
+      export default async function authGuard(base44) {
+        // Gate 1: Session validation (platform-managed)
+        const user = await base44.auth.me();
+        if (!user) {
+          throw new Response(
+            JSON.stringify({ error: 'Authentication required' }),
+            { status: 401, headers: { 'Content-Type': 'application/json' } }
           );
-          
-          // Send admin notification
-          await sendAdminAlert({
-            type: 'excessive_rejections',
-            user_id: user.id,
-            count: recentRejections.length,
-            window: '10 minutes'
-          });
         }
-      `
-    }
-  },
-  
-  /**
-   * TOKEN INVALIDATION ON SUSPENSION (Logic.2)
-   * When user is suspended, all active JWTs must be blacklisted immediately
-   */
-  suspension_token_invalidation: {
-    trigger: 'User.is_suspended set to true',
-    action: [
-      'Create TokenBlacklist entries for all active JWTs for this user_id',
-      'If JWT uses jti claim: blacklist by jti',
-      'If JWT does not use jti: reduce JWT TTL to seconds OR implement token version field'
-    ],
-    implementation_note: `
-      // Automation trigger on User.is_suspended UPDATE to true
-      async function onUserSuspended(user) {
-        // Option 1: If JWTs include jti claim, blacklist all tokens issued before now
-        // (Future tokens will be rejected by Gate 2 suspension check anyway)
-        await base44.entities.TokenBlacklist.create({
-          user_id: user.id,
-          token_jti: '*',  // Wildcard - all tokens for this user
-          reason: 'user_suspended',
-          blacklisted_at: new Date().toISOString()
-        });
         
-        // Option 2: If using token version approach
-        await base44.entities.User.update(user.id, {
-          token_version: user.token_version + 1
-        });
-        // JWTs check if token_version in payload matches DB - mismatch = invalid
+        // Gate 2: Suspension check (build required)
+        if (user.is_suspended === true || user.data?.is_suspended === true) {
+          throw new Response(
+            JSON.stringify({ error: 'Account suspended — contact support' }),
+            { status: 403, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        return user;
       }
     `,
-    performance_optimization: {
-      problem: 'Checking TokenBlacklist on every request adds latency',
-      solutions: [
-        'Use in-memory cache (Redis) for TokenBlacklist with TTL = JWT expiry',
-        'Implement token version field in User entity (faster single DB read)',
-        'Reduce JWT TTL to 15 minutes for high-security scenarios'
-      ]
+    
+    usage_in_backend_functions: `
+      // Example: functions/updateProfile.ts
+      import authGuard from './authGuard';
+      
+      export default async function updateProfile(req, context) {
+        const { base44 } = context;
+        
+        // Call authGuard at start (Gates 1 & 2)
+        const user = await authGuard(base44);
+        
+        // Gate 3: Role check (if needed for action-level enforcement)
+        if (user.role !== 'admin' && user.role !== 'trust_admin') {
+          return Response.json(
+            { error: 'Permission denied' },
+            { status: 403 }
+          );
+        }
+        
+        // Gate 4: RLS rules handle ownership automatically
+        // Business logic proceeds - RLS enforces data access
+        const { profileId, updates } = await req.json();
+        await base44.asServiceRole.entities.CaregiverProfile.update(
+          profileId,
+          updates
+        );
+        
+        return Response.json({ success: true });
+      }
+    `,
+    
+    error_handling: {
+      '401': 'Thrown by authGuard if auth.me() returns null',
+      '403': 'Thrown by authGuard if user is suspended',
+      client_handling: 'Base44 SDK automatically redirects 401 to login'
     }
   },
   
   /**
-   * ERROR RESPONSES & UI BEHAVIOR (UI.1, Abuse.1)
+   * SESSION INVALIDATION ON SUSPENSION
+   * PLATFORM-MANAGED: See F-025 for session management
+   */
+  suspension_session_invalidation: {
+    platform_managed: true,
+    
+    what_to_do: 'See F-025 for session invalidation when User.is_suspended is set',
+    
+    mechanism: 'Base44 session management API revokes active sessions',
+    
+    no_token_blacklist: 'Do NOT create TokenBlacklist entity - Base44 manages internally',
+    
+    note: 'authGuard checks is_suspended on every request - immediate effect'
+  },
+  
+  /**
+   * OPTIONAL: REJECTION LOGGING & ABUSE DETECTION
+   */
+  rejection_logging: {
+    optional: true,
+    
+    entity: 'MiddlewareRejectionLog (optional)',
+    
+    purpose: 'Track authorization failures for security analysis',
+    
+    implementation: `
+      // Optional: Log rejection in authGuard or backend functions
+      async function logRejection(base44, user, gate, action) {
+        await base44.asServiceRole.entities.MiddlewareRejectionLog.create({
+          user_id: user?.id,
+          user_role: user?.role,
+          gate_failed: gate,
+          action_attempted: action,
+          ip_address: req.headers['x-forwarded-for'] || 'unknown',
+          rejection_timestamp: new Date().toISOString()
+        });
+      }
+    `,
+    
+    abuse_detection: {
+      threshold: '>10 rejections in 10 minutes',
+      action: 'Flag for admin review or auto-suspend',
+      note: 'Implement if abuse patterns emerge - not required for MVP'
+    }
+  },
+  
+  /**
+   * ERROR RESPONSES
    */
   error_responses: {
     '401_unauthorized': {
-      scenario: 'Gate 1 failed - invalid/expired JWT',
+      scenario: 'Gate 1 failed - no valid session',
       response: { error: 'Authentication required' },
-      ui_behavior: [
-        'Redirect to login page',
-        'Preserve in-progress form data if Base44 supports it (Errors.1)',
-        'After successful re-login, restore form data and retry request'
-      ]
+      ui_behavior: 'Base44 SDK redirects to login automatically'
     },
     
     '403_forbidden': {
-      scenarios: [
-        'Gate 2 failed - user suspended',
-        'Gate 3 failed - insufficient role',
-        'Gate 4 failed - record not owned'
-      ],
+      scenarios: ['Gate 2: User suspended', 'Gate 3: Insufficient role', 'Gate 4: RLS denied'],
       response: {
         suspended: { error: 'Account suspended — contact support' },
-        other: { error: 'Permission denied' }  // Generic - don't reveal which gate failed
+        other: { error: 'Permission denied' }
       },
-      ui_behavior: [
-        'Show generic permission denied page',
-        'Do NOT reveal which gate failed or why (UI.1)',
-        'Do NOT reveal whether record exists or not (Abuse.2)'
-      ]
+      ui_behavior: 'Show generic permission denied message'
     },
     
-    security_principle: 'Error messages must not leak information about system internals, permission structure, or data existence'
+    security_principle: 'Do not reveal which gate failed or whether record exists'
   }
 };
 
 /**
  * ============================================================================
- * ACCEPTANCE CRITERIA (Phase 0 Gate)
+ * ACCEPTANCE CRITERIA
  * ============================================================================
  */
 const ACCEPTANCE_TESTS = [
   {
-    test: 'JWT Blacklist Enforcement',
+    test: 'authGuard Session Validation',
     steps: [
-      'Authenticate user and obtain JWT',
-      'Add JWT jti to TokenBlacklist',
-      'Attempt API request with blacklisted JWT',
-      'Verify: 401 Unauthorized + MiddlewareRejectionLog entry created'
+      'Call backend function without valid session',
+      'Verify: authGuard throws 401 Unauthorized',
+      'Verify: Base44 SDK redirects to login'
     ]
   },
   {
-    test: 'Live Suspension Check',
+    test: 'authGuard Suspension Check',
     steps: [
-      'Authenticate user with valid JWT',
-      'Set User.is_suspended = true (do not re-issue JWT)',
-      'Attempt API request with still-valid JWT',
-      'Verify: 403 Forbidden with "Account suspended" message + MiddlewareRejectionLog entry'
+      'Authenticate user with valid session',
+      'Set User.is_suspended = true',
+      'Call backend function (session still valid)',
+      'Verify: authGuard throws 403 with "Account suspended" message'
+    ]
+  },
+  {
+    test: 'RLS Role Enforcement',
+    steps: [
+      'Authenticate as non-admin user',
+      'Attempt to read entity with admin-only RLS rule',
+      'Verify: 403 Forbidden returned by Base44 RLS'
+    ]
+  },
+  {
+    test: 'RLS Ownership Enforcement',
+    steps: [
+      'Authenticate as caregiver A',
+      'Attempt to update CaregiverProfile belonging to caregiver B',
+      'Verify: 403 Forbidden returned by Base44 RLS'
     ]
   },
   {
     test: 'Role Change Immediate Effect',
     steps: [
-      'Authenticate as super_admin',
-      'Downgrade user.role to support_admin (do not log out)',
-      'Attempt admin-only action with existing JWT',
-      'Verify: 403 Forbidden + MiddlewareRejectionLog entry with gate_3_insufficient_role'
+      'Authenticate as admin',
+      'Downgrade user.role to regular user',
+      'Call backend function requiring admin role',
+      'Verify: authGuard returns user with new role, function checks role and denies'
     ]
   },
   {
-    test: 'Record Ownership Enforcement',
+    test: 'RLS Information Disclosure Prevention',
     steps: [
-      'Authenticate as caregiver A',
-      'Attempt to update CaregiverProfile belonging to caregiver B',
-      'Verify: 403 Forbidden + MiddlewareRejectionLog entry with gate_4_record_not_owned'
-    ]
-  },
-  {
-    test: 'Brute Force JWT Detection',
-    steps: [
-      'Send 51 requests with invalid JWTs from same IP within 5 minutes',
-      'Verify: IPBlocklist entry created with block_reason=brute_force_jwt',
-      'Verify: Admin alert sent',
-      'Verify: Request 52 returns 403 (IP blocked) instead of 401'
-    ]
-  },
-  {
-    test: 'Excessive Rejection Flagging',
-    steps: [
-      'Generate 11 middleware rejections for same user in 10 minutes',
-      'Verify: MiddlewareRejectionLog.is_flagged_for_review = true for all entries',
-      'Verify: Admin alert sent',
-      'Verify: User appears in moderation queue (Phase 2)'
-    ]
-  },
-  {
-    test: 'Webhook Authorization',
-    steps: [
-      'Trigger Stripe webhook for suspended user',
-      'Verify: Webhook handler checks User.is_suspended',
-      'Verify: Webhook business logic does not execute',
-      'Verify: MiddlewareRejectionLog entry created'
-    ]
-  },
-  {
-    test: 'Error Message Information Disclosure',
-    steps: [
-      'Attempt to access record that does not exist',
-      'Attempt to access record that exists but user does not own',
-      'Verify: Both return identical 403 response (no information leak)'
+      'Attempt to access non-existent record',
+      'Attempt to access existing record not owned by user',
+      'Verify: Both return identical 403 response (no ID enumeration)'
     ]
   }
 ];
 
 /**
  * ============================================================================
- * IMPLEMENTATION NOTES
+ * IMPLEMENTATION SUMMARY
  * ============================================================================
  * 
- * Base44 Platform Requirements:
- * 1. Middleware hook that runs BEFORE all business logic
- * 2. Access to JWT payload and ability to validate signature
- * 3. Ability to perform live DB reads during middleware execution
- * 4. Custom error response configuration (401/403 with custom messages)
- * 5. Request context access (IP address, user agent, endpoint, method)
+ * PLATFORM-MANAGED (No Code Required):
+ * 1. Gate 1: JWT validation and session management (base44.auth.me())
+ * 2. Session invalidation on suspension (see F-025)
+ * 3. RLS query-level enforcement (automatic)
  * 
- * Supporting Entities Created:
- * - TokenBlacklist: Invalidated JWTs (suspension, logout, security incident)
- * - MiddlewareRejectionLog: Audit trail of all authorization failures
- * - IPBlocklist: Brute-force protection and admin IP blocking
+ * BUILD REQUIRED:
+ * 1. Create shared authGuard backend function (functions/authGuard.ts)
+ *    - Gate 1: Check base44.auth.me() !== null
+ *    - Gate 2: Check user.is_suspended === false
+ * 2. Configure RLS rules on each entity (Gates 3 & 4)
+ *    - Gate 3: user_condition rules for role-based access
+ *    - Gate 4: entity-user field comparison for ownership
+ * 3. Call authGuard at start of every backend function
+ * 4. Add explicit role checks in backend functions (action-level Gate 3)
  * 
- * Integration with Other Features:
- * - F-001: Record-level access control (Gate 4 ownership checks)
- * - F-002: Field-level security (Gate 3 field permission checks)
- * - F-008: Admin action logging (AdminActionLog for role changes, suspensions)
- * - F-009: PII access logging (Integration with middleware rejection logging)
- * - F-012: Login brute-force protection (IPBlocklist integration)
+ * ENTITIES TO REMOVE:
+ * - entities/TokenBlacklist.json (if exists) - Base44 manages token blacklisting
  * 
- * NEXT STEPS:
- * - Configure Base44 middleware hooks per specification above
- * - Implement four-gate authorization model
- * - Create error pages for 401/403 responses
- * - Set up admin alerts for brute-force and excessive rejections
- * - Test all acceptance criteria before Phase 1
+ * INTEGRATION:
+ * - F-001: Record-level access control (Gate 4 RLS rules)
+ * - F-002: Field-level security (Gate 3 RLS rules + role checks)
+ * - F-006: Encryption at rest (RLS field-level security config)
+ * - F-008: Admin action logging (log admin actions in backend functions)
+ * - F-025: Session management (suspension invalidation)
  */
 
-export default function F003MiddlewareDocumentation() {
+export default function F003AuthorizationDocumentation() {
   return (
-    <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>F-003: API Authorization Middleware - Configuration Required</h1>
-      <p><strong>Phase 0 Status:</strong> Supporting entities created (TokenBlacklist, MiddlewareRejectionLog, IPBlocklist)</p>
-      <p><strong>Next Step:</strong> Configure Base44 middleware to implement four-gate authorization model</p>
+    <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1400px', margin: '0 auto' }}>
+      <h1>F-003: API Authorization Middleware</h1>
+      <p><strong>Status:</strong> Phase 0 — Revised — Partial Build Required</p>
+      
+      <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6', marginBottom: '2rem' }}>
+        <strong>ℹ️ PLATFORM-MANAGED vs BUILD REQUIRED</strong>
+        <p><strong>Platform-Managed (No Build Required):</strong></p>
+        <ul>
+          <li>Gate 1: JWT validation via base44.auth.me()</li>
+          <li>RLS query enforcement (automatic)</li>
+          <li>Session invalidation (see F-025)</li>
+        </ul>
+        <p><strong>Build Required:</strong></p>
+        <ul>
+          <li>Shared authGuard function (Gates 1 + 2)</li>
+          <li>RLS rules on each entity (Gates 3 + 4)</li>
+          <li>Call authGuard in every backend function</li>
+          <li>Remove TokenBlacklist entity</li>
+        </ul>
+      </div>
       
       <h2>Four-Gate Authorization Model</h2>
-      <ol>
-        <li><strong>Gate 1:</strong> JWT Validity & Expiration Check</li>
-        <li><strong>Gate 2:</strong> User Suspension Check (LIVE DB READ)</li>
-        <li><strong>Gate 3:</strong> Role-Based Action Permission</li>
-        <li><strong>Gate 4:</strong> Record Ownership or Admin Override</li>
-      </ol>
+      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%', margin: '1rem 0' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f3f4f6' }}>
+            <th>Gate</th>
+            <th>Check</th>
+            <th>Implementation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Gate 1</td>
+            <td>Session valid</td>
+            <td>Platform-managed: base44.auth.me()</td>
+          </tr>
+          <tr>
+            <td>Gate 2</td>
+            <td>User not suspended</td>
+            <td>authGuard function: check is_suspended</td>
+          </tr>
+          <tr>
+            <td>Gate 3</td>
+            <td>Role permits action</td>
+            <td>RLS user_condition + explicit role checks</td>
+          </tr>
+          <tr>
+            <td>Gate 4</td>
+            <td>User owns record</td>
+            <td>RLS entity-user field comparison</td>
+          </tr>
+        </tbody>
+      </table>
       
-      <h2>Critical Requirements</h2>
-      <ul>
-        <li>Middleware runs BEFORE all business logic (including automations, webhooks)</li>
-        <li>Gate 2 suspension check MUST be live DB read every request</li>
-        <li>Token blacklist checked on every request (Gate 1)</li>
-        <li>Role changes take effect immediately without re-login (Gate 3)</li>
-        <li>Same 403 response for "not exists" and "not owned" (information disclosure prevention)</li>
-      </ul>
+      <h2>authGuard Function (Build Required)</h2>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', overflowX: 'auto' }}>
+{`// functions/authGuard.ts
+export default async function authGuard(base44) {
+  // Gate 1: Session validation
+  const user = await base44.auth.me();
+  if (!user) {
+    throw new Response(
+      JSON.stringify({ error: 'Authentication required' }),
+      { status: 401 }
+    );
+  }
+  
+  // Gate 2: Suspension check
+  if (user.is_suspended === true) {
+    throw new Response(
+      JSON.stringify({ error: 'Account suspended' }),
+      { status: 403 }
+    );
+  }
+  
+  return user;
+}`}
+      </pre>
       
-      <h2>Abuse Detection</h2>
-      <ul>
-        <li>Brute-force JWT testing: >50 invalid attempts in 5 min → IP block + admin alert</li>
-        <li>Excessive rejections: >10 rejections in 10 min → flag account + admin review</li>
-      </ul>
+      <h2>RLS Configuration Example</h2>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', overflowX: 'auto' }}>
+{`// entities/CaregiverProfile.json
+{
+  "rls": {
+    "read": {
+      "user_condition": {
+        "$or": [
+          {"is_published": true},
+          {"data.user_id": "{{user.id}}"},
+          {"role": {"$in": ["admin", "trust_admin"]}}
+        ]
+      }
+    },
+    "write": {
+      "user_condition": {
+        "$or": [
+          {"data.user_id": "{{user.id}}"},
+          {"role": {"$in": ["admin", "trust_admin"]}}
+        ]
+      }
+    }
+  }
+}`}
+      </pre>
       
-      <h2>Token Invalidation</h2>
-      <ul>
-        <li>On user suspension: blacklist all active JWTs immediately</li>
-        <li>On role downgrade: next request reads new role from DB (no re-login needed)</li>
-      </ul>
+      <h2>Backend Function Pattern</h2>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', overflowX: 'auto' }}>
+{`import authGuard from './authGuard';
+
+export default async function updateProfile(req, context) {
+  const { base44 } = context;
+  
+  // authGuard handles Gates 1 & 2
+  const user = await authGuard(base44);
+  
+  // Gate 3: Explicit role check (if needed)
+  if (user.role !== 'admin') {
+    return Response.json({ error: 'Permission denied' }, { status: 403 });
+  }
+  
+  // Gate 4: RLS handles ownership automatically
+  // Business logic...
+}`}
+      </pre>
       
-      <p><em>See component source code for complete middleware specification and pseudocode implementation.</em></p>
+      <div style={{ padding: '1rem', backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', margin: '1rem 0' }}>
+        <strong>⚠️ REMOVE TokenBlacklist Entity</strong>
+        <p>Delete entities/TokenBlacklist.json if it exists. Base44 manages token blacklisting internally (see F-025).</p>
+      </div>
+      
+      <p><em>See component source code for complete authorization specification and RLS examples.</em></p>
     </div>
   );
 }
