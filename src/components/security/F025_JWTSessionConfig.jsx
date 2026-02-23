@@ -239,159 +239,52 @@ const F025_JWT_SESSION_SPECIFICATION = {
   },
   
   /**
-   * EVENT TRIGGERS & AUTOMATION (Triggers.1-2)
-   * Token refresh flow and concurrent requests
+   * TOKEN REFRESH FLOW
+   * Platform-managed - no custom implementation needed
    */
-  event_triggers: {
+  token_refresh_flow: {
     
-    refresh_flow: {
-      // Triggers.1: Access token refresh sequence
-      steps: [
-        '1. Client detects 401 response (token expired)',
-        '2. Client sends refresh token to /auth/refresh',
-        '3. Server validates refresh token',
-        '4. Server issues new access + refresh tokens',
-        '5. Client stores new tokens',
-        '6. Client retries original request with new access token'
+    platform_managed: {
+      what_base44_handles: [
+        'Client automatically detects 401 response',
+        'Base44 SDK handles refresh token rotation',
+        'New tokens issued and stored automatically',
+        'Failed requests are retried with new token'
       ],
       
-      client_implementation: `
-        // Triggers.1: Client-side refresh flow
-        async function apiRequest(url, options = {}) {
-          let accessToken = getAccessToken();
-          
-          // Add token to request
-          options.headers = {
-            ...options.headers,
-            'Authorization': \`Bearer \${accessToken}\`
-          };
-          
-          let response = await fetch(url, options);
-          
-          // Check if token expired
-          if (response.status === 401) {
-            const errorData = await response.json();
-            
-            if (errorData.code === 'token_expired') {
-              // Triggers.1: Attempt refresh
-              const refreshed = await refreshAccessToken();
-              
-              if (refreshed) {
-                // Retry original request with new token
-                options.headers['Authorization'] = \`Bearer \${getAccessToken()}\`;
-                response = await fetch(url, options);
-              } else {
-                // Refresh failed - redirect to login
-                window.location.href = '/login';
-                return;
-              }
-            }
-          }
-          
-          return response;
-        }
-        
-        async function refreshAccessToken() {
-          try {
-            // Refresh token sent automatically via httpOnly cookie
-            const response = await fetch('/auth/refresh', {
-              method: 'POST',
-              credentials: 'include'  // Include cookies
-            });
-            
-            if (!response.ok) {
-              throw new Error('Refresh failed');
-            }
-            
-            const { access_token } = await response.json();
-            setAccessToken(access_token);
-            
-            return true;
-          } catch (error) {
-            console.error('Token refresh failed:', error);
-            return false;
-          }
-        }
-      `,
-      
-      server_implementation: `
-        // Triggers.1: Server-side refresh endpoint
-        app.post('/auth/refresh', async (req, res) => {
-          const refreshToken = req.cookies.refresh_token;
-          
-          if (!refreshToken) {
-            return res.status(401).json({ error: 'No refresh token' });
-          }
-          
-          try {
-            // Validate refresh token
-            const tokenRecord = await validateRefreshToken(refreshToken);
-            
-            // Generate new tokens
-            const newAccessToken = generateAccessToken(tokenRecord.user_id);
-            const newRefreshToken = generateRefreshToken(tokenRecord.user_id);
-            
-            // Rotate refresh token (States.2)
-            await revokeRefreshToken(tokenRecord.id);
-            await storeRefreshToken(newRefreshToken, tokenRecord.user_id);
-            
-            // Set new refresh token cookie
-            res.cookie('refresh_token', newRefreshToken, {
-              httpOnly: true,
-              secure: true,
-              sameSite: 'strict',
-              maxAge: 30 * 24 * 60 * 60 * 1000
-            });
-            
-            // Return new access token
-            res.json({ access_token: newAccessToken });
-            
-          } catch (error) {
-            console.error('Refresh token validation failed:', error);
-            res.status(401).json({ error: 'Invalid refresh token' });
-          }
-        });
-      `
+      developer_action: 'None - Base44 SDK handles token refresh automatically'
     },
+      
+    client_usage_example: `
+      // Token refresh handled automatically by Base44 SDK
+      import { base44 } from '@/api/base44Client';
+      
+      // Make API calls - refresh happens automatically if needed
+      const data = await base44.entities.SomeEntity.list();
+      
+      // If token expired:
+      // 1. Base44 SDK detects 401
+      // 2. Automatically refreshes token
+      // 3. Retries the request
+      // 4. Returns data seamlessly
+      
+      // No manual token refresh logic needed
+    `,
     
-    concurrent_refresh: {
-      // Triggers.2: Handle concurrent refresh requests
-      scenario: 'Two tabs simultaneously refresh with same token',
-      expected: 'First request succeeds, second fails',
-      reason: 'First request marks token as revoked',
-      user_impact: 'User must re-authenticate',
+    session_expiry_handling: `
+      // If refresh token also expired (user inactive for 30+ days)
+      // Base44 SDK redirects to login automatically
       
-      mitigation: 'Client should coordinate refresh across tabs (single refresh)',
+      // Optional: Handle session expiry in UI
+      import { base44 } from '@/api/base44Client';
       
-      implementation: `
-        // Triggers.2: Server detects concurrent refresh
-        async function validateRefreshToken(token) {
-          const tokenRecord = await findRefreshTokenByHash(token);
-          
-          if (!tokenRecord) {
-            throw new Error('Token not found');
-          }
-          
-          // Triggers.2: Check if already revoked (concurrent request)
-          if (tokenRecord.revoked_at) {
-            // Second request using already-revoked token
-            console.warn('Concurrent refresh detected', {
-              user_id: tokenRecord.user_id,
-              token_id: tokenRecord.id
-            });
-            
-            throw new Error('Token already used');
-          }
-          
-          // Check expiry
-          if (new Date(tokenRecord.expires_at) < new Date()) {
-            throw new Error('Token expired');
-          }
-          
-          return tokenRecord;
-        }
-      `
-    }
+      try {
+        const user = await base44.auth.me();
+      } catch (error) {
+        // Session expired - redirect to login
+        base44.auth.redirectToLogin();
+      }
+    `
   },
   
   /**
