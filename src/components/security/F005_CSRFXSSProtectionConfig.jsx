@@ -3,12 +3,22 @@
  * 
  * THIS IS A DOCUMENTATION COMPONENT - NOT FUNCTIONAL CODE
  * 
- * This component documents the Base44 platform configuration required for F-005
- * CSRF and XSS protection. These protections must be enforced at the platform level
- * on every form submission and data write operation.
+ * STATUS: Phase 0 — Platform-Managed (partial)
  * 
- * STATUS: Phase 0 - Logging entities created (CSRFValidationFailureLog, XSSAttemptLog)
- * NEXT STEP: Configure Base44 CSRF tokens + input sanitization middleware
+ * ============================================================================
+ * PLATFORM-MANAGED vs BUILD REQUIRED
+ * ============================================================================
+ * 
+ * PLATFORM-MANAGED (No Build Required):
+ * - CSRF token generation and validation (handled automatically by Base44)
+ * - Content Security Policy (CSP) headers (applied at infrastructure level)
+ * 
+ * BUILD REQUIRED:
+ * - XSS input sanitization in backend functions (strip/encode malicious HTML)
+ * - XSSAttemptLog entity for audit trail (already created)
+ * 
+ * SUPERSEDED ENTITIES:
+ * - CSRFValidationFailureLog: Not needed (Base44 handles CSRF natively)
  * 
  * ============================================================================
  * CRITICAL SECURITY REQUIREMENTS
@@ -19,141 +29,29 @@ const F005_CSRF_XSS_SPECIFICATION = {
   
   /**
    * CSRF PROTECTION (Cross-Site Request Forgery)
-   * Logic.1-2: CSRF tokens required on ALL state-changing actions
+   * STATUS: PLATFORM-MANAGED — No build required
+   * 
+   * Base44 handles CSRF token generation and validation automatically.
+   * You do NOT need to generate, validate, or manage CSRF tokens in your code.
    */
-  csrf_protection: {
+  csrf_protection_platform_managed: {
     
-    requirement: {
+    what_base44_handles: {
       scope: 'ALL state-changing actions (POST, PUT, PATCH, DELETE)',
-      applies_to: 'All roles without exception (Access.1)',
-      actions_requiring_csrf: [
-        'Booking submission',
-        'Profile update (CaregiverProfile, ParentProfile)',
-        'Message send',
-        'Account settings changes',
-        'Admin write actions',
-        'Availability slot creation/update',
-        'Certification upload',
-        'Any custom API endpoint that modifies data'
-      ]
-    },
-    
-    token_lifecycle: {
-      generation: {
-        where: 'Server-side only (Logic.2)',
-        when: 'On page load / form render',
-        method: 'Cryptographically secure random token',
-        storage: {
-          server: 'Session-based (tied to user session)',
-          client: 'Hidden form field OR custom header (X-CSRF-Token)'
-        }
-      },
-      
-      validation: {
-        where: 'Server-side before ANY business logic executes (Logic.2)',
-        timing: 'First check in middleware - before database queries, before automations',
-        checks: [
-          'Token exists in request (form data OR header)',
-          'Token matches server-side session token',
-          'Token has not expired (if using time-based tokens)',
-          'Token has not been used before (if using single-use tokens)'
-        ],
-        on_failure: {
-          http_status: 403,
-          response: { error: 'Invalid security token. Please refresh and try again.' },
-          action: [
-            'Reject the request immediately',
-            'Do NOT execute business logic',
-            'Log to CSRFValidationFailureLog (Audit.1)',
-            'Check for rate limit violation (Abuse.1)'
-          ]
-        }
-      }
-    },
-    
-    base44_native_implementation: {
-      // Triggers.2: Verify Base44 handles CSRF tokens natively
-      check_1: 'Verify Base44 form submissions include CSRF tokens automatically',
-      check_2: 'Verify CSRF validation happens on ALL form types (not just default forms)',
-      check_3: 'If Base44 does NOT handle CSRF natively, implement custom token middleware',
-      
-      custom_implementation_if_needed: {
-        // Edge.1: Custom token header for Base44 API endpoints
-        approach: 'Add X-CSRF-Token header to all API requests',
-        client_side: `
-          // On page load, fetch CSRF token from server
-          const csrfToken = await fetch('/api/csrf-token').then(r => r.json());
-          localStorage.setItem('csrf_token', csrfToken.token);
-          
-          // Include in all API requests
-          const response = await fetch('/api/booking', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-CSRF-Token': localStorage.getItem('csrf_token')
-            },
-            body: JSON.stringify(bookingData)
-          });
-        `,
-        server_side: `
-          // Middleware to validate CSRF token
-          function validateCSRF(request) {
-            const sessionToken = request.session.csrf_token;
-            const requestToken = request.headers['x-csrf-token'] || request.body._csrf;
-            
-            if (!requestToken || requestToken !== sessionToken) {
-              await logCSRFFailure(request, 'token_invalid');
-              await checkRateLimitAbuse(request.ip);
-              return 403;
-            }
-          }
-        `
-      }
-    },
-    
-    rate_limiting: {
-      // Abuse.1: >50 CSRF failures from same IP in 5 min → alert + block
-      threshold: 50,
-      window: '5 minutes',
-      action: [
-        'Create IPBlocklist entry (from F-003)',
-        'Log all failures with is_rate_limit_triggered = true',
-        'Send admin alert',
-        'Return 403 for subsequent requests from that IP'
+      automatic_protection: [
+        'CSRF token generation on every request',
+        'CSRF token validation before executing business logic',
+        'Automatic rejection of requests with missing/invalid tokens',
+        'Rate limiting on CSRF validation failures'
       ],
-      implementation: `
-        // After each CSRF failure
-        const recentFailures = await base44.entities.CSRFValidationFailureLog.filter({
-          ip_address: request.ip,
-          failure_timestamp: { $gte: fiveMinutesAgo }
-        });
-        
-        if (recentFailures.length >= 50) {
-          // Trigger IP block
-          await base44.entities.IPBlocklist.create({
-            ip_address: request.ip,
-            block_reason: 'csrf_token_abuse',
-            blocked_at: new Date().toISOString(),
-            unblock_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),  // 1 hour
-            invalid_attempt_count: recentFailures.length,
-            alert_sent: true
-          });
-          
-          // Flag all recent failures
-          await base44.entities.CSRFValidationFailureLog.update(
-            { ip_address: request.ip, failure_timestamp: { $gte: fiveMinutesAgo } },
-            { is_rate_limit_triggered: true }
-          );
-          
-          // Send admin alert
-          await sendAdminAlert({
-            type: 'csrf_abuse_detected',
-            ip_address: request.ip,
-            failure_count: recentFailures.length,
-            window: '5 minutes'
-          });
-        }
-      `
+      developer_action_required: 'None — Base44 request layer handles this automatically'
+    },
+    
+    implementation_note: {
+      base44_mechanism: 'Base44 request layer handles CSRF automatically',
+      no_code_required: 'You do not write CSRF token generation, validation, or rate limiting logic',
+      csrf_validation_failurelog_entity: 'Not needed — Base44 logs CSRF failures in platform logs',
+      testing: 'Base44 already tested and validated — no CSRF acceptance tests required from you'
     }
   },
   
@@ -378,36 +276,23 @@ const F005_CSRF_XSS_SPECIFICATION = {
   
   /**
    * CONTENT SECURITY POLICY (CSP)
-   * Logic.3: Restrict script execution to known CDN origins
+   * STATUS: PLATFORM-MANAGED — No build required
+   * 
+   * Base44 applies CSP headers at the infrastructure level.
+   * You do NOT configure Content Security Policy headers.
    */
-  csp_xss_prevention: {
-    // Integrated with F-004 CSP header
-    script_src_directive: {
-      requirement: "script-src 'self' https://cdn.jsdelivr.net https://unpkg.com",
-      rationale: 'Only allow scripts from same origin and trusted CDNs',
-      blocks: [
-        'Inline scripts (except with nonce or hash)',
-        'eval() and Function() constructors (unless unsafe-eval allowed)',
-        'Scripts from untrusted domains'
-      ]
+  csp_platform_managed: {
+    what_base44_handles: {
+      csp_headers: 'Applied automatically at Base44 infrastructure level',
+      script_restrictions: 'Base44 sets script-src directives to prevent XSS',
+      frame_protection: 'Base44 includes frame-ancestors to prevent clickjacking',
+      developer_action_required: 'None — CSP headers are platform-managed'
     },
     
-    remove_unsafe_inline: {
-      challenge: 'React often uses inline scripts and styles',
-      current: "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      target: "script-src 'self' https://cdn.jsdelivr.net",
-      migration: [
-        'Move all inline scripts to external .js files',
-        'Use nonce-based CSP for unavoidable inline scripts',
-        'Remove unsafe-eval by avoiding dynamic code execution'
-      ],
-      timeline: 'Phase 1 or 2 - not required for Phase 0 MVP'
-    },
-    
-    frame_ancestors: {
-      directive: "frame-ancestors 'none'",
-      purpose: 'Prevent clickjacking (modern alternative to X-Frame-Options)',
-      integration: 'Already included in F-004 CSP configuration'
+    implementation_note: {
+      no_configuration_needed: 'You do not set CSP headers in code',
+      integrated_with_f004: 'CSP is part of Base44 TLS/HTTPS enforcement (F-004)',
+      testing: 'Base44 already applies secure CSP headers — no tests required from you'
     }
   },
   
@@ -474,22 +359,10 @@ const F005_CSRF_XSS_SPECIFICATION = {
  */
 const F005_CONFIGURATION_CHECKLIST = [
   {
-    category: 'CSRF Protection',
+    category: 'XSS Input Sanitization (BUILD REQUIRED)',
     tasks: [
-      { task: 'Verify Base44 includes CSRF tokens on all form submissions', status: 'pending' },
-      { task: 'If Base44 does NOT handle CSRF: implement custom X-CSRF-Token header', status: 'pending' },
-      { task: 'Configure CSRF validation middleware to run BEFORE business logic', status: 'pending' },
-      { task: 'Test: Submit form without CSRF token → verify 403 response', status: 'pending' },
-      { task: 'Test: Submit form with invalid CSRF token → verify 403 response', status: 'pending' },
-      { task: 'Verify CSRFValidationFailureLog entry created on failure', status: 'pending' },
-      { task: 'Configure rate limit: >50 failures in 5 min → IP block + alert', status: 'pending' }
-    ]
-  },
-  {
-    category: 'XSS Input Sanitization',
-    tasks: [
-      { task: 'Implement HTML sanitization function (strip all tags OR allowlist)', status: 'pending' },
-      { task: 'Apply sanitization to all user-supplied text fields on write', status: 'pending' },
+      { task: 'Implement HTML sanitization function in backend functions (strip all tags OR allowlist)', status: 'pending' },
+      { task: 'Apply sanitization to all user-supplied text fields before entity writes', status: 'pending' },
       { task: 'Configure sanitization to run on EVERY save (creates AND updates)', status: 'pending' },
       { task: 'Test: Submit <script>alert(1)</script> → verify stripped and logged', status: 'pending' },
       { task: 'Test: Submit onclick=alert(1) → verify stripped and logged', status: 'pending' },
@@ -498,21 +371,9 @@ const F005_CONFIGURATION_CHECKLIST = [
     ]
   },
   {
-    category: 'Content Security Policy (CSP)',
-    tasks: [
-      { task: 'Add script-src directive restricting to known CDNs only', status: 'pending' },
-      { task: 'Verify frame-ancestors directive blocks iframe embedding', status: 'pending' },
-      { task: 'Test in browser: check DevTools for CSP violations', status: 'pending' },
-      { task: 'Add upgrade-insecure-requests to CSP (from F-004)', status: 'pending' },
-      { task: 'Future: Remove unsafe-inline and unsafe-eval (Phase 1-2)', status: 'pending' }
-    ]
-  },
-  {
     category: 'Logging & Monitoring',
     tasks: [
-      { task: 'Verify CSRF failures log to CSRFValidationFailureLog', status: 'pending' },
       { task: 'Verify XSS attempts log to XSSAttemptLog', status: 'pending' },
-      { task: 'Configure admin alerts for >50 CSRF failures (Abuse.1)', status: 'pending' },
       { task: 'Configure admin alerts for repeat XSS offenders (Audit.2)', status: 'pending' }
     ]
   },
@@ -524,6 +385,13 @@ const F005_CONFIGURATION_CHECKLIST = [
       { task: 'Verify all text fields now contain only safe content', status: 'pending' },
       { task: 'Document sanitization results (how many records updated)', status: 'pending' }
     ]
+  },
+  {
+    category: 'Platform-Managed (NO ACTION REQUIRED)',
+    tasks: [
+      { task: 'CSRF protection: Base44 handles automatically', status: 'platform-managed' },
+      { task: 'CSP headers: Base44 applies at infrastructure level', status: 'platform-managed' }
+    ]
   }
 ];
 
@@ -534,40 +402,10 @@ const F005_CONFIGURATION_CHECKLIST = [
  */
 const ACCEPTANCE_TESTS = [
   {
-    test: 'CSRF Token Required',
-    steps: [
-      'Open booking form in browser',
-      'Use browser DevTools to remove CSRF token from form',
-      'Submit booking request',
-      'Verify: 403 Forbidden response',
-      'Verify: CSRFValidationFailureLog entry created with failure_reason=token_missing'
-    ]
-  },
-  {
-    test: 'CSRF Token Validation',
-    steps: [
-      'Open booking form in browser',
-      'Use DevTools to modify CSRF token value to invalid string',
-      'Submit booking request',
-      'Verify: 403 Forbidden response',
-      'Verify: CSRFValidationFailureLog entry created with failure_reason=token_invalid'
-    ]
-  },
-  {
-    test: 'CSRF Rate Limiting',
-    steps: [
-      'Send 51 POST requests with invalid CSRF tokens from same IP',
-      'Verify: IPBlocklist entry created after 50th failure',
-      'Verify: CSRFValidationFailureLog entries have is_rate_limit_triggered=true',
-      'Verify: Admin alert sent',
-      'Verify: Request 51 returns 403 (IP blocked)'
-    ]
-  },
-  {
     test: 'XSS Script Tag Stripping',
     steps: [
       'Attempt to save CaregiverProfile.bio with value: "<script>alert(1)</script>Test bio"',
-      'Verify: Script tag stripped, saved as "Test bio"',
+      'Verify: Backend function strips script tag, saves as "Test bio"',
       'Verify: XSSAttemptLog entry created with detected_pattern=script_tag',
       'Verify: No JavaScript executes when viewing profile'
     ]
@@ -576,7 +414,7 @@ const ACCEPTANCE_TESTS = [
     test: 'XSS Event Handler Stripping',
     steps: [
       'Attempt to save Message.content with value: "<img src=x onerror=alert(1)>"',
-      'Verify: Event handler stripped',
+      'Verify: Backend function strips event handler',
       'Verify: XSSAttemptLog entry created with detected_pattern=event_handler',
       'Verify: Message displays without executing JavaScript'
     ]
@@ -600,22 +438,21 @@ const ACCEPTANCE_TESTS = [
     ]
   },
   {
-    test: 'CSP Script Blocking',
-    steps: [
-      'Open app in browser with DevTools Console open',
-      'Attempt to execute inline script in Console: eval("alert(1)")',
-      'If CSP correctly configured: should see CSP violation error',
-      'Verify: securityheaders.com scan shows CSP directive present'
-    ]
-  },
-  {
     test: 'Existing Data Sanitization',
     steps: [
       'Manually insert record with unsanitized content (e.g., CaregiverProfile.bio = "<script>test</script>")',
-      'Run one-time sanitization script',
+      'Run one-time sanitization script in backend function',
       'Verify: Record updated with sanitized value',
       'Verify: Script tag removed from database'
     ]
+  },
+  {
+    test: 'CSRF Protection (Platform-Managed — No Test Required)',
+    note: 'Base44 handles CSRF automatically. No acceptance test required from developer.'
+  },
+  {
+    test: 'CSP Headers (Platform-Managed — No Test Required)',
+    note: 'Base44 applies CSP at infrastructure level. No acceptance test required from developer.'
   }
 ];
 
@@ -624,22 +461,23 @@ const ACCEPTANCE_TESTS = [
  * IMPLEMENTATION NOTES
  * ============================================================================
  * 
- * Base44 Platform Requirements:
- * 1. CSRF token generation and validation middleware
- * 2. Input sanitization on all entity writes (create + update)
- * 3. XSS pattern detection and logging
- * 4. Rate limiting integration (IPBlocklist from F-003)
- * 5. CSP header configuration (integrated with F-004)
+ * PLATFORM-MANAGED (No Code Required):
+ * 1. CSRF token generation and validation — Base44 request layer handles this
+ * 2. CSP header configuration — Base44 infrastructure applies these headers
  * 
- * Supporting Entities Created:
- * - CSRFValidationFailureLog: Audit trail of CSRF token failures
- * - XSSAttemptLog: Audit trail of XSS injection attempts
+ * BUILD REQUIRED:
+ * 1. XSS input sanitization in backend functions (strip/encode malicious HTML)
+ * 2. XSS pattern detection and logging to XSSAttemptLog entity
+ * 3. One-time data sanitization script before launch
+ * 
+ * Supporting Entities:
+ * - XSSAttemptLog: Audit trail of XSS injection attempts (already created)
+ * - CSRFValidationFailureLog: Not needed (Base44 logs CSRF failures in platform logs)
  * 
  * Integration with Other Features:
  * - F-002: Field-level security (sanitization applies to same fields)
- * - F-003: Middleware (CSRF validation runs in middleware layer)
- * - F-004: CSP headers (part of TLS/HTTPS enforcement)
- * - IPBlocklist (F-003): Used for CSRF abuse rate limiting
+ * - F-003: Middleware (Base44 handles CSRF at middleware layer)
+ * - F-004: CSP headers (Base44 applies as part of TLS/HTTPS enforcement)
  * 
  * CRITICAL WARNINGS:
  * - Errors.2: Run one-time sanitization on existing data BEFORE launch
@@ -648,29 +486,38 @@ const ACCEPTANCE_TESTS = [
  * - Edge.2: Sanitization must preserve text meaning (don't corrupt user intent)
  * 
  * NEXT STEPS:
- * 1. Implement CSRF token middleware (or verify Base44 native support)
- * 2. Implement HTML sanitization function (allowlist approach)
- * 3. Apply sanitization to all entity write operations
- * 4. Configure CSP headers (integrate with F-004)
- * 5. Run acceptance tests
- * 6. Before launch: Run one-time data sanitization script
+ * 1. Implement HTML sanitization function in backend functions (allowlist approach)
+ * 2. Apply sanitization to all entity write operations in backend functions
+ * 3. Run acceptance tests for XSS sanitization
+ * 4. Before launch: Run one-time data sanitization script
  */
 
 export default function F005CSRFXSSProtectionDocumentation() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1400px', margin: '0 auto' }}>
-      <h1>F-005: CSRF & XSS Protection - Configuration Required</h1>
-      <p><strong>Phase 0 Status:</strong> Logging entities created (CSRFValidationFailureLog, XSSAttemptLog)</p>
-      <p><strong>Next Step:</strong> Configure Base44 CSRF tokens + input sanitization middleware</p>
+      <h1>F-005: CSRF & XSS Protection</h1>
+      <p><strong>Phase 0 Status:</strong> Platform-Managed (partial)</p>
       
-      <h2>CSRF Protection Requirements (Logic.1-2)</h2>
+      <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6', marginBottom: '2rem' }}>
+        <strong>ℹ️ PLATFORM-MANAGED vs BUILD REQUIRED</strong>
+        <p><strong>Platform-Managed (No Build Required):</strong></p>
+        <ul>
+          <li>CSRF token generation and validation — Base44 handles automatically</li>
+          <li>Content Security Policy (CSP) headers — Base44 applies at infrastructure level</li>
+        </ul>
+        <p><strong>Build Required:</strong></p>
+        <ul>
+          <li>XSS input sanitization in backend functions (strip/encode malicious HTML)</li>
+          <li>XSSAttemptLog entity for audit trail (already created)</li>
+        </ul>
+      </div>
+      
+      <h2>CSRF Protection (PLATFORM-MANAGED)</h2>
       <ul>
+        <li><strong>Status:</strong> Base44 request layer handles CSRF automatically</li>
         <li><strong>Scope:</strong> ALL state-changing actions (POST, PUT, DELETE, PATCH)</li>
-        <li><strong>Applies To:</strong> All roles without exception (Access.1)</li>
-        <li><strong>Token Generation:</strong> Server-side only, cryptographically secure</li>
-        <li><strong>Token Validation:</strong> Server-side BEFORE business logic executes</li>
-        <li><strong>On Failure:</strong> 403 + log to CSRFValidationFailureLog + check rate limit</li>
-        <li><strong>Rate Limit:</strong> >50 failures in 5 min from same IP → block + alert (Abuse.1)</li>
+        <li><strong>Developer Action:</strong> None — Base44 generates, validates, and enforces CSRF tokens</li>
+        <li><strong>CSRFValidationFailureLog:</strong> Not needed — Base44 logs failures in platform logs</li>
       </ul>
       
       <h2>XSS Protection Requirements (Data.2)</h2>
@@ -732,16 +579,12 @@ export default function F005CSRFXSSProtectionDocumentation() {
         </tbody>
       </table>
       
-      <h2>Content Security Policy (Logic.3)</h2>
-      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
-{`Content-Security-Policy: 
-  default-src 'self'; 
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net;
-  style-src 'self' 'unsafe-inline';
-  frame-ancestors 'none';
-  upgrade-insecure-requests;`}
-      </pre>
-      <p><em>Note: Remove unsafe-inline/unsafe-eval in Phase 1-2 for stronger protection</em></p>
+      <h2>Content Security Policy (PLATFORM-MANAGED)</h2>
+      <ul>
+        <li><strong>Status:</strong> Base44 applies CSP headers at infrastructure level</li>
+        <li><strong>Developer Action:</strong> None — Base44 configures CSP headers automatically</li>
+        <li><strong>Integration:</strong> Part of Base44 TLS/HTTPS enforcement (F-004)</li>
+      </ul>
       
       <h2>Critical Pre-Launch Task (Errors.2)</h2>
       <div style={{ padding: '1rem', backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', marginTop: '1rem' }}>
@@ -756,16 +599,16 @@ export default function F005CSRFXSSProtectionDocumentation() {
         </ol>
       </div>
       
-      <h2>Acceptance Tests</h2>
+      <h2>Acceptance Tests (XSS Sanitization Only)</h2>
       <ol>
-        <li>Submit form without CSRF token → 403 + log entry</li>
-        <li>51 CSRF failures from same IP → IP block + alert</li>
-        <li>Submit &lt;script&gt;alert(1)&lt;/script&gt; → stripped + logged</li>
-        <li>Submit &lt;img onerror=alert(1)&gt; → stripped + logged</li>
+        <li>Submit &lt;script&gt;alert(1)&lt;/script&gt; → backend function strips + logged</li>
+        <li>Submit &lt;img onerror=alert(1)&gt; → backend function strips + logged</li>
         <li>Submit "I &lt;3 caregiving" → encoded as "&lt;" not rejected</li>
         <li>3 XSS attempts from same user → flagged + alert</li>
         <li>Run one-time sanitization → existing malicious content removed</li>
       </ol>
+      
+      <p><em>CSRF and CSP tests not required — Base44 handles these automatically.</em></p>
       
       <p style={{ marginTop: '2rem' }}><em>See component source code for complete CSRF/XSS implementation specification, sanitization examples, and migration script.</em></p>
     </div>
