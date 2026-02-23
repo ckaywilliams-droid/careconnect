@@ -49,11 +49,15 @@
  */
 import RoleSelection from './pages/RoleSelection';
 import Register from './pages/Register';
+import VerifyEmail from './pages/VerifyEmail';
+import EmailVerified from './pages/EmailVerified';
 
 
 export const PAGES = {
     "RoleSelection": RoleSelection,
     "Register": Register,
+    "VerifyEmail": VerifyEmail,
+    "EmailVerified": EmailVerified,
 }
 
 export const pagesConfig = {
