@@ -364,9 +364,42 @@ export default function Register() {
               )}
             </div>
 
-            {/* F-021 UI.2: CAPTCHA placeholder (F-023) */}
-            <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center text-sm text-gray-600">
-              [CAPTCHA Component - F-023]
+            {/* F-023 UI.1: CAPTCHA Widget - Below all fields, above submit button */}
+            <div className="captcha-container space-y-2">
+              {/* 
+                F-023: reCAPTCHA v2 or v3 integration
+                
+                For v2 (checkbox):
+                  import ReCAPTCHA from 'react-google-recaptcha';
+                  <ReCAPTCHA
+                    sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
+                    onChange={(token) => setCaptchaToken(token)}
+                  />
+                
+                For v3 (invisible):
+                  Load script: https://www.google.com/recaptcha/api.js?render={SITE_KEY}
+                  On submit: token = await grecaptcha.execute(SITE_KEY, {action: 'register'})
+                
+                Server validates token before User creation (Logic.2)
+              */}
+              <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
+                <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <span>reCAPTCHA Widget (F-023)</span>
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  Protected by reCAPTCHA • Privacy • Terms
+                </p>
+              </div>
+              
+              {/* F-023 UI.2: CAPTCHA error display - inline below widget */}
+              {errors.captcha && (
+                <p className="text-sm text-red-500">
+                  Please complete the security check to continue.
+                </p>
+              )}
             </div>
 
             {/* F-021 Logic.2: ToS Acceptance */}
