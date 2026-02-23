@@ -263,117 +263,48 @@ const F026_PASSWORD_POLICY_SPECIFICATION = {
   },
   
   /**
-   * ABUSE PREVENTION & RATE LIMITS (Abuse.1-2)
-   * Reset request limiting and breached password checking
+   * FUTURE ENHANCEMENTS (Post-MVP)
+   * Additional security features
    */
-  abuse_prevention: {
+  future_enhancements: {
     
-    reset_rate_limit: {
-      // Abuse.1: Max 3 reset requests per email per hour
-      limit: '3 requests per email per hour',
-      message: 'Please wait before requesting another password reset.',
-      no_email_disclosure: 'Do NOT reveal whether email exists',
+    password_history: {
+      status: 'Post-MVP enhancement',
+      feature: 'Prevent reuse of last N passwords (e.g., N=5)',
       
-      implementation: `
-        // Abuse.1: Password reset rate limiting
-        const resetAttempts = new Map(); // email → { count, resetTime }
-        
-        async function checkResetRateLimit(email) {
-          const now = Date.now();
-          const emailAttempts = resetAttempts.get(email);
-          
-          // Reset if hour has passed
-          if (!emailAttempts || now > emailAttempts.resetTime) {
-            resetAttempts.set(email, {
-              count: 0,
-              resetTime: now + 60 * 60 * 1000  // 1 hour
-            });
-            return true;
-          }
-          
-          // Check limit
-          if (emailAttempts.count >= 3) {
-            // Errors.1: Do NOT reveal if email exists
-            throw new Error(
-              'Please wait before requesting another password reset.'
-            );
-          }
-          
-          // Increment count
-          emailAttempts.count++;
-          return true;
-        }
-        
-        async function requestPasswordReset(email) {
-          // Check rate limit
-          await checkResetRateLimit(email);
-          
-          // Find user (or not - same response either way)
-          const users = await base44.asServiceRole.entities.User.filter({
-            email: email.toLowerCase()
-          });
-          
-          if (users.length > 0) {
-            // User exists - send reset email
-            const token = await createPasswordResetToken(users[0].id);
-            await sendPasswordResetEmail(users[0], token);
-          }
-          
-          // Errors.1: Same response regardless
-          return {
-            message: 'If an account exists with this email, you will receive a reset link.'
-          };
-        }
-      `
+      implementation_approach: [
+        'Store bcrypt hashes of last 5 passwords',
+        'Check new password against historical hashes on change/reset',
+        'Reject if match found',
+        'Rotate history (remove oldest when adding 6th)'
+      ],
+      
+      note: 'Not required for MVP - add if compliance demands it'
     },
     
     breached_password_check: {
-      // Abuse.2: Have I Been Pwned integration (post-MVP)
-      status: 'Flag for post-MVP if not implemented at launch',
+      status: 'Post-MVP enhancement',
       service: 'Have I Been Pwned Passwords API',
       method: 'k-anonymity model (privacy-preserving)',
       
       how_it_works: [
-        '1. Hash password with SHA-1',
-        '2. Take first 5 chars of hash (prefix)',
-        '3. Send prefix to HIBP API',
-        '4. API returns all hash suffixes matching prefix',
-        '5. Check if full hash exists in returned list',
-        '6. If found: reject password as breached'
+        'Hash password with SHA-1',
+        'Send first 5 chars of hash to HIBP API',
+        'API returns matching hash suffixes',
+        'Check if full hash in results',
+        'Reject if password found in breach database'
       ],
       
-      implementation: `
-        // Abuse.2: Check if password is breached (post-MVP)
-        import crypto from 'crypto';
-        
-        async function isPasswordBreached(password) {
-          // Hash with SHA-1
-          const hash = crypto.createHash('sha1').update(password).digest('hex').toUpperCase();
-          
-          // k-anonymity: send only first 5 chars
-          const prefix = hash.substring(0, 5);
-          const suffix = hash.substring(5);
-          
-          // Query HIBP API
-          const response = await fetch(\`https://api.pwnedpasswords.com/range/\${prefix}\`);
-          const text = await response.text();
-          
-          // Check if full hash in results
-          const breached = text.split('\\n').some(line => {
-            const [hashSuffix] = line.split(':');
-            return hashSuffix === suffix;
-          });
-          
-          if (breached) {
-            throw new Error(
-              'This password has been found in a data breach. ' +
-              'Please choose a different password.'
-            );
-          }
-          
-          return false;
-        }
-      `
+      security: 'Privacy-preserving - only hash prefix sent to API',
+      note: 'Consider for Phase 2 if additional password security needed'
+    },
+    
+    multi_factor_authentication: {
+      status: 'Post-MVP enhancement',
+      options: ['TOTP (authenticator apps)', 'SMS codes', 'Email codes'],
+      
+      implementation: 'Requires MFA entity and backend function integration',
+      note: 'Not in scope for Phase 1 - add if required for compliance'
     }
   },
   
