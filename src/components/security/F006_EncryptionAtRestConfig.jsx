@@ -372,69 +372,38 @@ const F006_ENCRYPTION_AT_REST_SPECIFICATION = {
  */
 const F006_CONFIGURATION_CHECKLIST = [
   {
-    category: 'Encryption Key Setup',
+    category: 'Field-Level Security Configuration (BUILD REQUIRED)',
     tasks: [
-      { task: 'Generate 256-bit encryption key: crypto.randomBytes(32).toString("hex")', status: 'pending' },
-      { task: 'Store key in secure password manager (backup)', status: 'pending' },
-      { task: 'Add ENCRYPTION_KEY environment variable in Base44', status: 'pending' },
-      { task: 'Verify environment variable is accessible in code', status: 'pending' },
-      { task: 'Test: Encryption fails if ENCRYPTION_KEY not set (fail-closed)', status: 'pending' }
+      { task: 'Identify fields requiring access restriction (body_original, resolution_note, future OAuth tokens)', status: 'pending' },
+      { task: 'Add rls block to Message.body_original: admin-only read/write', status: 'pending' },
+      { task: 'Add rls block to FlaggedContent.resolution_note: admin-only read/write', status: 'pending' },
+      { task: 'Test: Non-admin users cannot read restricted fields', status: 'pending' },
+      { task: 'Test: Backend functions can access restricted fields via asServiceRole', status: 'pending' }
     ]
   },
   {
-    category: 'Encryption Implementation',
+    category: 'Future OAuth Fields (Phase 1-2)',
     tasks: [
-      { task: 'Implement encryptField() function (AES-256-GCM)', status: 'pending' },
-      { task: 'Implement decryptField() function', status: 'pending' },
-      { task: 'Add key version prefix to encrypted values', status: 'pending' },
-      { task: 'Test: Encrypt a value and verify it decrypts correctly', status: 'pending' },
-      { task: 'Test: Encrypted value stored as base64 string in database', status: 'pending' }
+      { task: 'When OAuth entity created: Add rls rules to access_token and refresh_token', status: 'pending' },
+      { task: 'Set rls read/write to false for OAuth tokens (backend functions only)', status: 'pending' },
+      { task: 'Implement backend function using asServiceRole to access OAuth tokens', status: 'pending' },
+      { task: 'Test: Client-side code cannot access OAuth tokens', status: 'pending' }
     ]
   },
   {
-    category: 'Field-Level Encryption',
+    category: 'Logging Best Practices',
     tasks: [
-      { task: 'Identify all fields requiring encryption (currently: none in Phase 0)', status: 'pending' },
-      { task: 'When OAuth added: Encrypt access_token before storage', status: 'pending' },
-      { task: 'When OAuth added: Encrypt refresh_token before storage', status: 'pending' },
-      { task: 'Apply encrypt-before-write rule to all sensitive fields', status: 'pending' }
+      { task: 'Verify no sensitive field values written to logs', status: 'pending' },
+      { task: 'Log field access operations without logging actual values', status: 'pending' },
+      { task: 'Sanitize error messages to prevent sensitive data leakage', status: 'pending' }
     ]
   },
   {
-    category: 'Access Control',
+    category: 'Platform-Managed (NO ACTION REQUIRED)',
     tasks: [
-      { task: 'Verify decryption only happens server-side (never client-side)', status: 'pending' },
-      { task: 'Implement in-memory-only rule for decrypted values', status: 'pending' },
-      { task: 'Verify encrypted values never returned in API responses to client', status: 'pending' },
-      { task: 'Test: Client cannot decrypt encrypted values', status: 'pending' }
-    ]
-  },
-  {
-    category: 'Logging & Error Handling',
-    tasks: [
-      { task: 'Verify no decrypted values written to logs (Triggers.1)', status: 'pending' },
-      { task: 'Implement fail-closed behavior if key unavailable', status: 'pending' },
-      { task: 'Configure critical alerts for encryption failures (Audit.1)', status: 'pending' },
-      { task: 'Test: Encryption failure blocks write + sends alert', status: 'pending' }
-    ]
-  },
-  {
-    category: 'Key Rotation Preparation',
-    tasks: [
-      { task: 'Document key rotation runbook (see above)', status: 'pending' },
-      { task: 'Implement getKeyForVersion() for multi-key support', status: 'pending' },
-      { task: 'Create background job for gradual re-encryption', status: 'pending' },
-      { task: 'Schedule first key rotation (12 months from launch)', status: 'pending' }
-    ]
-  },
-  {
-    category: 'Pre-Launch Verification (Phase 8)',
-    tasks: [
-      { task: 'Inspect raw database record to verify encryption active (UI.2)', status: 'pending' },
-      { task: 'Verify sensitive field value is base64, not plaintext', status: 'pending' },
-      { task: 'Test encrypt/decrypt round-trip', status: 'pending' },
-      { task: 'Verify key stored in environment variables only (not code/DB)', status: 'pending' },
-      { task: 'Document encryption key backup location', status: 'pending' }
+      { task: 'Encryption at rest: Base44 handles automatically', status: 'platform-managed' },
+      { task: 'Encryption key management: Base44 manages keys', status: 'platform-managed' },
+      { task: 'Key rotation: Base44 handles automatically', status: 'platform-managed' }
     ]
   }
 ];
@@ -446,84 +415,44 @@ const F006_CONFIGURATION_CHECKLIST = [
  */
 const ACCEPTANCE_TESTS = [
   {
-    test: 'Encryption Round-Trip',
+    test: 'FLS Rules Block Unauthorized Read',
     steps: [
-      'Encrypt a plaintext value: "test_token_12345"',
-      'Verify encrypted value is base64 string (not plaintext)',
-      'Decrypt the encrypted value',
-      'Verify decrypted value equals original: "test_token_12345"'
+      'Log in as non-admin user (caregiver or parent)',
+      'Query Message entity',
+      'Verify: body_original field NOT included in query results',
+      'Verify: User receives sanitized content field only'
     ]
   },
   {
-    test: 'Key Version Tracking',
+    test: 'FLS Rules Allow Admin Read',
     steps: [
-      'Encrypt a value with key version 1',
-      'Verify first byte of encrypted data is 0x01',
-      'Decrypt using getKeyForVersion(1)',
-      'Verify correct decryption'
+      'Log in as admin user',
+      'Query Message entity',
+      'Verify: body_original field IS included in query results',
+      'Verify: Admin can view both content and body_original'
     ]
   },
   {
-    test: 'Fail Closed - Missing Key',
+    test: 'Backend Function Bypasses FLS',
     steps: [
-      'Temporarily remove ENCRYPTION_KEY environment variable',
-      'Attempt to encrypt a value',
-      'Verify: Operation throws error and blocks',
-      'Verify: Critical error logged (Audit.1)',
-      'Verify: Operator alert sent',
-      'Verify: No data written to database'
+      'Create backend function using base44.asServiceRole',
+      'Query restricted field (e.g., OAuth access_token)',
+      'Verify: Backend function can read restricted field',
+      'Verify: Backend function applies own role check before returning data'
     ]
   },
   {
-    test: 'Server-Side Only Decryption',
+    test: 'No Sensitive Values in Logs',
     steps: [
-      'Encrypt a value server-side',
-      'Store encrypted value in database',
-      'Query database from client',
-      'Verify: Client receives encrypted base64 string (cannot decrypt)',
-      'Verify: Client cannot access ENCRYPTION_KEY environment variable'
-    ]
-  },
-  {
-    test: 'No Logging of Decrypted Values',
-    steps: [
-      'Decrypt a value in a function',
+      'Backend function accesses sensitive field',
       'Check application logs',
-      'Verify: Decrypted plaintext value NOT in logs',
-      'Verify: Only operation metadata logged (field name, timestamp)'
+      'Verify: Field name and operation logged',
+      'Verify: Actual field value NOT in logs'
     ]
   },
   {
-    test: 'Database Inspection (UI.2)',
-    steps: [
-      'Create a record with encrypted field (e.g., OAuth token)',
-      'Open Base44 database dashboard',
-      'View raw database record',
-      'Verify: Field value is base64 string starting with key version prefix',
-      'Verify: Field value is NOT plaintext'
-    ]
-  },
-  {
-    test: 'Encryption Failure Blocks Write',
-    steps: [
-      'Simulate encryption failure (e.g., invalid key format)',
-      'Attempt to write sensitive field',
-      'Verify: Write operation blocked',
-      'Verify: Error logged as CRITICAL',
-      'Verify: Operator alert sent',
-      'Verify: No partial/unencrypted data in database'
-    ]
-  },
-  {
-    test: 'Key Rotation Simulation',
-    steps: [
-      'Encrypt value with key version 1',
-      'Add ENCRYPTION_KEY_V2 environment variable',
-      'Update encryptField() to use version 2 for new writes',
-      'Encrypt new value (should use version 2)',
-      'Decrypt old value (should still work with version 1)',
-      'Verify: Both old and new values decrypt correctly'
-    ]
+    test: 'Platform Encryption Active (No Test Required)',
+    note: 'Base44 encrypts all data at rest automatically. No acceptance test required from developer.'
   }
 ];
 
@@ -532,173 +461,174 @@ const ACCEPTANCE_TESTS = [
  * IMPLEMENTATION NOTES
  * ============================================================================
  * 
- * Base44 Platform Requirements:
- * - Environment variable support (secure storage)
- * - Server-side encryption/decryption functions
- * - No client-side access to encrypted values
- * - Critical error alerting system
+ * PLATFORM-MANAGED (No Code Required):
+ * 1. Encryption at rest — Base44 encrypts all entity data automatically
+ * 2. Encryption key management — Base44 manages keys, versioning, rotation
+ * 3. No AES-256 encryption automation to build
+ * 
+ * BUILD REQUIRED:
+ * 1. Configure FLS rls rules on sensitive fields in entity schema JSON
+ * 2. Use rls block to restrict read/write access by role
+ * 3. Backend functions use base44.asServiceRole to bypass FLS when needed
+ * 4. Never log sensitive field values in backend functions or error handlers
  * 
  * Supporting Entities:
- * - NO new entities - encryption applies to existing fields
- * - Future: OAuth integration entity will have encrypted access_token/refresh_token
+ * - Message (body_original field): admin-only via FLS
+ * - FlaggedContent (resolution_note field): admin-only via FLS
+ * - Future OAuth entity: access_token/refresh_token with read=false, write=false
  * 
  * Integration with Other Features:
- * - F-007: Data Masking & Redaction (displays masked versions of encrypted fields)
- * - F-002: Field-level security (some fields are both access-restricted AND encrypted)
- * - Future OAuth integrations (primary use case for encryption)
+ * - F-002: Field-level security (this is F-006's primary mechanism)
+ * - F-007: Data Masking & Redaction (UI-level display of sensitive fields)
+ * - Future OAuth integrations (primary use case for read=false fields)
  * 
  * CRITICAL WARNINGS:
- * - Data.4: NEVER store encryption key in code, DB, or logs
- * - Triggers.1: NEVER log decrypted values
- * - Errors.1: ALWAYS fail closed if key unavailable
- * - Edge.2: NEVER fall back to hardcoded key
+ * - NEVER log sensitive field values in application logs
+ * - Use rls block directly on field in entity schema JSON (not a separate config panel)
+ * - Backend functions should apply own role checks when using asServiceRole
  * 
  * CURRENT STATUS (Phase 0):
- * - No encrypted fields yet (OAuth not implemented)
- * - Encryption infrastructure must be ready BEFORE OAuth integration
- * - Document runbooks and procedures now, implement when needed
+ * - Configure FLS rls rules on Message.body_original and FlaggedContent.resolution_note
+ * - Platform encryption already active (no action needed)
+ * - Future OAuth fields will use read=false, write=false FLS rules
  * 
  * NEXT STEPS:
- * 1. Generate encryption key and store in environment variables
- * 2. Implement encryptField() and decryptField() functions
- * 3. Document key rotation runbook
- * 4. When OAuth is added: Apply encryption to access_token/refresh_token
- * 5. Test all acceptance criteria
- * 6. Schedule annual key rotation
+ * 1. Add rls blocks to existing sensitive fields (body_original, resolution_note)
+ * 2. Test FLS access restrictions for admin vs non-admin users
+ * 3. When OAuth is added: Configure read=false, write=false on token fields
+ * 4. Implement backend functions using asServiceRole for token access
+ * 5. Test all FLS acceptance criteria
  */
 
 export default function F006EncryptionAtRestDocumentation() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1400px', margin: '0 auto' }}>
-      <h1>F-006: Encryption at Rest - Configuration Required</h1>
-      <p><strong>Phase 0 Status:</strong> Documentation complete - no encrypted fields yet</p>
-      <p><strong>Next Step:</strong> Implement encryption infrastructure before OAuth integration</p>
+      <h1>F-006: Encryption at Rest</h1>
+      <p><strong>Phase 0 Status:</strong> Platform-Managed</p>
       
-      <h2>Algorithm: AES-256-GCM (Data.3)</h2>
+      <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6', marginBottom: '2rem' }}>
+        <strong>ℹ️ PLATFORM-MANAGED vs BUILD REQUIRED</strong>
+        <p><strong>Platform-Managed (No Build Required):</strong></p>
+        <ul>
+          <li>Encryption at rest — Base44 encrypts ALL entity data automatically at infrastructure level</li>
+          <li>Encryption key management — Base44 manages keys, versioning, and rotation</li>
+        </ul>
+        <p><strong>Build Required:</strong></p>
+        <ul>
+          <li>Field-Level Security (FLS) rls rules on sensitive fields in entity schema JSON</li>
+          <li>Configure read/write access restrictions using the rls block</li>
+        </ul>
+      </div>
+      
+      <h2>Platform Encryption (Automatic)</h2>
       <ul>
-        <li><strong>Key Size:</strong> 256 bits (32 bytes, 64-character hex string)</li>
-        <li><strong>Mode:</strong> GCM (Galois/Counter Mode) - provides authentication</li>
-        <li><strong>Storage Format:</strong> [key_version:1B][IV:12B][encrypted_data][auth_tag:16B] (base64 encoded)</li>
-        <li><strong>IV:</strong> Random 12-byte Initialization Vector (unique per encryption)</li>
+        <li><strong>Status:</strong> Base44 encrypts all entity data at rest automatically</li>
+        <li><strong>Scope:</strong> ALL entity data stored in the database</li>
+        <li><strong>Developer Action:</strong> None — Base44 handles storage encryption</li>
+        <li><strong>Key Management:</strong> Base44 manages encryption keys, versioning, and rotation</li>
       </ul>
       
-      <h2>Fields Requiring Encryption (Data.2)</h2>
+      <h2>Field-Level Security (FLS) Implementation</h2>
+      <p><strong>How to restrict access to sensitive fields:</strong></p>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
+{`// Entity schema JSON (entities/Message.json)
+"body_original": {
+  "type": "string",
+  "rls": {
+    "read": {"user_condition": {"role": "admin"}},
+    "write": {"user_condition": {"role": "admin"}}
+  }
+}
+
+// Backend functions only (no client-side access)
+"access_token": {
+  "type": "string",
+  "rls": {
+    "read": false,
+    "write": false
+  }
+}
+
+// Access in backend function using asServiceRole
+export default async function handler(req, context) {
+  const { base44 } = context;
+  
+  // Bypass FLS to read restricted field
+  const record = await base44.asServiceRole.entities.OAuthIntegration.get(id);
+  const token = record.access_token;
+  
+  // Apply own role check
+  if (req.user.role !== 'admin') {
+    return { error: 'Unauthorized' };
+  }
+  
+  // Use token for operation
+  return { success: true };
+}`}
+      </pre>
+      
+      <h2>Fields Requiring FLS Rules</h2>
       <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%', marginTop: '1rem' }}>
         <thead>
           <tr style={{ backgroundColor: '#f3f4f6' }}>
             <th>Field</th>
             <th>Entity</th>
+            <th>FLS Rule</th>
             <th>Phase</th>
           </tr>
         </thead>
         <tbody>
           <tr>
+            <td>body_original</td>
+            <td>Message</td>
+            <td>admin-only read/write</td>
+            <td>Phase 0</td>
+          </tr>
+          <tr>
+            <td>resolution_note</td>
+            <td>FlaggedContent</td>
+            <td>admin-only read/write</td>
+            <td>Phase 0</td>
+          </tr>
+          <tr>
             <td>access_token</td>
             <td>OAuthIntegration (future)</td>
+            <td>read=false, write=false</td>
             <td>Phase 1-2</td>
           </tr>
           <tr>
             <td>refresh_token</td>
             <td>OAuthIntegration (future)</td>
+            <td>read=false, write=false</td>
             <td>Phase 1-2</td>
           </tr>
           <tr>
-            <td>ssn, government_id</td>
-            <td>User/CaregiverProfile (future)</td>
-            <td>Post-MVP (if needed)</td>
-          </tr>
-          <tr>
-            <td>bank_account_number</td>
-            <td>StripeConnect (future)</td>
+            <td>stripe_account_id</td>
+            <td>Future Stripe entity</td>
+            <td>admin-only read/write</td>
             <td>Post-MVP</td>
           </tr>
         </tbody>
       </table>
-      <p><em>Note: No encrypted fields exist in Phase 0. Encryption infrastructure must be ready for future OAuth integration.</em></p>
       
-      <h2>Encryption Key Management (Data.4)</h2>
-      <div style={{ padding: '1rem', backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', marginTop: '1rem' }}>
-        <strong>⚠️ CRITICAL: Key Storage Rules</strong>
-        <ul>
-          <li><strong>✓ CORRECT:</strong> Base44 environment variables only</li>
-          <li><strong>✗ FORBIDDEN:</strong> Source code, database, logs, config files, client-side</li>
-        </ul>
-      </div>
-      
-      <h3>Generate Key</h3>
-      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
-{`const crypto = require('crypto');
-const key = crypto.randomBytes(32).toString('hex');
-console.log(key);  // 64-character hex string
-
-Example: a1b2c3d4e5f6...64 characters total`}
-      </pre>
-      
-      <h3>Store in Base44</h3>
-      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
-{`Base44 Dashboard → Settings → Environment Variables:
-
-Variable Name: ENCRYPTION_KEY
-Variable Value: [64-character hex from above]
-Environment: Production
-
-BACKUP: Store in secure password manager`}
-      </pre>
-      
-      <h2>Access Control (Access.1-2, Logic.2)</h2>
+      <h2>Logging Best Practices</h2>
       <ul>
-        <li><strong>Decryption:</strong> Server-side only - never client-side</li>
-        <li><strong>Usage:</strong> In-memory only for duration of operation</li>
-        <li><strong>Display:</strong> Masked/redacted (F-007), never plaintext or encrypted bytes</li>
-        <li><strong>Logging:</strong> NEVER log decrypted values (Triggers.1)</li>
+        <li><strong>Do NOT log:</strong> Sensitive field values (OAuth tokens, admin notes, etc.)</li>
+        <li><strong>DO log:</strong> Field access operations (field name, user ID, timestamp)</li>
+        <li><strong>DO log:</strong> Masked/redacted versions if needed for debugging</li>
       </ul>
       
-      <h2>Fail-Closed Behavior (Errors.1, Edge.1-2)</h2>
-      <div style={{ padding: '1rem', backgroundColor: '#fef3c7', borderLeft: '4px solid #f59e0b', marginTop: '1rem' }}>
-        <strong>If encryption key unavailable:</strong>
-        <ol>
-          <li>Refuse to store unencrypted data</li>
-          <li>Block write operation</li>
-          <li>Log critical error (Audit.1)</li>
-          <li>Send operator alert</li>
-          <li>Return 500 error to client</li>
-          <li><strong>NEVER</strong> fall back to plaintext or hardcoded key</li>
-        </ol>
-      </div>
-      
-      <h2>Key Rotation (Errors.2, Access.2)</h2>
-      <ul>
-        <li><strong>Frequency:</strong> Annually (every 12 months)</li>
-        <li><strong>Strategy:</strong> Gradual migration (not big-bang re-encryption)</li>
-        <li><strong>Timeline:</strong> 30-90 days for full migration</li>
-        <li><strong>Key Versions:</strong> Old records use v1, new records use v2</li>
-        <li><strong>Runbook:</strong> See component source for detailed 7-step procedure</li>
-      </ul>
-      
-      <h2>Pre-Launch Verification (UI.2)</h2>
+      <h2>Acceptance Tests (FLS Only)</h2>
       <ol>
-        <li>Generate encryption key and store in environment variables</li>
-        <li>Implement encryptField() and decryptField() functions</li>
-        <li>Test encrypt/decrypt round-trip</li>
-        <li>Verify fail-closed behavior (key unavailable → block write)</li>
-        <li>Inspect raw database record to verify encryption active</li>
-        <li>Verify no decrypted values in logs</li>
-        <li>Document key backup location</li>
+        <li>Non-admin user queries Message → body_original NOT in results</li>
+        <li>Admin user queries Message → body_original IS in results</li>
+        <li>Backend function uses asServiceRole → can read restricted fields</li>
+        <li>Logs contain operation metadata, NOT sensitive field values</li>
       </ol>
       
-      <h2>Acceptance Tests</h2>
-      <ol>
-        <li>Encrypt → Decrypt → Verify plaintext matches</li>
-        <li>Key version 1 prefix present in encrypted data</li>
-        <li>Missing key → operation blocked + alert sent</li>
-        <li>Client cannot decrypt values (server-side only)</li>
-        <li>No decrypted values in logs</li>
-        <li>Database inspection shows base64, not plaintext</li>
-        <li>Encryption failure → write blocked + critical error</li>
-        <li>Key rotation: v1 and v2 values both decrypt correctly</li>
-      </ol>
+      <p><em>Encryption at rest and key management acceptance tests not required — Base44 handles automatically.</em></p>
       
-      <p style={{ marginTop: '2rem' }}><em>See component source code for complete encryption specification, pseudocode implementation, and key rotation runbook.</em></p>
+      <p style={{ marginTop: '2rem' }}><em>See component source code for complete FLS specification and examples.</em></p>
     </div>
   );
 }
