@@ -3,12 +3,20 @@
  * 
  * THIS IS A DOCUMENTATION COMPONENT - NOT FUNCTIONAL CODE
  * 
- * This component documents the Base44 platform configuration required for F-006
- * Encryption at Rest. Sensitive fields must be encrypted before storage using
- * AES-256-GCM, with keys stored in environment variables only.
+ * STATUS: Phase 0 — Platform-Managed
  * 
- * STATUS: Phase 0 - Documentation complete
- * NEXT STEP: Configure Base44 encryption middleware + environment variables
+ * ============================================================================
+ * PLATFORM-MANAGED vs BUILD REQUIRED
+ * ============================================================================
+ * 
+ * PLATFORM-MANAGED (No Build Required):
+ * - Encryption at rest: Base44 encrypts all entity data automatically at infrastructure level
+ * - Encryption key management: Base44 manages keys, versioning, and rotation
+ * - No AES-256 encryption automation to build
+ * 
+ * BUILD REQUIRED:
+ * - Field-Level Security (FLS) rls rules on sensitive fields in entity schemas
+ * - Configure read/write access restrictions using the rls block in entity JSON
  * 
  * ============================================================================
  * CRITICAL SECURITY REQUIREMENTS
@@ -18,51 +26,76 @@
 const F006_ENCRYPTION_AT_REST_SPECIFICATION = {
   
   /**
-   * FIELDS REQUIRING ENCRYPTION (Data.2)
-   * These fields MUST be encrypted before storage
+   * PLATFORM ENCRYPTION (Automatic)
+   * Base44 encrypts ALL entity data at rest automatically
    */
-  encrypted_fields: {
+  platform_encryption: {
+    what_base44_handles: {
+      encryption_at_rest: 'All entity data encrypted automatically at storage layer',
+      key_management: 'Base44 manages encryption keys, versioning, and rotation',
+      no_code_required: 'You do not write AES-256 encryption/decryption logic',
+      developer_action: 'None — platform handles storage encryption automatically'
+    },
     
-    current_mvp: {
-      // Phase 0 / Phase 1
-      oauth_tokens: {
-        entity: 'Future OAuth integration entity (not yet created)',
-        fields: [
-          'access_token',
-          'refresh_token'
-        ],
-        use_case: 'When integrating with external services (e.g., Google Calendar, Slack)',
-        note: 'Not yet implemented - will be added when OAuth integrations are built'
+    security_goal_achieved: {
+      original_goal: 'Protect sensitive fields from unauthorized access if database compromised',
+      how_achieved: 'Platform encryption (automatic) + Field-Level Security rls rules (your responsibility)',
+      implementation: 'Configure FLS rls blocks on sensitive fields in entity schema JSON'
+    }
+  },
+  
+  /**
+   * FIELDS REQUIRING ACCESS RESTRICTION (Build Required)
+   * Use FLS rls rules to restrict who can read/write these fields
+   */
+  fields_requiring_fls_rules: {
+    
+    current_phase_0_fields: {
+      message_body_original: {
+        entity: 'Message',
+        field: 'body_original',
+        fls_rule: {
+          read: { user_condition: { role: 'admin' } },
+          write: { user_condition: { role: 'admin' } }
+        },
+        rationale: 'Unedited message content for moderation — admin-only access'
+      },
+      
+      admin_resolution_notes: {
+        entity: 'FlaggedContent',
+        field: 'resolution_note',
+        fls_rule: {
+          read: { user_condition: { role: 'admin' } },
+          write: { user_condition: { role: 'admin' } }
+        },
+        rationale: 'Admin internal notes — not visible to regular users'
       }
     },
     
-    post_mvp: {
-      // Future phases
-      government_ids: {
-        entity: 'User or CaregiverProfile (future field)',
-        fields: [
-          'ssn',
-          'government_id_number',
-          'tax_id'
-        ],
-        use_case: 'Background checks, tax reporting (if platform handles payments)',
-        note: 'Only add if business requirements demand SSN/government ID collection'
+    future_oauth_tokens: {
+      entity: 'Future OAuth integration entity (not yet created)',
+      fields: ['access_token', 'refresh_token'],
+      fls_rule: {
+        read: false,  // No client-side read
+        write: false  // Backend functions only
       },
-      
-      banking_data: {
-        entity: 'Future StripeConnect or BankAccount entity',
-        fields: [
-          'bank_account_number',
-          'routing_number',
-          'stripe_account_id'
-        ],
-        use_case: 'Stripe Connect for direct payments to caregivers',
-        note: 'Post-MVP - not required for Phase 0'
-      }
+      rationale: 'OAuth tokens should only be accessible via backend functions using base44.asServiceRole',
+      note: 'Phase 1-2 when OAuth integrations are built'
+    },
+    
+    future_stripe_fields: {
+      entity: 'Future StripeConnect or payment entity',
+      field: 'stripe_account_id',
+      fls_rule: {
+        read: { user_condition: { role: 'admin' } },
+        write: { user_condition: { role: 'admin' } }
+      },
+      rationale: 'Stripe account IDs admin-only',
+      note: 'Post-MVP — not required for Phase 0'
     },
     
     important_note: `
-      MINIMIZE DATA COLLECTION: The best encryption is not needing the data at all.
+      MINIMIZE DATA COLLECTION: The best security is not needing the data at all.
       - OAuth tokens: Use short-lived tokens when possible (1 hour TTL)
       - SSN: Only collect if legally required for background checks
       - Banking: Use Stripe Connect tokens instead of raw account numbers
@@ -71,217 +104,100 @@ const F006_ENCRYPTION_AT_REST_SPECIFICATION = {
   },
   
   /**
-   * ENCRYPTION ALGORITHM & IMPLEMENTATION (Data.3)
-   * AES-256-GCM with IV prefix
+   * FIELD-LEVEL SECURITY (FLS) IMPLEMENTATION
+   * Configure rls blocks in entity schema JSON
    */
-  encryption_algorithm: {
+  fls_implementation: {
     
-    algorithm: 'AES-256-GCM',
-    key_size: 256,  // bits
-    
-    why_aes_gcm: {
-      authenticated: 'GCM mode provides authentication - detects tampering',
-      performance: 'Hardware-accelerated on modern CPUs',
-      security: 'Industry standard, NIST-approved',
-      alternative_rejected: 'AES-CBC (no authentication), AES-ECB (broken)'
+    what_is_fls: {
+      purpose: 'Restrict which roles can read/write specific entity fields',
+      mechanism: 'Add rls block directly on field definition in entity schema JSON',
+      base44_enforces: 'Platform automatically enforces these rules on all queries',
+      no_middleware_needed: 'You do not write access control middleware — Base44 handles it'
     },
     
-    storage_format: {
-      structure: '[key_version:1byte][IV:12bytes][encrypted_data][auth_tag:16bytes]',
+    fls_syntax: {
+      location: 'Entity schema JSON file (entities/EntityName.json)',
+      field_definition: `
+        "field_name": {
+          "type": "string",
+          "rls": {
+            "read": {"user_condition": {"role": "admin"}},
+            "write": {"user_condition": {"role": "admin"}}
+          }
+        }
+      `,
       explanation: {
-        key_version: '1 byte - which encryption key was used (for rotation - Access.2)',
-        iv: '12 bytes - Initialization Vector (random, unique per encryption)',
-        encrypted_data: 'Variable length - the actual encrypted value',
-        auth_tag: '16 bytes - GCM authentication tag (prevents tampering)'
-      },
-      encoding: 'Base64 for database storage (binary data → text-safe)',
-      example: 'AQAABBCCDDEEFF...encrypted_data...auth_tag (base64 encoded)'
+        read_rule: 'Defines who can read this field value',
+        write_rule: 'Defines who can write/update this field value',
+        user_condition: 'Matches current user role against specified role',
+        role_examples: '"admin", "super_admin", "trust_admin", "caregiver", "parent"'
+      }
     },
     
-    implementation_pseudocode: `
-      // Encryption (Logic.1: encrypt-before-write)
-      function encryptField(plaintext, keyVersion = 1) {
-        // Get encryption key from environment variable
-        const encryptionKey = process.env.ENCRYPTION_KEY;
-        if (!encryptionKey) {
-          // Errors.1: Fail closed if key unavailable
-          throw new Error('CRITICAL: Encryption key not available - refusing to store unencrypted data');
-        }
-        
-        // Generate random 12-byte IV (unique for every encryption)
-        const iv = crypto.randomBytes(12);
-        
-        // Create AES-256-GCM cipher
-        const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(encryptionKey, 'hex'), iv);
-        
-        // Encrypt the plaintext
-        let encrypted = cipher.update(plaintext, 'utf8', 'binary');
-        encrypted += cipher.final('binary');
-        
-        // Get authentication tag
-        const authTag = cipher.getAuthTag();
-        
-        // Combine: [key_version][IV][encrypted_data][auth_tag]
-        const combined = Buffer.concat([
-          Buffer.from([keyVersion]),  // 1 byte
-          iv,  // 12 bytes
-          Buffer.from(encrypted, 'binary'),
-          authTag  // 16 bytes
-        ]);
-        
-        // Encode as base64 for storage
-        return combined.toString('base64');
-      }
+    fls_examples: {
+      admin_only_read_write: {
+        description: 'Field only accessible to admin roles',
+        example: `
+          "body_original": {
+            "type": "string",
+            "rls": {
+              "read": {"user_condition": {"role": "admin"}},
+              "write": {"user_condition": {"role": "admin"}}
+            }
+          }
+        `,
+        use_case: 'Message.body_original (admin moderation only)'
+      },
       
-      // Decryption (Logic.2: decrypt-on-server)
-      function decryptField(encryptedData) {
-        if (!encryptedData) return null;
-        
-        // Get encryption key from environment variable
-        const encryptionKey = process.env.ENCRYPTION_KEY;
-        if (!encryptionKey) {
-          // Edge.2: Do not fall back to hardcoded key
-          throw new Error('CRITICAL: Encryption key not available - cannot decrypt');
-        }
-        
-        // Decode from base64
-        const combined = Buffer.from(encryptedData, 'base64');
-        
-        // Extract components
-        const keyVersion = combined[0];
-        const iv = combined.slice(1, 13);  // bytes 1-12
-        const authTag = combined.slice(-16);  // last 16 bytes
-        const encryptedValue = combined.slice(13, -16);  // everything between
-        
-        // Select key based on version (Access.2: key rotation support)
-        const key = getKeyForVersion(keyVersion);
-        
-        // Create decipher
-        const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(key, 'hex'), iv);
-        decipher.setAuthTag(authTag);
-        
-        // Decrypt
-        let decrypted = decipher.update(encryptedValue, 'binary', 'utf8');
-        decrypted += decipher.final('utf8');
-        
-        return decrypted;
+      backend_functions_only: {
+        description: 'Field not accessible to any client-side user, only backend functions',
+        example: `
+          "access_token": {
+            "type": "string",
+            "rls": {
+              "read": false,
+              "write": false
+            }
+          }
+        `,
+        backend_access: 'Use base44.asServiceRole.entities.EntityName to read/write',
+        use_case: 'OAuth tokens that should never be exposed client-side'
+      },
+      
+      owner_only: {
+        description: 'Field only accessible to the record owner',
+        example: `
+          "stripe_account_id": {
+            "type": "string",
+            "rls": {
+              "read": {"entity_user_field": "user_id"},
+              "write": {"user_condition": {"role": "admin"}}
+            }
+          }
+        `,
+        use_case: 'User can read their own Stripe ID, only admin can write'
       }
-    `
+    }
   },
   
   /**
-   * ENCRYPTION KEY MANAGEMENT (Data.4)
-   * Key stored in environment variables ONLY
+   * ENCRYPTION KEY MANAGEMENT
+   * STATUS: PLATFORM-MANAGED — No build required
    */
-  key_management: {
-    
-    key_storage: {
-      correct: 'Base44 environment variables (secure, encrypted at rest by platform)',
-      forbidden: [
-        'Source code (would be in Git history forever)',
-        'Database records (defeats purpose of encryption)',
-        'Log files (accessible to attackers)',
-        'Client-side code (visible to users)',
-        'Configuration files committed to repo',
-        'Hardcoded in application code'
-      ]
+  key_management_platform_managed: {
+    what_base44_handles: {
+      key_storage: 'Base44 manages encryption keys at infrastructure level',
+      key_rotation: 'Base44 handles key rotation and versioning automatically',
+      no_environment_variables: 'You do not set ENCRYPTION_KEY environment variables',
+      no_key_generation: 'You do not generate or manage encryption keys',
+      developer_action: 'None — Base44 handles all key management'
     },
     
-    environment_variable_setup: {
-      variable_name: 'ENCRYPTION_KEY',
-      value_format: '64-character hex string (256 bits)',
-      generation: `
-        // Generate a new 256-bit encryption key
-        const crypto = require('crypto');
-        const key = crypto.randomBytes(32).toString('hex');
-        console.log(key);  // 64-character hex string
-        
-        Example output: a1b2c3d4e5f6...64 characters total
-      `,
-      base44_configuration: `
-        Base44 Dashboard → Settings → Environment Variables:
-        
-        Variable Name: ENCRYPTION_KEY
-        Variable Value: [64-character hex string from generation above]
-        Environment: Production
-        
-        CRITICAL: 
-        - Store in a secure password manager as backup
-        - Never commit to Git
-        - Never share via email/chat
-        - Rotate annually (see key rotation section)
-      `
-    },
-    
-    key_rotation_support: {
-      // Access.2: Key version tracking
-      why_needed: 'Allow key rotation without full re-encryption in a single operation',
-      how_it_works: [
-        'Each encrypted value stores key_version (1 byte prefix)',
-        'Current key is version 1',
-        'When rotating: new key becomes version 2',
-        'Old encrypted values (version 1) still decrypt with old key',
-        'New encrypted values use version 2 key',
-        'Gradual migration: re-encrypt records over time as they are updated'
-      ],
-      
-      key_version_mapping: `
-        // Store multiple keys for rotation period
-        function getKeyForVersion(version) {
-          const keys = {
-            1: process.env.ENCRYPTION_KEY_V1,  // Old key
-            2: process.env.ENCRYPTION_KEY_V2   // New key (current)
-          };
-          return keys[version] || keys[2];  // Default to current
-        }
-      `,
-      
-      rotation_timeline: {
-        recommended: 'Annually (every 12 months)',
-        compliance: 'PCI-DSS requires key rotation for payment card data',
-        procedure: 'See key rotation runbook below'
-      }
-    },
-    
-    fail_closed_behavior: {
-      // Errors.1, Edge.1, Edge.2
-      scenario: 'Encryption key unavailable at runtime',
-      cause: [
-        'Environment variable not set',
-        'Typo in variable name',
-        'Base44 platform issue',
-        'Key accidentally deleted'
-      ],
-      response: {
-        do: 'Refuse to store sensitive data unencrypted',
-        dont: 'Fall back to plaintext storage or hardcoded key',
-        action: [
-          'Throw error immediately',
-          'Block the write operation',
-          'Log critical system error (Audit.1)',
-          'Send immediate operator alert',
-          'Return 500 Internal Server Error to client'
-        ]
-      },
-      implementation: `
-        function encryptField(plaintext) {
-          const key = process.env.ENCRYPTION_KEY;
-          if (!key) {
-            // Errors.1: Fail closed
-            await logCriticalError({
-              error: 'Encryption key unavailable',
-              field: fieldName,
-              timestamp: new Date().toISOString()
-            });
-            await sendOperatorAlert({
-              severity: 'CRITICAL',
-              message: 'Encryption key missing - data write blocked'
-            });
-            throw new Error('System configuration error - unable to secure sensitive data');
-          }
-          // ... proceed with encryption
-        }
-      `
+    implementation_note: {
+      superseded: 'Original spec required AES-256-GCM implementation and key management',
+      correction: 'Base44 encrypts all data at rest automatically — no code required',
+      focus_instead: 'Configure FLS rls rules to restrict field access (see above)'
     }
   },
   
