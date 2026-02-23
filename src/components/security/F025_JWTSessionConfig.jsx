@@ -368,64 +368,127 @@ const F025_JWT_SESSION_SPECIFICATION = {
 
 /**
  * ============================================================================
- * IMPLEMENTATION NOTES
+ * IMPLEMENTATION SUMMARY
  * ============================================================================
+ * 
+ * PLATFORM-MANAGED (No Code Required):
+ * 1. JWT token generation, validation, and expiry
+ * 2. Refresh token rotation and replay detection
+ * 3. Token storage in httpOnly, Secure, SameSite cookies
+ * 4. Session lifecycle management
+ * 5. Logout and session revocation
+ * 
+ * BUILD REQUIRED:
+ * 1. Session invalidation when User.is_suspended is set to true
+ * 2. Backend functions use base44.auth.me() for user/role access
+ * 3. Remove RefreshToken and TokenBlacklist entities from data model
+ * 
+ * ENTITIES TO REMOVE:
+ * - entities/RefreshToken.json (if exists) - Base44 manages internally
+ * - entities/TokenBlacklist.json (if exists) - Base44 manages internally
+ * 
+ * KEY APIs:
+ * - base44.auth.me() - Get current authenticated user
+ * - base44.auth.logout() - Logout current user
+ * - base44.auth.isAuthenticated() - Check if user is authenticated
+ * - base44.auth.redirectToLogin() - Redirect to login page
  */
 export default function F025JWTSessionDocumentation() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1400px', margin: '0 auto' }}>
       <h1>F-025: JWT Session Management</h1>
-      <p><strong>Status:</strong> Phase 1 - Authentication & User Registration</p>
-      <p><strong>Priority:</strong> CRITICAL</p>
+      <p><strong>Status:</strong> Phase 1 — Platform-Managed</p>
       
-      <div style={{ padding: '1rem', backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', margin: '1rem 0' }}>
-        <strong>⚠️ CRITICAL SECURITY REQUIREMENTS</strong>
+      <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6', marginBottom: '2rem' }}>
+        <strong>ℹ️ PLATFORM-MANAGED vs BUILD REQUIRED</strong>
+        <p><strong>Platform-Managed (No Build Required):</strong></p>
         <ul>
-          <li><strong>Access.2:</strong> Access tokens NEVER in localStorage (XSS risk)</li>
-          <li><strong>Access.3:</strong> Refresh tokens in httpOnly, Secure, SameSite cookies</li>
-          <li><strong>States.2:</strong> Refresh token rotation on every use</li>
-          <li><strong>Logic.3:</strong> Check TokenBlacklist on every request</li>
-          <li><strong>Abuse.2:</strong> MUST index TokenBlacklist.jti (performance critical)</li>
+          <li>JWT generation, validation, and expiry</li>
+          <li>Refresh token rotation and replay detection</li>
+          <li>Token storage (httpOnly, Secure, SameSite cookies)</li>
+          <li>Session lifecycle and logout handling</li>
+        </ul>
+        <p><strong>Build Required:</strong></p>
+        <ul>
+          <li>Session invalidation when User.is_suspended is set to true</li>
+          <li>Backend functions check role via base44.auth.me()</li>
+          <li>Remove RefreshToken and TokenBlacklist entities</li>
         </ul>
       </div>
       
-      <h2>Token Types</h2>
-      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%', margin: '1rem 0' }}>
-        <thead>
-          <tr style={{ backgroundColor: '#f3f4f6' }}>
-            <th>Token Type</th>
-            <th>TTL</th>
-            <th>Storage</th>
-            <th>Purpose</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Access Token</td>
-            <td>15 minutes</td>
-            <td>Memory or httpOnly cookie</td>
-            <td>API requests</td>
-          </tr>
-          <tr>
-            <td>Refresh Token</td>
-            <td>30 days</td>
-            <td>httpOnly, Secure, SameSite cookie</td>
-            <td>Get new access tokens</td>
-          </tr>
-        </tbody>
-      </table>
-      
-      <h2>See source code for:</h2>
+      <h2>Platform Session Management</h2>
       <ul>
-        <li>Complete entity schemas (RefreshToken, TokenBlacklist)</li>
-        <li>JWT payload structure and security requirements</li>
-        <li>Refresh token rotation implementation</li>
-        <li>Token blacklist checking on every request</li>
-        <li>Account suspension and logout flows</li>
-        <li>Concurrent refresh handling</li>
-        <li>Rate limiting and performance optimization</li>
-        <li>Audit logging requirements</li>
+        <li><strong>Authentication:</strong> Base44 handles JWT tokens automatically</li>
+        <li><strong>Token Rotation:</strong> Refresh tokens rotated on each use</li>
+        <li><strong>Replay Detection:</strong> Platform blocks replay attacks</li>
+        <li><strong>Secure Storage:</strong> Tokens stored in httpOnly, Secure cookies</li>
       </ul>
+      
+      <h2>Using Authentication in Code</h2>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
+{`// Get current authenticated user (backend function)
+import { base44 } from '@/api/base44Client';
+
+export default async function handler(req, context) {
+  const { base44 } = context;
+  
+  // Get current user from session
+  const user = await base44.auth.me();
+  
+  // Check role (live DB read - authoritative)
+  if (user.role !== 'admin') {
+    return { error: 'Unauthorized' };
+  }
+  
+  // Admin logic here
+  return { success: true };
+}
+
+// Client-side usage
+import { base44 } from '@/api/base44Client';
+
+// Logout
+await base44.auth.logout();
+
+// Check if authenticated
+const isAuth = await base44.auth.isAuthenticated();
+
+// Redirect to login
+base44.auth.redirectToLogin();`}
+      </pre>
+      
+      <h2>Session Invalidation on Suspension (BUILD REQUIRED)</h2>
+      <pre style={{ backgroundColor: '#fff3cd', padding: '1rem', borderRadius: '4px', overflow: 'auto' }}>
+{`// Backend function or automation
+// Trigger when User.is_suspended is set to true
+export default async function onUserSuspension(req, context) {
+  const { base44 } = context;
+  const { user_id, is_suspended } = req.body;
+  
+  if (is_suspended === true) {
+    // Invalidate user's active session
+    // Use Base44 session management API
+    // (Prompt AI: "invalidate session when user suspended")
+    
+    console.info('User suspended - session invalidated', {
+      user_id: user_id
+    });
+  }
+  
+  return { success: true };
+}`}
+      </pre>
+      
+      <h2>Entities to Remove</h2>
+      <div style={{ padding: '1rem', backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', margin: '1rem 0' }}>
+        <strong>⚠️ DELETE THESE ENTITIES (if they exist)</strong>
+        <ul>
+          <li><strong>entities/RefreshToken.json</strong> - Base44 manages refresh tokens internally</li>
+          <li><strong>entities/TokenBlacklist.json</strong> - Base44 manages token blacklisting internally</li>
+        </ul>
+      </div>
+      
+      <p><em>See component source code for complete platform session management specification.</em></p>
     </div>
   );
 }
