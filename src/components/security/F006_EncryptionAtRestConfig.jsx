@@ -202,393 +202,166 @@ const F006_ENCRYPTION_AT_REST_SPECIFICATION = {
   },
   
   /**
-   * ACCESS CONTROL (Access.1-2)
-   * Decryption server-side only
+   * ACCESS CONTROL VIA FLS
+   * Configure field access using rls blocks
    */
-  access_control: {
+  access_control_via_fls: {
     
-    server_side_only: {
-      // Access.1: Never decrypt client-side
-      rule: 'Decryption accessible only to server-side automations',
-      forbidden: [
-        'Client-side JavaScript (encryption key would be exposed)',
-        'UI components (React components cannot decrypt)',
-        'Direct database queries from client',
-        'Public API endpoints returning encrypted values'
-      ],
-      correct_patterns: [
-        'Backend function decrypts → processes → returns masked/redacted value to client',
-        'Server-side automation decrypts → uses for API call → discards decrypted value',
-        'Admin endpoint decrypts for display, but only accessible to super_admin role'
-      ]
+    how_fls_enforces_access: {
+      mechanism: 'Base44 automatically filters query results based on rls rules',
+      server_side: 'Enforced at the database query level — cannot be bypassed',
+      client_protection: 'Client-side code never receives restricted field values',
+      backend_functions: 'Use base44.asServiceRole to bypass FLS when needed'
     },
     
-    in_memory_only: {
-      // Logic.2: Decrypt-on-server rule
-      rule: 'Decrypted value exists in memory only for duration of operation',
-      do: [
-        'Decrypt → use for API call → immediately discard decrypted value',
-        'Decrypt → display masked version to user → discard plaintext',
-        'Decrypt → validate → re-encrypt with new key (rotation) → discard plaintext'
-      ],
-      dont: [
-        'Store decrypted value in another database field',
-        'Cache decrypted value in Redis/memcache',
-        'Write decrypted value to log file (Triggers.1)',
-        'Return decrypted value in API response to client',
-        'Store decrypted value in browser localStorage/sessionStorage'
-      ]
+    backend_function_access: {
+      when_needed: 'OAuth token access, admin operations, system automations',
+      how_to: `
+        // Backend function bypasses FLS to read restricted field
+        export default async function handler(req, context) {
+          const { base44 } = context;
+          
+          // Use asServiceRole to bypass FLS
+          const oauthRecord = await base44.asServiceRole.entities.OAuthIntegration.filter({
+            user_id: req.user.id
+          });
+          
+          const accessToken = oauthRecord[0].access_token;
+          
+          // Use token for API call
+          const response = await fetch('https://api.service.com/data', {
+            headers: { Authorization: \`Bearer \${accessToken}\` }
+          });
+          
+          // Return processed result (not the raw token)
+          return { data: await response.json() };
+        }
+      `,
+      important: 'Backend functions should apply their own role checks when using asServiceRole'
     },
     
     masked_display: {
-      // UI.1: Users see masked values, not plaintext or encrypted bytes
-      integration: 'F-007 Data Masking & Redaction (next feature)',
+      integration: 'F-007 Data Masking & Redaction (for partial display)',
       examples: {
         oauth_token: 'ghp_****...****abc123 (show first 4 + last 6)',
         ssn: '***-**-1234 (show last 4)',
-        bank_account: '****1234 (show last 4)',
-        never: 'Do NOT show raw encrypted base64 string to users'
-      }
+        bank_account: '****1234 (show last 4)'
+      },
+      note: 'Masking is UI-level display logic, FLS is database-level access control'
     }
   },
   
   /**
-   * NO LOGGING OF DECRYPTED VALUES (Triggers.1)
-   * Critical security requirement
+   * LOGGING RESTRICTIONS
+   * Never log sensitive field values
    */
   logging_restrictions: {
     
-    prohibition: 'No automation may log decrypted values',
+    prohibition: 'No backend function or automation may log sensitive field values',
     applies_to: [
       'Application logs',
       'Error traces',
       'Debug logs',
-      'Audit logs',
+      'Audit logs (unless specifically designed for PII with admin-only access)',
       'Performance monitoring',
-      'Secondary collections/databases'
+      'Console.log statements'
     ],
     
     safe_logging: {
       do: [
-        'Log that encryption/decryption occurred (without the value)',
+        'Log that a sensitive field was accessed (without the value)',
         'Log field name and operation type',
-        'Log key version used',
-        'Log masked/redacted version of value'
+        'Log user ID who accessed the field',
+        'Log masked/redacted version of value if needed'
       ],
       dont: [
         'Log plaintext sensitive value',
-        'Log encrypted value (still sensitive metadata)',
         'Include sensitive values in error messages',
-        'Log partial values that could be reconstructed'
+        'Log partial values that could be reconstructed',
+        'Log values in exception stack traces'
       ]
     },
     
     example_safe_logging: `
       // CORRECT: Log operation without sensitive data
-      console.log('Decrypted access_token for OAuth request', {
+      console.log('Accessed OAuth token for API request', {
         field: 'access_token',
-        key_version: 1,
+        user_id: user.id,
         operation: 'google_calendar_api_call',
         timestamp: new Date().toISOString()
       });
       
-      // WRONG: Log decrypted value
-      console.log('Access token:', decryptedToken);  // NEVER DO THIS
+      // WRONG: Log sensitive value
+      console.log('Access token:', accessToken);  // NEVER DO THIS
     `,
     
     error_handling: {
       problem: 'Error stack traces may include variable values',
-      solution: 'Catch errors before they bubble to logging layer',
+      solution: 'Catch errors and sanitize before logging',
       implementation: `
         try {
-          const decrypted = decryptField(encrypted);
-          // Use decrypted value
-          await makeAPICall(decrypted);
+          const accessToken = await base44.asServiceRole.entities.OAuthIntegration.get(id);
+          await makeAPICall(accessToken.access_token);
         } catch (error) {
-          // Log error WITHOUT including decrypted value
+          // Log error WITHOUT including sensitive value
           console.error('API call failed', {
             error: error.message,
             field: 'access_token',
-            // DO NOT LOG: decrypted value
+            user_id: user.id
+            // DO NOT LOG: actual token value
           });
-          // Do not re-throw if it would include sensitive data in stack trace
         }
       `
     }
   },
   
   /**
-   * ENCRYPTION FAILURE HANDLING (Errors.1, Edge.1, Audit.1)
-   * Block operation + alert
+   * ERROR HANDLING FOR FLS VIOLATIONS
+   * Base44 handles access control violations automatically
    */
-  error_handling: {
+  fls_error_handling: {
     
-    encryption_failures: {
-      // Edge.1: Block write if encryption fails
-      causes: [
-        'Encryption key unavailable (Errors.1)',
-        'Algorithm failure (corrupted crypto library)',
-        'Invalid key format',
-        'Out of memory during encryption'
-      ],
-      response: {
-        immediate: [
-          'Block the write operation entirely',
-          'Do NOT store unencrypted value',
-          'Do NOT store partially encrypted value',
-          'Return 500 error to client'
-        ],
-        logging: [
-          'Log as critical system error (Audit.1)',
-          'Include: timestamp, field name, operation attempted, error message',
-          'DO NOT include the plaintext value that failed to encrypt'
-        ],
-        alerting: [
-          'Send immediate operator alert (email, SMS, Slack)',
-          'Alert severity: CRITICAL',
-          'Alert content: field name, error type, timestamp'
-        ]
+    what_base44_handles: {
+      fls_violations: 'Base44 automatically blocks unauthorized field access',
+      client_side: 'Restricted fields excluded from query results — no error thrown',
+      write_violations: 'Write attempts to restricted fields return permission denied error',
+      no_code_required: 'You do not write access control error handling logic'
+    },
+    
+    backend_function_errors: {
+      scenario: 'Backend function attempts invalid operation on sensitive field',
+      example_error: {
+        status: 403,
+        message: 'Permission denied: Cannot access field [field_name]'
       },
-      implementation: `
-        async function saveOAuthToken(token) {
-          try {
-            const encrypted = encryptField(token);
-            await base44.entities.OAuthIntegration.create({
-              access_token: encrypted,
-              ...otherFields
-            });
-          } catch (error) {
-            // Audit.1: Log critical error
-            await base44.entities.SystemErrorLog.create({
-              severity: 'CRITICAL',
-              error_type: 'encryption_failure',
-              field: 'access_token',
-              operation: 'create_oauth_integration',
-              error_message: error.message,
-              timestamp: new Date().toISOString()
-            });
-            
-            // Send operator alert
-            await sendOperatorAlert({
-              severity: 'CRITICAL',
-              title: 'Encryption failure - data write blocked',
-              details: {
-                field: 'access_token',
-                error: error.message,
-                timestamp: new Date().toISOString()
-              }
-            });
-            
-            // Fail the operation
-            throw new Error('Unable to securely store sensitive data - operation blocked');
-          }
-        }
-      `
+      solution: 'Use base44.asServiceRole to bypass FLS when legitimately needed'
     },
     
-    decryption_failures: {
-      causes: [
-        'Encrypted data corrupted',
-        'Wrong encryption key (after rotation)',
-        'Invalid IV or auth tag',
-        'Database corruption'
-      ],
-      response: {
-        immediate: [
-          'Return error to calling function',
-          'Do NOT return partial/corrupted decrypted value',
-          'Log error (without sensitive data)'
-        ],
-        recovery: [
-          'If key rotation issue: try previous key version',
-          'If data corruption: flag record for admin review',
-          'If unrecoverable: notify operator'
-        ]
-      }
+    implementation_note: {
+      superseded: 'Original spec required encryption failure handling and alerts',
+      correction: 'Base44 handles storage encryption — no encryption errors to handle',
+      focus_instead: 'Handle FLS permission errors in backend functions if needed'
     }
   },
   
   /**
-   * KEY ROTATION PROCEDURE (Errors.2, Access.2)
-   * Planned maintenance operation
+   * KEY ROTATION
+   * STATUS: PLATFORM-MANAGED — No build required
    */
-  key_rotation: {
+  key_rotation_platform_managed: {
     
-    why_rotate: {
-      security: 'Limit exposure if key is compromised',
-      compliance: 'PCI-DSS, HIPAA, SOC2 require periodic key rotation',
-      best_practice: 'Industry standard is annual rotation'
+    what_base44_handles: {
+      key_rotation: 'Base44 rotates encryption keys automatically at infrastructure level',
+      no_manual_rotation: 'You do not plan or execute key rotation procedures',
+      no_re_encryption_jobs: 'You do not write background jobs to re-encrypt data',
+      developer_action: 'None — Base44 handles key rotation lifecycle'
     },
     
-    rotation_strategy: {
-      approach: 'Gradual migration (not big-bang re-encryption)',
-      timeline: '30-90 days for full migration',
-      process: [
-        'Generate new encryption key (version 2)',
-        'Add new key to environment variables (ENCRYPTION_KEY_V2)',
-        'Update encryption function to use new key for new writes',
-        'Leave old key (version 1) for decrypting existing records',
-        'Background job re-encrypts old records over time',
-        'After all records re-encrypted, retire old key'
-      ]
-    },
-    
-    runbook: {
-      title: 'F-006 Encryption Key Rotation Runbook',
-      owner: 'Senior Engineer + DevOps Lead',
-      frequency: 'Annually',
-      duration: '2-3 months',
-      
-      steps: [
-        {
-          step: 1,
-          title: 'Pre-Rotation Audit',
-          actions: [
-            'Take full database backup',
-            'Verify current encryption is working (test encrypt/decrypt)',
-            'Count total encrypted records by entity',
-            'Verify ENCRYPTION_KEY environment variable is set',
-            'Document current key version (should be 1)'
-          ],
-          estimated_time: '1 hour'
-        },
-        {
-          step: 2,
-          title: 'Generate New Key',
-          actions: [
-            'Generate new 256-bit key: crypto.randomBytes(32).toString("hex")',
-            'Store new key in password manager',
-            'Label as "Encryption Key V2"',
-            'DO NOT commit to Git or share via email'
-          ],
-          estimated_time: '15 minutes'
-        },
-        {
-          step: 3,
-          title: 'Deploy New Key (Zero Downtime)',
-          actions: [
-            'Add ENCRYPTION_KEY_V2 environment variable in Base44',
-            'Update getKeyForVersion() to support version 2',
-            'Update encryptField() to use version 2 for new encryptions',
-            'Keep ENCRYPTION_KEY_V1 for decrypting old records',
-            'Deploy updated code',
-            'Test: new records use key v2, old records still decrypt with v1'
-          ],
-          estimated_time: '2 hours'
-        },
-        {
-          step: 4,
-          title: 'Gradual Re-Encryption',
-          actions: [
-            'Create background job to re-encrypt old records',
-            'Rate limit: 100 records per minute (avoid DB load spike)',
-            'For each encrypted field: decrypt with v1, re-encrypt with v2',
-            'Update record with new encrypted value',
-            'Track progress: records_re_encrypted / total_records',
-            'Run daily until all records migrated'
-          ],
-          estimated_time: '30-90 days (depending on record count)'
-        },
-        {
-          step: 5,
-          title: 'Verify Migration Complete',
-          actions: [
-            'Query database: count records with key_version=1 (should be 0)',
-            'Query database: count records with key_version=2 (should be total)',
-            'Test: randomly sample 50 records and verify they decrypt',
-            'Document migration completion date'
-          ],
-          estimated_time: '1 hour'
-        },
-        {
-          step: 6,
-          title: 'Retire Old Key',
-          actions: [
-            'Remove ENCRYPTION_KEY_V1 from environment variables',
-            'Update code to only support version 2',
-            'Update ENCRYPTION_KEY (primary) to point to V2 value',
-            'Archive old key in password manager (labeled "RETIRED - V1")',
-            'Deploy updated code',
-            'Monitor for decryption errors (should be none)'
-          ],
-          estimated_time: '1 hour'
-        },
-        {
-          step: 7,
-          title: 'Post-Rotation Audit',
-          actions: [
-            'Verify all encrypted fields use key version 2',
-            'Test encrypt/decrypt operations',
-            'Review logs for any decryption errors',
-            'Document rotation completion in security audit log',
-            'Schedule next rotation (12 months from now)'
-          ],
-          estimated_time: '1 hour'
-        }
-      ],
-      
-      rollback_plan: {
-        scenario: 'New key causes decryption errors',
-        actions: [
-          'Revert code to use ENCRYPTION_KEY_V1 for new encryptions',
-          'Stop background re-encryption job',
-          'Investigate root cause',
-          'Fix issue before retrying rotation'
-        ]
-      }
-    },
-    
-    background_job_pseudocode: `
-      // Background job for gradual re-encryption
-      async function reEncryptOldRecords() {
-        const batchSize = 100;
-        const delayBetweenBatches = 60000;  // 1 minute (rate limiting)
-        
-        // Find records encrypted with old key (version 1)
-        const oldRecords = await base44.entities.OAuthIntegration.filter({
-          // Assuming we can query encrypted field prefix
-          access_token: { $regex: '^AQ' }  // Base64 starts with 'AQ' for version 1
-        }, null, batchSize);
-        
-        for (const record of oldRecords) {
-          try {
-            // Decrypt with old key
-            const decrypted = decryptFieldWithVersion(record.access_token, 1);
-            
-            // Re-encrypt with new key (version 2)
-            const reEncrypted = encryptFieldWithVersion(decrypted, 2);
-            
-            // Update record
-            await base44.entities.OAuthIntegration.update(record.id, {
-              access_token: reEncrypted
-            });
-            
-            console.log(\`Re-encrypted record \${record.id}\`);
-          } catch (error) {
-            console.error(\`Failed to re-encrypt record \${record.id}\`, error);
-            // Continue with next record, log failure for review
-          }
-        }
-        
-        // Wait before next batch (rate limiting)
-        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
-        
-        // Check if more records remain
-        const remaining = await countRecordsWithKeyVersion(1);
-        console.log(\`Re-encryption progress: \${remaining} records remaining\`);
-        
-        if (remaining > 0) {
-          // Schedule next batch
-          setTimeout(reEncryptOldRecords, delayBetweenBatches);
-        } else {
-          console.log('Re-encryption complete!');
-          await sendOperatorAlert({
-            severity: 'INFO',
-            message: 'Encryption key rotation complete - all records migrated to new key'
-          });
-        }
-      }
-    `
+    implementation_note: {
+      superseded: 'Original spec included detailed 7-step key rotation runbook',
+      correction: 'Base44 manages encryption keys — no rotation procedure needed',
+      focus_instead: 'Monitor Base44 platform updates for encryption key rotation notifications (if any)'
+    }
   }
 };
 
