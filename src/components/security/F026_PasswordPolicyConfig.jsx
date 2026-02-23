@@ -109,131 +109,67 @@ const F026_PASSWORD_POLICY_SPECIFICATION = {
   },
   
   /**
-   * ACCESS CONTROL & PERMISSIONS (Access.1-3)
-   * Password field security and reset endpoint
+   * PASSWORD COMPLEXITY CONFIGURATION
+   * Configure in Dashboard settings
    */
-  access_control: {
+  password_complexity: {
     
-    password_hash_exclusion: {
-      // Access.1: password_hash NEVER returned
-      rule: 'Excluded from ALL API responses and query results',
-      applies_to: 'All roles - even admins',
+    configuration_location: 'Dashboard → App Login and Registration → Password settings',
+    
+    recommended_rules: {
+      minimum_length: '8 characters',
+      uppercase: 'At least 1 uppercase letter (A-Z)',
+      lowercase: 'At least 1 lowercase letter (a-z)',
+      number: 'At least 1 number (0-9)',
+      special_character: 'At least 1 special character (!@#$%^&*)',
       
-      enforcement: 'Platform-level field exclusion',
-      
-      implementation: `
-        // Access.1: Exclude password_hash from responses
-        // Platform configuration - never return this field
-        
-        // Example query result (password_hash excluded):
-        {
-          "id": "user-123",
-          "email": "user@example.com",
-          "full_name": "John Doe",
-          "role": "parent",
-          // password_hash NOT included
-        }
-      `
+      note: 'Configure these rules in Base44 Dashboard - no code required'
     },
     
-    reset_token_write_access: {
-      // Access.2: PasswordResetToken writable by automations only
-      restriction: 'Server-side automations only',
-      no_client_writes: 'NEVER allow direct client creation',
+    enforcement: {
+      registration: 'Base44 enforces complexity on user registration',
+      password_change: 'Base44 enforces complexity on password change',
+      password_reset: 'Base44 enforces complexity on password reset',
       
-      who_can_create: [
-        'Password reset request automation',
-        'Token cleanup automation'
-      ]
+      client_side: 'Base44 auth SDK provides client-side validation feedback',
+      server_side: 'Base44 validates complexity server-side (authoritative)'
     },
     
-    reset_endpoint: {
-      // Access.3: Public password reset endpoint
-      accessibility: 'No authentication required',
-      reason: 'User cannot log in (forgot password)',
-      validation: 'Validates token hash only',
-      
-      endpoint: '/api/auth/reset-password',
-      method: 'POST',
-      payload: { token: '64-char-hex', new_password: 'string' }
+    error_handling: {
+      display: 'Base44 shows all unmet rules simultaneously',
+      user_friendly: 'Clear error messages for each unmet requirement',
+      real_time: 'Optional real-time validation as user types (SDK feature)'
     }
   },
   
   /**
-   * STATE MACHINE & LIFECYCLE (States.1-2)
-   * Reset token lifecycle
+   * EMAIL CUSTOMIZATION (Optional)
+   * Customize password reset email template
    */
-  state_machine: {
+  email_customization: {
     
-    reset_lifecycle: {
-      // States.1: Password reset states
-      states: {
-        reset_requested: {
-          condition: 'Token issued, email sent',
-          valid_for: '30 minutes',
-          user_action: 'Click link in email'
-        },
-        reset_completed: {
-          condition: 'Token used, password updated, token.used_at set',
-          terminal: true,
-          sessions: 'All active sessions invalidated (Triggers.3)'
-        },
-        expired: {
-          condition: 'expires_at passed, token never used',
-          user_action: 'Request new reset link',
-          cleanup: 'Token can be deleted from database'
-        }
-      },
-      
-      state_diagram: `
-        Forgot Password Form
-        ↓
-        RESET_REQUESTED
-        (Token created, email sent, 30-min TTL)
-        ↓
-        User clicks link in email
-        ↓
-        Token validated
-        ↓
-        User sets new password
-        ↓
-        RESET_COMPLETED
-        (Password updated, sessions invalidated)
-        
-        OR
-        
-        30 minutes pass without click
-        ↓
-        EXPIRED
-        (User must request new link)
-      `
+    where_to_configure: 'Dashboard → Settings → Email Templates',
+    
+    default_template: {
+      subject: 'Reset your password',
+      body: 'Click the link below to reset your password. This link expires in 30 minutes.',
+      includes: 'Reset link with secure token',
+      expiry: 'Base44 enforces 30-minute expiry automatically'
     },
     
-    token_invalidation: {
-      // States.2: Second reset invalidates first
-      behavior: 'New reset request invalidates previous tokens',
-      only_latest_valid: 'Only most recent token is valid',
+    customization_options: {
+      branding: 'Add your logo and brand colors',
+      copy: 'Customize email copy and tone',
+      footer: 'Add company information and links',
       
-      implementation: `
-        // States.2: Invalidate previous reset tokens
-        async function createPasswordResetToken(userId) {
-          // Invalidate all previous unused tokens
-          await base44.asServiceRole.entities.PasswordResetToken.update_many(
-            { 
-              user_id: userId, 
-              used_at: null  // Only invalidate unused tokens
-            },
-            { 
-              expires_at: new Date()  // Expire immediately
-            }
-          );
-          
-          // Generate and store new token
-          const rawToken = await generatePasswordResetToken(userId);
-          
-          return rawToken;
-        }
-      `
+      note: 'Customize in Base44 Dashboard email settings - no code required'
+    },
+    
+    security_built_in: {
+      token_security: 'Base44 generates cryptographically random tokens',
+      expiry: 'Tokens expire after 30 minutes automatically',
+      single_use: 'Tokens can only be used once',
+      invalidation: 'New reset request invalidates previous tokens'
     }
   },
   
