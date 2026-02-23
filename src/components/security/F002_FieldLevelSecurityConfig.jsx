@@ -279,195 +279,141 @@ const F002_FIELD_LEVEL_SECURITY_SPECIFICATION = {
    */
   signed_url_fields: {
     
-    'ParentProfile.address_line_1': {
-      visibility: 'admin_only',
-      caregiver_access: '403_FORBIDDEN',
-      search_results: 'EXCLUDED',
-      audit: 'Log to PIIAccessLog on admin access',
-      platform_config: 'Add explicit rejection rule for caregiver role'
-    },
-    
-    'ParentProfile.address_line_2': {
-      visibility: 'admin_only',
-      caregiver_access: '403_FORBIDDEN',
-      search_results: 'EXCLUDED',
-      platform_config: 'Same as address_line_1'
-    },
-    
-    'ParentProfile.zip_code': {
-      visibility: 'admin_only',
-      internal_use: 'Proximity calculations only',
-      caregiver_exposure: 'Approximate area only (e.g., "within 5 miles")',
-      raw_value: 'NEVER exposed to non-admin',
-      platform_config: 'Use for distance calc but exclude from caregiver query responses'
-    },
-    
-    'Message.body_original': {
-      visibility: 'admin_only',
-      purpose: 'Moderation and abuse investigation',
-      parent_caregiver_access: 'EXCLUDED_FROM_RESPONSES',
-      public_field: 'Message.content (sanitized version)',
-      platform_config: 'Create separate admin-only field, exclude from standard queries'
-    },
-    
     'Certification.cert_file_url': {
-      storage: 'PRIVATE',  // Not publicly accessible
-      access_method: 'SIGNED_URL_ONLY',
-      expiry: '900 seconds (15 minutes)',
-      error_handling: 'If CreateFileSignedUrl fails, return 500 - NO public URL fallback',
-      audit: 'Log to PIIAccessLog when signed URL generated',
-      platform_config: 'Configure private file storage + signed URL generation',
+      storage: 'PRIVATE (not publicly accessible)',
+      access_method: 'Signed URL with 15-minute expiry',
+      
       implementation: `
+        // Backend function to generate signed URL
         const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({
           file_uri: certification.cert_file_url,
-          expires_in: 900
+          expires_in: 900  // 15 minutes
         });
-        // Log access to PIIAccessLog
+        
+        // Log PII access
         await base44.entities.PIIAccessLog.create({
           accessor_user_id: user.id,
+          accessor_role: user.role,
           target_entity_type: 'Certification',
           target_entity_id: certification.id,
           field_accessed: 'cert_file_url',
           access_timestamp: new Date().toISOString(),
           access_context: 'cert_verification'
         });
-      `
+        
+        return Response.json({ signed_url });
+      `,
+      
+      error_handling: 'If CreateFileSignedUrl fails, return 500 - NO public URL fallback',
+      audit: 'Log to PIIAccessLog when signed URL generated',
+      rls_note: 'No FLS rule needed - access controlled by backend function'
     }
   },
   
   /**
-   * 2. ADMIN-ONLY WRITABLE FIELDS
-   * Configure in: Base44 Dashboard → Entities → Write Permissions
-   */
-  admin_only_write: {
-    
-    'CaregiverProfile.is_verified': {
-      read_access: 'public',  // Visible in search results
-      write_access: ['trust_admin', 'super_admin'],
-      rejection_behavior: {
-        non_admin_write_attempt: {
-          http_status: 403,
-          log_to: 'AdminActionLog',
-          log_fields: ['actor_user_id', 'actor_role', 'target_caregiver_id', 'attempted_value', 'timestamp']
-        }
-      },
-      platform_config: 'Add EXPLICIT rejection rule - deny-by-default is insufficient',
-      verification: 'Test write attempt as caregiver role - must return 403 and log to AdminActionLog'
-    },
-    
-    'Certification.verification_status': {
-      read_access: 'public_own_records',  // Caregiver sees own, parents see verified
-      write_access: ['trust_admin', 'super_admin'],
-      state_transitions: 'pending → verified/rejected (admin action triggers state change)',
-      audit: 'Log all status changes to AdminActionLog',
-      platform_config: 'Restrict write permission + log state transitions'
-    }
-  },
-  
-  /**
-   * 3. INPUT SANITIZATION (XSS Prevention - F-005)
-   * Configure in: Base44 Dashboard → Security Settings
+   * 6. INPUT SANITIZATION (See F-005)
    */
   sanitization: {
+    reference: 'See F-005 for XSS prevention and input sanitization',
     fields_requiring_sanitization: [
       'CaregiverProfile.bio',
       'ParentProfile.special_needs_notes',
       'Message.content',
       'BookingRequest.parent_notes',
-      'FlaggedContent.reason_detail',
-      'AdminActionLog.reason'
+      'FlaggedContent.reason_detail'
     ],
-    rules: {
-      strip_html_tags: true,
-      strip_script_tags: true,
-      remove_event_handlers: true,
-      encode_special_chars: true,
-      apply_on_write: true,
-      re_sanitize_on_update: true  // Do not assume previously saved value is still safe
-    },
-    platform_config: 'Enable Base44 input sanitization + configure CSP headers (F-005)'
+    note: 'Sanitization is separate from FLS - handled by F-005'
   },
   
   /**
-   * 4. SESSION INVALIDATION ON ROLE CHANGE (Edge Case Handling)
-   * Configure in: Base44 Dashboard → Triggers → User.role UPDATE
+   * 7. RLS DEPLOYMENT
    */
-  session_management: {
-    trigger: 'User.role field UPDATE',
-    actions: [
-      'Invalidate all active session tokens for user_id',
-      'Force re-authentication to receive new token with updated permissions',
-      'Log role change to AdminActionLog (previous_value, new_value, reason)',
-      'Send email notification to user of role change'
-    ],
-    risk_mitigation: 'Prevents downgraded admin from accessing cached responses with old permission level',
-    platform_config: 'Create automation trigger on User.role UPDATE event',
-    edge_case_example: 'super_admin downgraded to support_admin mid-session - cached API responses may contain fields they can no longer access'
+  deployment: {
+    where: 'Entity schema JSON files (entities/*.json)',
+    how: 'Add rls blocks to field definitions',
+    deploy: 'Changes take effect when entities are deployed',
+    
+    testing: [
+      'Test read/write attempts as different roles',
+      'Verify 403 responses for unauthorized access',
+      'Check that authorized users can access fields'
+    ]
   },
   
   /**
-   * 5. ANTI-PATTERNS TO AVOID
+   * 8. ANTI-PATTERNS TO AVOID
    */
   anti_patterns: {
+    separate_config_panel: {
+      incorrect: 'Looking for FLS settings in Base44 dashboard',
+      correct: 'Add rls blocks directly to entity schema JSON files',
+      rule: 'FLS is part of the entity schema, not a separate configuration'
+    },
+    
+    defining_password_hash: {
+      incorrect: 'Adding password_hash field to entities/User.json',
+      correct: 'Do NOT define password_hash - Base44 manages it',
+      rule: 'Defining password_hash causes schema validation error'
+    },
+    
     css_hidden_fields: {
-      incorrect: '<div style={{display: "none"}}>{user.password_hash}</div>',
-      correct: 'Exclude field from Base44 query response - never fetch sensitive data to client',
-      rule: 'Do NOT hide sensitive fields with CSS. They remain in DOM and are readable via browser dev tools.'
+      incorrect: '<div style={{display: "none"}}>{user.sensitive_field}</div>',
+      correct: 'Use RLS rules - never fetch unauthorized data to client',
+      rule: 'Hidden fields remain in DOM - readable via dev tools'
     },
     
     client_side_permission_checks: {
       incorrect: 'if (user.role === "admin") { show sensitive data }',
-      correct: 'Configure field visibility at Base44 query layer - client never receives unauthorized data',
-      rule: 'Permissions enforced at API/database layer, not in UI rendering logic'
+      correct: 'RLS enforces at query layer - client never receives unauthorized data',
+      rule: 'Permissions enforced at database layer via RLS'
     },
     
     permanent_file_urls: {
-      incorrect: 'cert_file_url: "https://public-bucket.s3.amazonaws.com/cert123.pdf"',
-      correct: 'Use CreateFileSignedUrl with 15-min expiry for private files',
-      rule: 'NEVER expose permanent public URLs for PII documents (F-002, F-006)'
+      incorrect: 'cert_file_url: "https://public-bucket.s3.amazonaws.com/cert.pdf"',
+      correct: 'Use CreateFileSignedUrl with 15-min expiry',
+      rule: 'Private files require signed URLs (F-002, F-006)'
     }
   },
   
   /**
-   * 6. ACCEPTANCE CRITERIA (Phase 0 Gate)
-   * Verify before proceeding to Phase 1
+   * 9. ACCEPTANCE CRITERIA
    */
   acceptance_tests: [
     {
+      test: 'RLS Admin-Only Field Read',
+      method: 'Authenticate as non-admin → attempt to read Message.body_original',
+      expected: '403 Forbidden or field excluded from response',
+      fail_if: 'body_original visible in response'
+    },
+    {
+      test: 'RLS Admin-Only Field Write',
+      method: 'Authenticate as caregiver → attempt to update CaregiverProfile.is_verified',
+      expected: '403 Forbidden',
+      fail_if: 'Write succeeds'
+    },
+    {
+      test: 'RLS Owner-Restricted Field',
+      method: 'Authenticate as caregiver → attempt to read another parent\'s ParentProfile.address_line_1',
+      expected: '403 Forbidden or field excluded from response',
+      fail_if: 'Address field returned'
+    },
+    {
       test: 'Password Hash Exclusion',
       method: 'Open browser Network tab → inspect User entity API response',
-      expected: 'password_hash field does NOT appear in response payload',
-      fail_if: 'password_hash visible in any response (even if null)'
+      expected: 'password_hash field does NOT appear (not defined in schema)',
+      fail_if: 'password_hash visible or schema validation error'
     },
     {
-      test: 'Parent Address Protection',
-      method: 'Authenticate as caregiver role → attempt to read ParentProfile.address_line_1',
-      expected: 'HTTP 403 Forbidden + field excluded from response',
-      fail_if: 'Address field returned (even if empty) or 200 OK with partial data'
-    },
-    {
-      test: 'is_verified Write Rejection',
-      method: 'Authenticate as caregiver → attempt to update own CaregiverProfile.is_verified',
-      expected: '403 Forbidden + AdminActionLog entry created with rejection details',
-      fail_if: 'Write succeeds or no AdminActionLog entry'
+      test: 'Phone Context-Dependent Access',
+      method: 'Call backend function without accepted booking',
+      expected: '403 Forbidden',
+      fail_if: 'Phone number returned'
     },
     {
       test: 'Signed URL Expiry',
-      method: 'Generate signed URL for cert_file → wait 16 minutes → attempt access',
+      method: 'Generate signed URL → wait 16 minutes → attempt access',
       expected: 'Signed URL returns 403/404 after expiry (15 min)',
       fail_if: 'Signed URL still accessible after 15 minutes'
-    },
-    {
-      test: 'Phone Number UI Absence',
-      method: 'Inspect all UI pages (parent, caregiver, admin) for User.phone rendering',
-      expected: 'Phone never visible in UI, even after booking acceptance (email delivery only)',
-      fail_if: 'Phone number appears in any rendered page or component'
-    },
-    {
-      test: 'Role Change Session Invalidation',
-      method: 'Authenticate as super_admin → downgrade to support_admin → attempt to access admin-only field without re-login',
-      expected: 'Session invalidated, forced to re-authenticate, new token lacks admin permissions',
-      fail_if: 'Old session token still works after role change'
     }
   ]
 };
@@ -562,56 +508,170 @@ const AUDIT_LOGGING_MATRIX = {
 
 /**
  * ============================================================================
- * IMPLEMENTATION NOTES
+ * IMPLEMENTATION SUMMARY
  * ============================================================================
  * 
- * This configuration CANNOT be implemented through entity schemas alone.
- * The Base44 platform must provide:
+ * PLATFORM-MANAGED (No Code Required):
+ * 1. password_hash field (do NOT define in User entity)
+ * 2. Basic field exclusion (automatic when not in schema)
  * 
- * 1. Field-level permission rules (per role, per field)
- * 2. API response field exclusion (password_hash, PII fields)
- * 3. Signed URL generation for private files
- * 4. Session token invalidation triggers
- * 5. Input sanitization middleware
- * 6. Audit logging hooks (PIIAccessLog, AdminActionLog)
+ * BUILD REQUIRED:
+ * 1. Add rls blocks to individual fields in entity schema JSON files
+ *    - Admin-only fields: is_verified, body_original, resolution_note
+ *    - Owner-restricted fields: address_line_1, address_line_2, zip_code
+ * 2. Phone reveal backend function (context-dependent on BookingRequest)
+ * 3. Signed URL generation for Certification.cert_file_url
+ * 4. Remove password_hash from User entity schema (if exists)
  * 
- * NEXT STEPS:
- * - Review entity schemas (all contain F-002 security annotations)
- * - Configure Base44 dashboard per checklist above
- * - Run acceptance tests before Phase 1
+ * CRITICAL: Do NOT define password_hash in User.json
+ * - Base44 manages password_hash internally
+ * - Defining it causes a schema validation error
  * 
- * PHASE 0 STATUS: Data model layer complete ✓
- * PLATFORM CONFIG: Required - see checklist above
+ * INTEGRATION:
+ * - F-003: RLS rules work with authGuard and ownership checks
+ * - F-005: Input sanitization (separate from FLS)
+ * - F-006: Encryption at rest (platform-managed)
+ * - F-009: PII access logging (optional)
+ * - F-025: Session management (role changes)
  */
 
-export default function F002DocumentationComponent() {
+export default function F002FieldLevelSecurityDocumentation() {
   return (
-    <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>F-002: Field-Level Security - Configuration Required</h1>
-      <p><strong>Phase 0 Status:</strong> Entity schemas updated with security annotations</p>
-      <p><strong>Next Step:</strong> Configure Base44 platform per checklist in component source code</p>
+    <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1400px', margin: '0 auto' }}>
+      <h1>F-002: Field-Level Security</h1>
+      <p><strong>Status:</strong> Phase 0 — Confirmed — Implementation Clarified</p>
       
-      <h2>Critical Platform Configuration Checklist</h2>
-      <ol>
-        <li>PII Field Access Restrictions (User.phone, ParentProfile.address_*, etc.)</li>
-        <li>Admin-Only Writable Fields (CaregiverProfile.is_verified, etc.)</li>
-        <li>Input Sanitization (XSS prevention on all user-supplied text)</li>
-        <li>Session Invalidation on Role Change (Edge case handling)</li>
-        <li>Signed URL Generation for Private Files (Certification.cert_file_url)</li>
-        <li>Audit Logging Integration (PIIAccessLog, AdminActionLog)</li>
-      </ol>
+      <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6', marginBottom: '2rem' }}>
+        <strong>ℹ️ IMPLEMENTATION: rls BLOCKS IN ENTITY SCHEMA</strong>
+        <p>Add rls blocks directly to individual field definitions in entity JSON files.</p>
+        <p><strong>NOT</strong> a separate configuration panel.</p>
+      </div>
       
-      <h2>Acceptance Tests</h2>
-      <ul>
-        <li>User.password_hash NOT in API responses (check Network tab)</li>
-        <li>ParentProfile.address_line_1 returns 403 for caregiver role</li>
-        <li>CaregiverProfile.is_verified write by non-admin logs rejection</li>
-        <li>Certification signed URLs expire after 15 minutes</li>
-        <li>User.phone NEVER visible in UI (email delivery only)</li>
-        <li>Session tokens invalidated on User.role change</li>
-      </ul>
+      <div style={{ padding: '1rem', backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', margin: '1rem 0' }}>
+        <strong>⚠️ CRITICAL: Do NOT define password_hash in User.json</strong>
+        <p>Base44 manages password_hash internally. Defining it causes a schema validation error.</p>
+      </div>
       
-      <p><em>See component source code for complete configuration specification.</em></p>
+      <h2>RLS Block Syntax</h2>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', overflowX: 'auto' }}>
+{`// entities/SomeEntity.json
+{
+  "properties": {
+    "field_name": {
+      "type": "string",
+      "rls": {
+        "read": <rule>,
+        "write": <rule>
+      }
+    }
+  }
+}`}
+      </pre>
+      
+      <h2>Example: Admin-Only Field</h2>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', overflowX: 'auto' }}>
+{`// entities/CaregiverProfile.json
+"is_verified": {
+  "type": "boolean",
+  "rls": {
+    "read": true,  // Public
+    "write": {
+      "$or": [
+        {"user_condition": {"role": "trust_admin"}},
+        {"user_condition": {"role": "super_admin"}}
+      ]
+    }
+  }
+}`}
+      </pre>
+      
+      <h2>Example: Owner-Restricted Field</h2>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', overflowX: 'auto' }}>
+{`// entities/ParentProfile.json
+"address_line_1": {
+  "type": "string",
+  "rls": {
+    "read": {
+      "$or": [
+        {"data.user_id": "{{user.id}}"},  // Owner
+        {"user_condition": {"role": {"$in": ["admin", "trust_admin"]}}}
+      ]
+    },
+    "write": {
+      "$or": [
+        {"data.user_id": "{{user.id}}"},
+        {"user_condition": {"role": {"$in": ["admin", "trust_admin"]}}}
+      ]
+    }
+  }
+}`}
+      </pre>
+      
+      <h2>Context-Dependent Field (Backend Function)</h2>
+      <p>User.phone requires backend function (cannot be static RLS rule):</p>
+      <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', overflowX: 'auto' }}>
+{`// Phone reveal depends on BookingRequest state
+export default async function revealPhoneNumber(req, context) {
+  const { base44 } = context;
+  const user = await base44.auth.me();
+  const { caregiver_id } = await req.json();
+  
+  // Check for accepted booking
+  const bookings = await base44.entities.BookingRequest.filter({
+    parent_id: user.id,
+    caregiver_id: caregiver_id,
+    status: 'accepted'
+  });
+  
+  if (bookings.length === 0) {
+    return Response.json({ error: 'No accepted booking' }, { status: 403 });
+  }
+  
+  // Authorized - return phone number
+  const caregiver = await base44.asServiceRole.entities.User.read(caregiver_id);
+  return Response.json({ phone: caregiver.phone });
+}`}
+      </pre>
+      
+      <h2>Fields Requiring RLS</h2>
+      <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%', margin: '1rem 0' }}>
+        <thead>
+          <tr style={{ backgroundColor: '#f3f4f6' }}>
+            <th>Field</th>
+            <th>Access Rule</th>
+            <th>Implementation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>CaregiverProfile.is_verified</td>
+            <td>Write: admin only</td>
+            <td>RLS write rule</td>
+          </tr>
+          <tr>
+            <td>Message.body_original</td>
+            <td>Read/Write: admin only</td>
+            <td>RLS read+write rule</td>
+          </tr>
+          <tr>
+            <td>ParentProfile.address_line_1</td>
+            <td>Read/Write: owner + admin</td>
+            <td>RLS owner rule</td>
+          </tr>
+          <tr>
+            <td>User.phone</td>
+            <td>Context-dependent</td>
+            <td>Backend function</td>
+          </tr>
+          <tr>
+            <td>User.password_hash</td>
+            <td>Never accessible</td>
+            <td>Platform-managed (do NOT define)</td>
+          </tr>
+        </tbody>
+      </table>
+      
+      <p><em>See component source code for complete FLS specification and examples.</em></p>
     </div>
   );
 }
