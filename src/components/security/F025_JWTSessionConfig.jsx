@@ -76,237 +76,116 @@ const F025_JWT_SESSION_SPECIFICATION = {
   },
   
   /**
-   * ACCESS CONTROL & PERMISSIONS (Access.1-4)
-   * JWT payload and token storage
+   * USER AUTHENTICATION AND ROLE CHECKING
+   * How to access current user in backend functions
    */
-  access_control: {
+  user_authentication: {
     
-    jwt_payload: {
-      // Access.1: JWT contents
-      claims: {
-        user_id: 'User identifier',
-        role: 'Snapshot at issuance (NOT authoritative)',
-        jti: 'Unique token ID for blacklist',
-        iat: 'Issued at timestamp',
-        exp: 'Expiry timestamp'
-      },
-      
-      no_pii: 'NEVER include PII in JWT payload (email, phone, address)',
+    platform_managed_auth: {
+      mechanism: 'Base44 handles authentication and session management',
+      no_jwt_parsing: 'You do NOT parse or validate JWT tokens in your code',
+      no_token_storage: 'You do NOT manage token storage or cookies',
+      developer_action: 'Use base44.auth.me() to get current authenticated user'
+    },
+    
+    accessing_current_user: {
+      method: 'base44.auth.me()',
+      returns: 'Current authenticated user object from session',
       
       example: `
-        {
-          "user_id": "550e8400-e29b-41d4-a716-446655440000",
-          "role": "caregiver",
-          "jti": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-          "iat": 1709683200,
-          "exp": 1709684100
+        // Get current authenticated user in backend function
+        export default async function handler(req, context) {
+          const { base44 } = context;
+          
+          // Get current user from session
+          const user = await base44.auth.me();
+          
+          // User object contains: id, email, full_name, role, created_date
+          console.log('Current user:', user.id, user.role);
+          
+          // Check permissions
+          if (user.role !== 'admin') {
+            return { error: 'Unauthorized' };
+          }
+          
+          // Proceed with authorized logic
+          return { success: true };
         }
       `,
       
-      role_note: 'Access.4: Role is for reference only. Live DB read is authoritative (F-003).'
+      unauthenticated: 'base44.auth.me() throws error if no session - catch if needed'
     },
     
-    access_token_storage: {
-      // Access.2: Access token storage
-      type: 'Short-lived (15 minutes)',
-      usage: 'API requests',
+    role_checking: {
+      authoritative_source: 'User entity in database (via base44.auth.me())',
+      not_jwt_claims: 'Do NOT rely on JWT claims for role checks',
       
-      storage_options: [
-        {
-          method: 'Memory (JavaScript variable)',
-          security: 'Lost on page refresh - requires refresh token',
-          recommended: true
-        },
-        {
-          method: 'httpOnly cookie',
-          security: 'Secure, not accessible to JS',
-          recommended: true
-        }
-      ],
+      reason: 'User role may change after token issued (promotion, suspension)',
+      implementation: 'Every backend function reads current user role from DB',
       
-      never_use: 'localStorage or sessionStorage (XSS vulnerable)',
-      
-      implementation: `
-        // Access.2: Access token in memory
-        let accessToken = null;
-        
-        function setAccessToken(token) {
-          accessToken = token;
-        }
-        
-        function getAccessToken() {
-          return accessToken;
-        }
-        
-        // Lost on page refresh - use refresh token to get new one
-      `
-    },
-    
-    refresh_token_storage: {
-      // Access.3: Refresh token storage
-      type: 'Long-lived (30 days)',
-      usage: 'Obtain new access tokens only',
-      
-      storage: 'httpOnly, Secure, SameSite=Strict cookie',
-      security: [
-        'httpOnly: Not accessible to JavaScript',
-        'Secure: Only sent over HTTPS',
-        'SameSite=Strict: CSRF protection'
-      ],
-      
-      never_use: 'localStorage (accessible to XSS attacks)',
-      
-      cookie_configuration: `
-        // Access.3: Set refresh token as httpOnly cookie
-        res.cookie('refresh_token', refreshTokenHash, {
-          httpOnly: true,       // Not accessible to JavaScript
-          secure: true,         // HTTPS only
-          sameSite: 'strict',   // CSRF protection
-          maxAge: 30 * 24 * 60 * 60 * 1000,  // 30 days
-          path: '/auth/refresh' // Only sent to refresh endpoint
-        });
-      `
-    },
-    
-    role_authority: {
-      // Access.4: Role in JWT vs database
-      jwt_role: 'Snapshot at token issuance',
-      authoritative: 'Live database read (F-003 middleware)',
-      
-      reason: 'User role may change after token issued (promotion, demotion)',
-      enforcement: 'F-003 middleware reads role from DB on every request',
-      
-      implementation: `
-        // Access.4: JWT role is NOT authoritative
-        async function checkPermission(req) {
-          const jwtPayload = decodeJWT(req.headers.authorization);
+      example: `
+        // Role check in backend function
+        export default async function handler(req, context) {
+          const { base44 } = context;
+          const user = await base44.auth.me();
           
-          // DO NOT use jwtPayload.role for permission decisions
-          // Read from database (F-003)
-          const user = await base44.asServiceRole.entities.User.read(jwtPayload.user_id);
-          
-          // Use user.role from DB (authoritative)
-          if (user.role !== 'admin') {
-            throw new Error('Insufficient permissions');
+          // Read live role from DB (authoritative)
+          if (user.role !== 'admin' && user.role !== 'trust_admin') {
+            return { error: 'Insufficient permissions', status: 403 };
           }
+          
+          // Admin-only logic here
+          const sensitiveData = await base44.asServiceRole.entities.SensitiveEntity.list();
+          return { data: sensitiveData };
         }
       `
+    },
+    
+    session_storage_info: {
+      platform_handled: 'Base44 manages token storage in httpOnly, Secure, SameSite cookies',
+      security: 'Tokens not accessible to JavaScript - XSS protection',
+      developer_action: 'None - platform handles automatically'
     }
   },
   
   /**
-   * STATE MACHINE & LIFECYCLE (States.1-2)
-   * Session states and refresh token rotation
+   * SESSION LIFECYCLE
+   * Platform-managed with one build requirement
    */
-  state_machine: {
+  session_lifecycle: {
     
-    session_lifecycle: {
-      // States.1: Session states
-      states: {
-        active: {
-          condition: 'Valid access token',
-          user_can: 'Make API requests',
-          duration: '15 minutes from issuance'
-        },
-        expired: {
-          condition: 'Access token expired, refresh token valid',
-          action: 'Client automatically attempts refresh',
-          result: 'New access token issued'
-        },
-        refreshed: {
-          condition: 'New access token issued via refresh',
-          user_can: 'Continue using application',
-          token_rotation: 'New refresh token also issued (States.2)'
-        },
-        revoked: {
-          condition: 'All tokens invalidated',
-          causes: ['User logout', 'Account suspension', 'Admin action'],
-          recovery: 'User must re-authenticate'
-        }
-      },
+    platform_managed_lifecycle: {
+      token_rotation: 'Base44 automatically rotates refresh tokens on use',
+      replay_detection: 'Base44 detects and blocks replay attacks',
+      session_expiry: 'Base44 handles token expiry and renewal',
+      logout: 'Base44 base44.auth.logout() invalidates session automatically',
       
-      state_diagram: `
-        Login
-        ↓
-        ACTIVE (15-min access token)
-        ↓ (after 15 minutes)
-        EXPIRED (access token invalid)
-        ↓
-        Client detects 401
-        ↓
-        Send refresh token to /auth/refresh
-        ↓
-        REFRESHED (new access + refresh tokens)
-        ↓
-        Continue using app
-        
-        At any time:
-        → User logout → REVOKED
-        → Account suspended → REVOKED
-        → Admin force logout → REVOKED
-      `
+      developer_action: 'None for standard login/logout flow'
     },
     
-    refresh_token_rotation: {
-      // States.2: Automatic rotation on each use
-      behavior: 'Each refresh issues new access + new refresh token',
-      old_token: 'Revoked immediately (revoked_at set)',
-      purpose: 'Prevent stolen refresh token reuse',
-      
-      rotation_flow: `
-        Client sends refresh token
-        ↓
-        Server validates token (not expired, not revoked)
-        ↓
-        Generate new access token (15-min TTL)
-        Generate new refresh token (30-day TTL)
-        ↓
-        Mark old refresh token as revoked
-        ↓
-        Return new tokens to client
-        ↓
-        Client stores new tokens
+    session_states: {
+      active: 'User has valid session - base44.auth.me() returns user',
+      expired: 'Session expired - base44.auth.me() throws error',
+      revoked: 'Session invalidated (logout, suspension) - base44.auth.me() throws error'
+    },
+    
+    logout_implementation: {
+      client_side: `
+        import { base44 } from '@/api/base44Client';
+        
+        // Logout current user
+        await base44.auth.logout();
+        // Automatically redirects to login or reloads page
+        
+        // Or redirect to specific URL after logout
+        await base44.auth.logout('/some-page');
       `,
       
-      replay_detection: {
-        // States.2: If refresh token used twice (replay attack)
-        scenario: 'Attacker steals refresh token and uses it',
-        detection: 'Refresh token already marked as revoked',
-        action: 'Revoke ALL refresh tokens for that user immediately',
-        user_impact: 'User forced to re-authenticate on all devices',
-        
-        implementation: `
-          // States.2: Detect refresh token replay
-          async function refreshAccessToken(refreshToken) {
-            const tokenRecord = await findRefreshToken(refreshToken);
-            
-            // Check if already revoked
-            if (tokenRecord.revoked_at) {
-              // Possible replay attack - revoke all user tokens
-              console.error('Refresh token replay detected', {
-                user_id: tokenRecord.user_id,
-                token_id: tokenRecord.id
-              });
-              
-              // Revoke all refresh tokens for this user
-              await revokeAllUserRefreshTokens(tokenRecord.user_id);
-              
-              throw new Error('Token already used - possible replay attack');
-            }
-            
-            // Token valid - proceed with rotation
-            const newAccessToken = generateAccessToken(tokenRecord.user_id);
-            const newRefreshToken = generateRefreshToken(tokenRecord.user_id);
-            
-            // Mark old token as revoked
-            await base44.asServiceRole.entities.RefreshToken.update(tokenRecord.id, {
-              revoked_at: new Date().toISOString()
-            });
-            
-            return { newAccessToken, newRefreshToken };
-          }
-        `
-      }
+      what_happens: [
+        'Base44 invalidates the session',
+        'Clears authentication cookies',
+        'User redirected to login page or specified URL'
+      ]
     }
   },
   
