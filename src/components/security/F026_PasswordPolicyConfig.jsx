@@ -174,92 +174,50 @@ const F026_PASSWORD_POLICY_SPECIFICATION = {
   },
   
   /**
-   * BUSINESS LOGIC & CROSS-ENTITY RULES (Logic.1-3)
-   * Password complexity and hashing
+   * PLATFORM SECURITY FEATURES
+   * Built into Base44 authentication
    */
-  business_logic: {
+  platform_security_features: {
     
-    complexity_rules: {
-      // Logic.1: Password complexity requirements
-      enforcement: 'Server-side validation (registration, password change, reset)',
-      rules: [
-        'Minimum 8 characters',
-        'At least 1 uppercase letter (A-Z)',
-        'At least 1 number (0-9)',
-        'At least 1 special character (!@#$%^&*()_+-=[]{}|;\':",./<>?)'
+    bcrypt_hashing: {
+      algorithm: 'bcrypt',
+      cost_factor: 'Platform-configured (industry standard: 12+)',
+      automatic: 'Base44 automatically hashes passwords on registration, change, reset',
+      
+      security: [
+        'Passwords never stored in plaintext',
+        'Base44 uses bcrypt with appropriate cost factor',
+        'Platform handles hash verification on login',
+        'Automatic cost factor upgrades as hardware improves'
       ],
       
-      validation: `
-        // Logic.1: Validate password complexity
-        function validatePasswordComplexity(password) {
-          const errors = [];
-          
-          if (password.length < 8) {
-            errors.push('Password must be at least 8 characters.');
-          }
-          
-          if (!/[A-Z]/.test(password)) {
-            errors.push('Password must contain at least one uppercase letter.');
-          }
-          
-          if (!/[0-9]/.test(password)) {
-            errors.push('Password must contain at least one number.');
-          }
-          
-          if (!/[!@#$%^&*()_+\-=\[\]{}|;':",./<>?]/.test(password)) {
-            errors.push('Password must contain at least one special character.');
-          }
-          
-          if (errors.length > 0) {
-            // Errors.2: Show all unmet rules simultaneously
-            throw new Error(errors.join(' '));
-          }
-          
-          return true;
-        }
-      `
+      developer_action: 'None - platform handles password hashing'
     },
     
-    password_hashing: {
-      // Logic.2: Bcrypt hashing requirements
-      algorithm: 'bcrypt',
-      cost_factor: 12,
-      configurable: 'Via environment variable (BCRYPT_COST_FACTOR)',
+    session_invalidation: {
+      on_password_reset: 'Base44 invalidates all active sessions automatically',
+      on_password_change: 'Base44 invalidates all active sessions automatically',
       
-      never_use: ['MD5', 'SHA1', 'SHA256 without salt'],
+      security_benefit: 'If attacker resets password, legitimate user is logged out',
+      user_impact: 'User must re-authenticate on all devices after password change',
       
-      implementation: `
-        // Logic.2: Hash password with bcrypt
-        import bcrypt from 'bcrypt';
-        
-        async function hashPassword(plainPassword) {
-          const costFactor = parseInt(process.env.BCRYPT_COST_FACTOR) || 12;
-          
-          // Hash with bcrypt
-          const hash = await bcrypt.hash(plainPassword, costFactor);
-          
-          return hash;
-        }
-        
-        async function verifyPassword(plainPassword, hash) {
-          return await bcrypt.compare(plainPassword, hash);
-        }
-      `,
-      
-      cost_factor_guidance: {
-        current: 12,
-        future: 'Increase as hardware improves (e.g., 13, 14)',
-        impact: 'Higher cost = slower hashing = better security',
-        tradeoff: 'Balance security vs login latency'
-      }
+      developer_action: 'None - platform handles session invalidation'
     },
     
-    password_history: {
-      // Logic.3: Password history NOT enforced at MVP
-      mvp_status: 'Not implemented',
-      post_mvp: 'Cannot reuse last N passwords (e.g., N=5)',
+    rate_limiting: {
+      reset_requests: 'Base44 applies rate limiting to password reset requests',
+      protection: 'Prevents email enumeration and abuse',
+      limit: 'Platform-configured (typically 3-5 requests per email per hour)',
       
-      future_implementation: 'Store hashes of last 5 passwords, check on reset/change'
+      developer_action: 'None - platform handles rate limiting'
+    },
+    
+    email_enumeration_prevention: {
+      consistent_response: 'Base44 returns same message whether account exists or not',
+      message: 'If an account exists with this email, you will receive a reset link',
+      security: 'Prevents attackers from discovering valid email addresses',
+      
+      developer_action: 'None - platform handles response messaging'
     }
   },
   
