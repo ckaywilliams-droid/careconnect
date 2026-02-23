@@ -288,259 +288,77 @@ const F025_JWT_SESSION_SPECIFICATION = {
   },
   
   /**
-   * ABUSE PREVENTION & RATE LIMITS (Abuse.1-2)
-   * Refresh endpoint and blacklist performance
+   * ABUSE PREVENTION
+   * Platform-managed
    */
   abuse_prevention: {
     
-    refresh_rate_limit: {
-      // Abuse.1: Rate limit refresh endpoint
-      limit: '10 requests per IP per minute',
-      reason: 'High refresh rate suggests stolen token replay',
+    platform_managed: {
+      rate_limiting: 'Base44 applies rate limiting to auth endpoints automatically',
+      replay_detection: 'Base44 detects and blocks token replay attacks',
+      concurrent_requests: 'Base44 handles concurrent refresh requests safely',
       
-      implementation: `
-        // Abuse.1: Rate limit /auth/refresh
-        const refreshRateLimiter = rateLimit({
-          windowMs: 60 * 1000,  // 1 minute
-          max: 10,  // 10 requests
-          message: 'Too many refresh attempts. Please try again later.',
-          
-          handler: (req, res) => {
-            console.warn('Refresh rate limit exceeded', {
-              ip: req.ip,
-              timestamp: new Date().toISOString()
-            });
-            
-            res.status(429).json({
-              error: 'Too many refresh attempts',
-              retry_after: 60
-            });
-          }
-        });
-        
-        app.post('/auth/refresh', refreshRateLimiter, handleRefresh);
-      `
+      developer_action: 'None - platform handles abuse prevention'
     },
     
-    blacklist_performance: {
-      // Abuse.2: CRITICAL - Index jti field
-      requirement: 'Index TokenBlacklist on jti',
-      reason: 'Every API request checks blacklist',
-      target_latency: '<10ms per check',
-      
-      without_index: 'Full table scan on every request = catastrophic',
-      
-      database_index: `
-        // Abuse.2: Create index on jti field
-        CREATE INDEX idx_token_blacklist_jti ON TokenBlacklist(jti);
-        
-        // Verify index usage
-        EXPLAIN SELECT * FROM TokenBlacklist WHERE jti = 'abc123...';
-        // Should show "Using index"
-      `,
-      
-      monitoring: `
-        // Monitor blacklist check performance
-        const start = Date.now();
-        const blacklisted = await checkBlacklist(jti);
-        const duration = Date.now() - start;
-        
-        if (duration > 10) {
-          console.warn('Slow blacklist check', {
-            duration_ms: duration,
-            jti_prefix: jti.substring(0, 8)
-          });
-        }
-      `
+    note: {
+      no_blacklist: 'No TokenBlacklist entity needed - Base44 manages internally',
+      no_performance_tuning: 'No database indexing required - platform-optimized',
+      no_rate_limiters: 'No custom rate limiting code needed'
     }
   },
   
   /**
-   * ERROR HANDLING (Errors.1-3, Edge.1-2)
-   * Token validation and edge cases
+   * ERROR HANDLING
+   * Platform-managed
    */
   error_handling: {
     
-    expired_access_token: {
-      // Errors.1: Access token expired
-      http_code: 401,
-      error_code: 'token_expired',
-      message: 'Access token expired',
+    platform_managed: {
+      token_expiry: 'Base44 handles expired token responses automatically',
+      invalid_tokens: 'Base44 validates JWT format and signature',
+      refresh_failures: 'Base44 redirects to login when refresh fails',
+      clock_skew: 'Base44 applies clock skew tolerance automatically',
       
-      client_action: 'Automatically attempt refresh',
-      fallback: 'If refresh fails: redirect to login',
-      
-      response: `
-        {
-          "error": "Access token expired",
-          "code": "token_expired"
-        }
-      `
+      developer_action: 'None - platform handles token validation and errors'
     },
     
-    malformed_jwt: {
-      // Errors.2: Invalid JWT
-      scenarios: ['Tampered signature', 'Invalid format', 'Missing claims'],
-      action: 'Return 401 immediately',
-      no_parsing: 'Do NOT attempt to parse or use payload',
+    client_side_handling: `
+      // Optional: Catch session errors in UI
+      import { base44 } from '@/api/base44Client';
       
-      implementation: `
-        // Errors.2: Validate JWT format and signature
-        function validateJWT(token) {
-          try {
-            const decoded = jwt.verify(token, JWT_SECRET);
-            return decoded;
-          } catch (error) {
-            // Errors.2: Malformed or tampered JWT
-            console.warn('Invalid JWT', {
-              error: error.message,
-              token_prefix: token.substring(0, 20)
-            });
-            
-            throw new Error('Invalid token');
-          }
+      try {
+        const data = await base44.entities.SomeEntity.list();
+      } catch (error) {
+        if (error.status === 401) {
+          // Session invalid - Base44 SDK handles redirect
+          // This block typically won't run as SDK handles it
         }
-      `
-    },
-    
-    clock_skew: {
-      // Errors.3: Allow clock skew tolerance
-      tolerance: '30 seconds',
-      reason: 'Account for client/server time differences',
-      
-      implementation: `
-        // Errors.3: Clock skew tolerance
-        const decoded = jwt.verify(token, JWT_SECRET, {
-          clockTolerance: 30  // 30-second tolerance
-        });
-      `
-    },
-    
-    refresh_token_theft: {
-      // Edge.1: Detect stolen refresh tokens
-      detection: 'Refresh token used from different IP/device',
-      action: 'Flag event and notify user via email',
-      no_auto_block: 'Do NOT block automatically at MVP',
-      
-      implementation: `
-        // Edge.1: Detect anomalous refresh token usage
-        async function detectRefreshTokenTheft(tokenRecord, currentIP) {
-          const originalIP = tokenRecord.ip_address;
-          
-          // Check if IP significantly different (simplified)
-          if (originalIP && currentIP !== originalIP) {
-            // Flag suspicious activity
-            console.warn('Refresh token used from different IP', {
-              user_id: tokenRecord.user_id,
-              original_ip: originalIP,
-              current_ip: currentIP
-            });
-            
-            // Edge.1: Notify user via email
-            await base44.integrations.Core.SendEmail({
-              to: tokenRecord.user.email,
-              subject: 'New sign-in detected',
-              body: \`A sign-in was detected from a new location. 
-                     If this wasn't you, please secure your account.\`
-            });
-            
-            // Do NOT block - just flag for user awareness
-          }
-        }
-      `
-    },
-    
-    blacklist_cleanup: {
-      // Edge.2: Scheduled cleanup of old blacklist entries
-      schedule: 'Daily at 3 AM',
-      condition: 'revoked_at > access token TTL (15 minutes)',
-      reason: 'Entries older than 15 min are no longer needed',
-      
-      implementation: `
-        // Edge.2: Cleanup old TokenBlacklist entries
-        async function cleanupTokenBlacklist() {
-          const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-          
-          const deleted = await base44.asServiceRole.entities.TokenBlacklist.delete_many({
-            revoked_at: { $lt: fifteenMinutesAgo.toISOString() }
-          });
-          
-          console.info('TokenBlacklist cleanup complete', {
-            entries_deleted: deleted.count,
-            timestamp: new Date().toISOString()
-          });
-        }
-        
-        // Run daily via scheduled automation
-        // Cron: 0 3 * * * (3 AM daily)
-      `
-    }
+      }
+    `
   },
   
   /**
-   * LOGGING & AUDIT (Audit.1-3)
-   * Session tracking and token operations
+   * LOGGING & AUDIT
+   * Platform logs session events automatically
    */
   logging_audit: {
     
-    session_creation: {
-      // Audit.1: Log every session creation
-      log_level: 'INFO',
-      fields: [
-        'user_id',
-        'login_method (password / sso)',
-        'ip_address',
-        'device_hint (truncated user agent)',
-        'issued_at'
-      ],
+    platform_logging: {
+      session_events: 'Base44 automatically logs login, logout, and session events',
+      audit_trail: 'Platform maintains audit trail for compliance',
+      developer_access: 'View session logs in Base44 dashboard',
       
-      implementation: `
-        // Audit.1: Log session creation
-        console.info('Session created', {
-          user_id: user.id,
-          login_method: 'password',
-          ip: req.ip,
-          device_hint: req.headers['user-agent']?.substring(0, 100),
-          issued_at: new Date().toISOString()
-        });
-      `
+      developer_action: 'None - platform handles session audit logging'
     },
     
-    session_revocation: {
-      // Audit.2: Log every session revocation
-      log_level: 'INFO',
-      fields: [
-        'user_id',
-        'reason (logout / suspension / admin-forced / suspicious-replay)',
-        'revoked_at'
-      ],
-      
-      implementation: `
-        // Audit.2: Log session revocation
-        console.info('Session revoked', {
+    custom_logging: {
+      when_needed: 'Only log suspension-related events in your code',
+      example: `
+        // Log when manually invalidating session on suspension
+        console.info('User suspended - session invalidated', {
           user_id: userId,
-          reason: 'logout',
-          revoked_at: new Date().toISOString()
-        });
-      `
-    },
-    
-    blacklist_additions: {
-      // Audit.3: Log token blacklist additions
-      log_level: 'INFO',
-      fields: [
-        'jti_prefix (first 8 chars)',
-        'user_id',
-        'reason',
-        'timestamp'
-      ],
-      
-      implementation: `
-        // Audit.3: Log token blacklist addition
-        console.info('Token blacklisted', {
-          jti_prefix: jti.substring(0, 8),
-          user_id: userId,
-          reason: 'account_suspension',
+          reason: suspensionReason,
           timestamp: new Date().toISOString()
         });
       `
