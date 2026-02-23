@@ -51,6 +51,8 @@ import RoleSelection from './pages/RoleSelection';
 import Register from './pages/Register';
 import VerifyEmail from './pages/VerifyEmail';
 import EmailVerified from './pages/EmailVerified';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 
 
 export const PAGES = {
@@ -58,6 +60,8 @@ export const PAGES = {
     "Register": Register,
     "VerifyEmail": VerifyEmail,
     "EmailVerified": EmailVerified,
+    "ForgotPassword": ForgotPassword,
+    "ResetPassword": ResetPassword,
 }
 
 export const pagesConfig = {
