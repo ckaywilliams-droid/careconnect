@@ -381,122 +381,139 @@ const F026_PASSWORD_POLICY_SPECIFICATION = {
  * - components/PasswordComplexityIndicator (already exists)
  */
 
-/**
- * ============================================================================
- * IMPLEMENTATION NOTES
- * ============================================================================
- */
 export default function F026PasswordPolicyDocumentation() {
   return (
     <div style={{ padding: '2rem', fontFamily: 'monospace', maxWidth: '1400px', margin: '0 auto' }}>
       <h1>F-026: Password Security Policy</h1>
-      <p><strong>Status:</strong> Phase 1 - Authentication & User Registration</p>
-      <p><strong>Priority:</strong> CRITICAL</p>
+      <p><strong>Status:</strong> Phase 1 — Platform-Managed</p>
       
-      <div style={{ padding: '1rem', backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', margin: '1rem 0' }}>
-        <strong>⚠️ CRITICAL SECURITY REQUIREMENTS</strong>
+      <div style={{ padding: '1rem', backgroundColor: '#dbeafe', borderLeft: '4px solid #3b82f6', marginBottom: '2rem' }}>
+        <strong>ℹ️ PLATFORM-MANAGED vs BUILD REQUIRED</strong>
+        <p><strong>Platform-Managed (No Build Required):</strong></p>
         <ul>
-          <li><strong>Logic.2:</strong> Bcrypt with cost factor ≥12</li>
-          <li><strong>Triggers.1:</strong> Hash BEFORE User creation (never store plaintext)</li>
-          <li><strong>Triggers.3:</strong> Invalidate all sessions on password reset</li>
-          <li><strong>Access.1:</strong> password_hash NEVER returned in API responses</li>
-          <li><strong>Edge.3:</strong> Use time-safe comparison (bcrypt.compare)</li>
+          <li>Password hashing with bcrypt (automatic)</li>
+          <li>Password reset flow and token management</li>
+          <li>Reset email generation and delivery</li>
+          <li>Token expiry and single-use enforcement</li>
+          <li>Session invalidation on password reset</li>
+          <li>Rate limiting and email enumeration prevention</li>
+        </ul>
+        <p><strong>Build Required:</strong></p>
+        <ul>
+          <li>Configure password complexity in Dashboard</li>
+          <li>Optional: Customize reset email template</li>
+          <li>Remove PasswordResetToken entity from data model</li>
         </ul>
       </div>
       
-      <h2>Password Complexity Rules (Logic.1)</h2>
-      <ul>
-        <li>✓ Minimum 8 characters</li>
-        <li>✓ At least 1 uppercase letter (A-Z)</li>
-        <li>✓ At least 1 number (0-9)</li>
-        <li>✓ At least 1 special character (!@#$%^&*()_+-=[]{}|;':",./&lt;&gt;?)</li>
-      </ul>
+      <div style={{ padding: '1rem', backgroundColor: '#fee2e2', borderLeft: '4px solid #ef4444', margin: '1rem 0' }}>
+        <strong>⚠️ CRITICAL: Do NOT define password_hash in User.json</strong>
+        <p>Base44 manages password_hash internally. Defining it in your User entity schema will cause a validation error.</p>
+      </div>
       
-      <h2>Bcrypt Configuration (Logic.2)</h2>
+      <h2>Configuration Checklist</h2>
       <table border="1" cellPadding="8" style={{ borderCollapse: 'collapse', width: '100%', margin: '1rem 0' }}>
         <thead>
           <tr style={{ backgroundColor: '#f3f4f6' }}>
-            <th>Parameter</th>
-            <th>Value</th>
-            <th>Notes</th>
+            <th>Task</th>
+            <th>Location</th>
+            <th>Status</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td>Algorithm</td>
-            <td>bcrypt</td>
-            <td>Industry standard for password hashing</td>
+            <td>Configure password complexity</td>
+            <td>Dashboard → App Login and Registration</td>
+            <td>Required</td>
           </tr>
           <tr>
-            <td>Cost Factor</td>
-            <td>12 (minimum)</td>
-            <td>Configurable via BCRYPT_COST_FACTOR env var</td>
+            <td>Customize reset email (optional)</td>
+            <td>Dashboard → Settings → Email Templates</td>
+            <td>Optional</td>
           </tr>
           <tr>
-            <td>NEVER Use</td>
-            <td>MD5, SHA1, SHA256 without salt</td>
-            <td>Insecure - vulnerable to rainbow tables</td>
+            <td>Remove PasswordResetToken entity</td>
+            <td>Delete entities/PasswordResetToken.json</td>
+            <td>Required</td>
+          </tr>
+          <tr>
+            <td>Verify NO password_hash in User.json</td>
+            <td>Check entities/User.json</td>
+            <td>Critical</td>
           </tr>
         </tbody>
       </table>
       
-      <h2>Password Reset Flow</h2>
+      <h2>Password Complexity (Configure in Dashboard)</h2>
+      <p>Recommended settings:</p>
+      <ul>
+        <li>✓ Minimum 8 characters</li>
+        <li>✓ At least 1 uppercase letter (A-Z)</li>
+        <li>✓ At least 1 lowercase letter (a-z)</li>
+        <li>✓ At least 1 number (0-9)</li>
+        <li>✓ At least 1 special character (!@#$%^&*)</li>
+      </ul>
+      
+      <h2>Password Reset Flow (Platform-Managed)</h2>
       <pre style={{ backgroundColor: '#f3f4f6', padding: '1rem', borderRadius: '0.5rem', overflowX: 'auto' }}>
 {`Step 1: User Requests Reset
-POST /api/auth/forgot-password
-{ email: "user@example.com" }
+User submits email via ForgotPassword page
 ↓
-Check rate limit (3 per hour)
-↓
-Find user by email (or not - same response)
+Base44 checks rate limit
+Base44 finds user (or not - same response)
 
-Step 2: Generate Token
-64-char hex token generated (256 bits entropy)
+Step 2: Token Generation
+Base44 generates secure 64-char token
 ↓
-Hash token with bcrypt (cost factor 12)
+Base44 hashes token with bcrypt
 ↓
-Store hash in PasswordResetToken (30-min TTL)
+Base44 stores hashed token (30-min TTL)
 ↓
-Send raw token via email (Data.3)
+Base44 sends reset email with link
 
 Step 3: User Clicks Link
-GET /reset-password?token={64-char-hex}
+User lands on ResetPassword page
 ↓
-Validate token (not expired, not used)
+Base44 validates token (not expired, not used)
 ↓
-Show reset password form
+User sees password reset form
 
 Step 4: User Submits New Password
-POST /api/auth/reset-password
-{ token, new_password }
+User submits new password
 ↓
-Validate token hash (Edge.3 - time-safe)
-Validate password complexity (Logic.1)
-Hash new password with bcrypt
+Base44 validates password complexity
+Base44 hashes new password with bcrypt
 ↓
-Update User.password_hash
-Mark token as used
-Invalidate all sessions (Triggers.3)
-Send confirmation email
+Base44 updates password
+Base44 marks token as used
+Base44 invalidates all sessions
+Base44 sends confirmation email
 
 Step 5: User Re-Authenticates
 All sessions revoked
 ↓
-User must log in with new password`}
+User logs in with new password`}
       </pre>
       
-      <h2>See source code for:</h2>
+      <h2>UI Components (Already Built)</h2>
       <ul>
-        <li>Complete entity schema (PasswordResetToken)</li>
-        <li>Password complexity validation logic</li>
-        <li>Bcrypt hashing implementation</li>
-        <li>Reset token generation and validation</li>
-        <li>Session invalidation on reset</li>
-        <li>Rate limiting (3 per hour)</li>
-        <li>Email enumeration prevention</li>
-        <li>Timing attack prevention</li>
-        <li>Audit logging requirements</li>
+        <li><strong>pages/ForgotPassword.js</strong> - Password reset request page</li>
+        <li><strong>pages/ResetPassword.js</strong> - New password submission page</li>
+        <li><strong>components/PasswordComplexityIndicator</strong> - Real-time validation feedback</li>
       </ul>
+      
+      <h2>Security Features (Automatic)</h2>
+      <ul>
+        <li>Bcrypt password hashing (platform-configured cost factor)</li>
+        <li>Secure token generation (256-bit entropy)</li>
+        <li>30-minute token expiry</li>
+        <li>Single-use tokens</li>
+        <li>Session invalidation on password reset</li>
+        <li>Rate limiting (prevents abuse)</li>
+        <li>Email enumeration prevention</li>
+      </ul>
+      
+      <p><em>See component source code for complete platform password security specification.</em></p>
     </div>
   );
 }
