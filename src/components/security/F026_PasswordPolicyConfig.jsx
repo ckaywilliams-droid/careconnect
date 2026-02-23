@@ -3,12 +3,27 @@
  * 
  * THIS IS A DOCUMENTATION COMPONENT - NOT FUNCTIONAL CODE
  * 
- * Documents Base44 platform configuration for password security including
- * complexity rules, bcrypt hashing, password reset flow, and token management.
+ * STATUS: Phase 1 — Platform-Managed
  * 
- * STATUS: Phase 1 - Authentication & User Registration
- * PRIORITY: CRITICAL
- * DEPENDENCIES: User entity, Resend integration, bcrypt
+ * ============================================================================
+ * PLATFORM-MANAGED vs BUILD REQUIRED
+ * ============================================================================
+ * 
+ * PLATFORM-MANAGED (No Build Required):
+ * - Password hashing with bcrypt (automatic)
+ * - Password reset flow and token management
+ * - Reset email generation and delivery
+ * - Token expiry and single-use enforcement
+ * - Session invalidation on password reset
+ * 
+ * BUILD REQUIRED:
+ * - Configure password complexity in Dashboard → App Login and Registration settings
+ * - Optional: Customize password reset email template
+ * - Remove PasswordResetToken entity from data model (not needed)
+ * 
+ * CRITICAL: Do NOT define password_hash field in User.json
+ * - Base44 manages password_hash internally
+ * - Defining it in your schema will cause validation error
  * 
  * ============================================================================
  * CRITICAL SECURITY REQUIREMENTS
@@ -18,79 +33,78 @@
 const F026_PASSWORD_POLICY_SPECIFICATION = {
   
   /**
-   * DATA MODEL & CONSTRAINTS (Data.1-3)
-   * Password storage and reset tokens
+   * PLATFORM PASSWORD MANAGEMENT
+   * Base44 handles password hashing and storage automatically
    */
-  data_model: {
+  platform_password_management: {
     
-    password_hash_field: {
-      // Data.1: password_hash on User entity
-      field: 'password_hash',
-      type: 'Text',
-      description: 'Bcrypt hash of user password',
+    what_base44_handles: {
+      password_hashing: 'Base44 automatically hashes passwords with bcrypt',
+      password_storage: 'password_hash managed internally - NOT in your User schema',
+      password_verification: 'Base44 verifies passwords during login',
+      hash_upgrades: 'Platform handles bcrypt cost factor upgrades',
       
-      written_on: [
-        'User registration (Triggers.1)',
-        'Password change',
-        'Password reset (Triggers.2)'
-      ],
-      
-      never_stored: 'Plaintext password NEVER touches database or logs',
-      never_returned: 'Access.1: Excluded from all API responses'
+      developer_action: 'None - platform handles password hashing'
     },
     
-    reset_token_entity: {
-      // Data.2: PasswordResetToken collection
-      entity_name: 'PasswordResetToken',
-      fields: {
-        id: 'UUID (auto)',
-        user_id: 'Relation to User (required)',
-        token_hash: 'Bcrypt hash of reset token (NOT plaintext)',
-        expires_at: 'DateTime (now + 30 minutes)',
-        used_at: 'DateTime (nullable - single-use)',
-        created_at: 'DateTime (auto)'
-      },
+    critical_warning: {
+      do_not_define: 'NEVER define password_hash field in entities/User.json',
+      reason: 'Base44 manages password_hash internally',
+      error_if_defined: 'Defining password_hash will cause validation error',
+      note: 'User entity has no password field in your schema'
+    }
+  },
+  
+  /**
+   * PASSWORD RESET FLOW
+   * Platform-managed
+   */
+  password_reset_platform: {
+    
+    what_base44_handles: {
+      reset_request: 'User submits email via forgot password page',
+      token_generation: 'Base44 generates secure reset token',
+      token_storage: 'Base44 stores hashed token internally',
+      email_delivery: 'Base44 sends reset email with time-limited link',
+      token_validation: 'Base44 validates token when user clicks link',
+      password_update: 'Base44 updates password hash',
+      session_invalidation: 'Base44 invalidates all active sessions',
       
-      security: {
-        hashing: 'Reset tokens hashed with bcrypt before storage',
-        uniqueness: 'token_hash must be unique',
-        short_ttl: '30 minutes expiry limits attack window'
-      }
+      developer_action: 'None - platform handles reset flow'
     },
     
-    token_generation: {
-      // Data.3: Raw reset token generation
-      length: '64 hex characters',
-      entropy: '256 bits (32 bytes)',
-      generation: 'Cryptographically random',
-      delivery: 'Sent to user via email only',
-      storage: 'Hashed with bcrypt before storage',
-      never_plaintext: 'NEVER store raw token in database',
-      
-      implementation: `
-        // Data.3: Generate password reset token
-        import crypto from 'crypto';
-        import bcrypt from 'bcrypt';
-        
-        async function generatePasswordResetToken(userId) {
-          // Generate 64-char hex token (256 bits entropy)
-          const rawToken = crypto.randomBytes(32).toString('hex');
-          
-          // Hash token before storage (Edge.1 - irreversible)
-          const tokenHash = await bcrypt.hash(rawToken, 12);
-          
-          // Store hash in database
-          await base44.asServiceRole.entities.PasswordResetToken.create({
-            user_id: userId,
-            token_hash: tokenHash,
-            expires_at: new Date(Date.now() + 30 * 60 * 1000)  // 30 minutes
-          });
-          
-          // Return raw token to send in email
-          // This is the ONLY time the raw token exists
-          return rawToken;
-        }
-      `
+    reset_flow: `
+      User submits email
+      ↓
+      Base44 generates reset token
+      ↓
+      Base44 sends reset email
+      ↓
+      User clicks link in email
+      ↓
+      Base44 validates token
+      ↓
+      User submits new password
+      ↓
+      Base44 validates complexity
+      ↓
+      Base44 updates password
+      ↓
+      Base44 invalidates sessions
+      ↓
+      User must re-authenticate
+    `
+  },
+  
+  /**
+   * ENTITY TO REMOVE FROM DATA MODEL
+   * Not needed - Base44 manages internally
+   */
+  entity_to_remove: {
+    PasswordResetToken: {
+      status: 'REMOVE FROM DATA MODEL',
+      reason: 'Base44 manages password reset tokens internally',
+      action: 'Delete entities/PasswordResetToken.json if it exists'
     }
   },
   
