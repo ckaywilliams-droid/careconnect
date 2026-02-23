@@ -3,268 +3,318 @@
  * 
  * THIS IS A DOCUMENTATION COMPONENT - NOT FUNCTIONAL CODE
  * 
- * This component documents the Base44 platform authorization middleware requirements.
- * These rules must be enforced at the Base44 platform level BEFORE any business logic executes.
- * 
- * STATUS: Phase 0 - Supporting entities created (TokenBlacklist, MiddlewareRejectionLog, IPBlocklist)
- * NEXT STEP: Configure Base44 middleware hooks to implement four-gate authorization
+ * STATUS: Phase 0 — Revised — Partial Build Required
  * 
  * ============================================================================
- * CRITICAL MIDDLEWARE ARCHITECTURE
+ * PLATFORM-MANAGED vs BUILD REQUIRED
+ * ============================================================================
+ * 
+ * PLATFORM-MANAGED (No Build Required):
+ * - Gate 1: JWT validation and session management
+ * 
+ * BUILD REQUIRED:
+ * - Shared authGuard backend function (Gates 1 + 2)
+ * - RLS rules on each entity (Gates 3 + 4)
+ * - Call authGuard at start of every backend function
+ * - Remove TokenBlacklist entity (Base44 manages internally)
+ * 
+ * ENTITIES TO REMOVE:
+ * - entities/TokenBlacklist.json (if exists) - Base44 manages token blacklisting
+ * 
+ * ============================================================================
+ * REVISED ARCHITECTURE: authGuard + RLS Rules
  * ============================================================================
  */
 
-const F003_MIDDLEWARE_SPECIFICATION = {
+const F003_AUTHORIZATION_SPECIFICATION = {
   
   /**
-   * EXECUTION ORDER: Middleware runs BEFORE ALL business logic
-   * Any automation or action that bypasses middleware is a SECURITY VULNERABILITY
+   * BASE44 IMPLEMENTATION PATTERN
+   * No single middleware layer - use authGuard function + RLS rules instead
    */
-  execution_context: {
-    trigger_point: 'EVERY server-side action (read, write, delete)',
-    runs_before: [
-      'Business logic',
-      'Database queries',
-      'Automations',
-      'Event triggers',
-      'Webhook handlers'
-    ],
-    stateless: true,  // No state maintained between requests
-    performance: 'Must complete in <50ms to avoid UX degradation'
+  implementation_pattern: {
+    approach: 'Shared authGuard backend function + RLS entity rules',
+    platform_vs_build: {
+      'Gate 1 (JWT validation)': 'Platform-managed via base44.auth.me()',
+      'Gate 2 (Suspension check)': 'Build authGuard function',
+      'Gate 3 (Role check)': 'RLS user_condition rules + explicit role checks',
+      'Gate 4 (Ownership)': 'RLS entity-user field comparison rules'
+    },
+    execution_order: 'authGuard → RLS rules → business logic'
   },
   
   /**
    * FOUR-GATE AUTHORIZATION MODEL
-   * All four gates must pass OR request is rejected with appropriate error code
+   * Implemented via authGuard function + RLS rules
    */
   authorization_gates: {
     
     /**
-     * GATE 1: JWT Validity & Expiration Check
-     * Access.2: Is the JWT valid and not expired?
+     * GATE 1: JWT Validity & Session Check
+     * PLATFORM-MANAGED: Base44 validates JWT automatically
      */
     gate_1_jwt_validation: {
-      checks: [
-        'JWT signature is valid (cryptographic verification)',
-        'JWT has not expired (exp claim < current time)',
-        'JWT is not on the TokenBlacklist (check token_jti or hash)',
-        'JWT contains required claims: user_id, role, iat, exp'
+      platform_managed: true,
+      
+      what_base44_handles: [
+        'JWT signature validation (cryptographic verification)',
+        'JWT expiry check (exp claim)',
+        'Token blacklisting (platform-managed internally)',
+        'Session validity'
       ],
+      
+      implementation: `
+        // Gate 1: Platform-managed session validation
+        // In authGuard function:
+        const user = await base44.auth.me();
+        if (!user) {
+          return Response.json(
+            { error: 'Authentication required' },
+            { status: 401 }
+          );
+        }
+      `,
+      
       on_failure: {
         http_status: 401,
         response: { error: 'Authentication required' },
-        action: 'Redirect to login page',
-        preserve_form_data: true,  // Errors.1
-        log_to: 'MiddlewareRejectionLog',
-        log_fields: {
-          gate_failed: 'gate_1_jwt_invalid',
-          action_attempted: 'request.endpoint',
-          ip_address: 'request.ip'
-        }
+        action: 'Base44 SDK redirects to login automatically',
+        developer_action: 'Return 401 from authGuard - SDK handles redirect'
       },
-      brute_force_protection: {
-        // Errors.2: >50 invalid JWT attempts from same IP in 5 min
-        threshold: 50,
-        window: '5 minutes',
-        action: [
-          'Create IPBlocklist entry with block_reason=brute_force_jwt',
-          'Set unblock_at to current_time + 1 hour',
-          'Send admin alert',
-          'Return 403 instead of 401 after block'
-        ]
-      },
-      implementation_note: `
-        // Pseudocode - Base44 middleware hook
-        const jwtPayload = verifyJWT(request.headers.authorization);
-        if (!jwtPayload) {
-          await logRejection('gate_1_jwt_invalid', request);
-          await checkBruteForce(request.ip);  // May trigger IPBlocklist
-          return 401;
-        }
-        
-        // Check TokenBlacklist
-        const isBlacklisted = await base44.entities.TokenBlacklist.filter({
-          token_jti: jwtPayload.jti,
-          blacklisted_at: { $gte: jwtPayload.iat }  // Only check tokens blacklisted after issuance
-        });
-        if (isBlacklisted.length > 0) {
-          await logRejection('gate_1_jwt_invalid', request);
-          return 401;
-        }
-      `
+      
+      no_token_blacklist_entity: {
+        note: 'Do NOT create TokenBlacklist entity',
+        reason: 'Base44 manages token invalidation internally (see F-025)',
+        action: 'Delete entities/TokenBlacklist.json if it exists'
+      }
     },
     
     /**
      * GATE 2: User Suspension Check (LIVE DB READ)
-     * Access.3: Is User.is_suspended = false?
-     * States.2: MUST be live DB read - JWT payload cannot be trusted
+     * BUILD REQUIRED: Implement in authGuard function
      */
     gate_2_suspension_check: {
+      build_required: true,
+      
       checks: [
-        'LIVE database read of User.is_suspended (NOT from JWT payload)',
-        'User.is_suspended === false'
+        'LIVE database read of User.is_suspended (NOT from JWT/session)',
+        'User.is_suspended === false OR User.data.is_suspended === false'
       ],
-      rationale: 'JWT issued before suspension cannot be trusted. Suspension must take effect immediately.',
-      on_failure: {
-        http_status: 403,
-        response: { error: 'Account suspended — contact support' },  // Abuse.1
-        action: 'Show generic permission denied page',
-        log_to: 'MiddlewareRejectionLog',
-        log_fields: {
-          user_id: 'jwtPayload.user_id',
-          gate_failed: 'gate_2_user_suspended',
-          action_attempted: 'request.endpoint',
-          ip_address: 'request.ip'
-        }
-      },
-      implementation_note: `
-        // Pseudocode - CRITICAL: This MUST be a live DB read every request
-        const user = await base44.entities.User.read(jwtPayload.user_id);
-        if (user.is_suspended) {
-          await logRejection('gate_2_user_suspended', request, user);
-          return 403;
+      
+      rationale: 'Suspension must take effect immediately on next request',
+      
+      implementation: `
+        // Gate 2: Suspension check in authGuard
+        // After base44.auth.me() succeeds:
+        
+        // Check if is_suspended is on User entity directly
+        if (user.is_suspended === true) {
+          return Response.json(
+            { error: 'Account suspended — contact support' },
+            { status: 403 }
+          );
         }
         
-        // Logic.1: Suspension takes effect on next request - no re-login required
-        // Logic.2: All JWTs for suspended user should be blacklisted when suspension occurs
-      `
+        // Or if stored in user.data:
+        if (user.data?.is_suspended === true) {
+          return Response.json(
+            { error: 'Account suspended — contact support' },
+            { status: 403 }
+          );
+        }
+      `,
+      
+      on_failure: {
+        http_status: 403,
+        response: { error: 'Account suspended — contact support' },
+        action: 'Show generic permission denied message',
+        log_to: 'MiddlewareRejectionLog (optional)'
+      },
+      
+      note: 'RLS rules cannot check User.is_suspended - implement in authGuard'
     },
     
     /**
      * GATE 3: Role-Based Action Permission
-     * Access.4: Does User.role permit this specific action?
+     * BUILD REQUIRED: RLS user_condition rules + explicit role checks
      */
     gate_3_role_permission: {
-      checks: [
-        'LIVE database read of User.role (NOT from JWT payload - role may have changed)',
-        'User.role has permission for requested action (CRUD on specific entity/field)'
-      ],
-      permission_matrix: {
-        // Example permission rules - expand based on F-001, F-002
-        parent: {
-          BookingRequest: { create: true, read: 'own', update: 'own', delete: false },
-          CaregiverProfile: { create: false, read: 'public', update: false, delete: false },
-          ParentProfile: { create: false, read: 'own', update: 'own', delete: false },
-          Message: { create: 'own_thread', read: 'own_thread', update: false, delete: false }
-        },
-        caregiver: {
-          BookingRequest: { create: false, read: 'own', update: 'own', delete: false },
-          CaregiverProfile: { create: false, read: 'public_or_own', update: 'own', delete: false },
-          AvailabilitySlot: { create: 'own', read: 'own', update: 'own', delete: 'own' },
-          Message: { create: 'own_thread', read: 'own_thread', update: false, delete: false }
-        },
-        trust_admin: {
-          '*': { create: true, read: true, update: true, delete: false }  // All entities, no delete
-        },
-        super_admin: {
-          '*': { create: true, read: true, update: true, delete: true }  // Full access
-        }
+      build_required: true,
+      
+      implementation_approach: {
+        data_level: 'RLS user_condition rules in entity schemas',
+        action_level: 'Explicit role checks in backend functions'
       },
-      field_level_exceptions: {
-        // F-002 field-level security overrides
-        'CaregiverProfile.is_verified': {
-          write: ['trust_admin', 'super_admin'],  // Only these roles
-          read: 'public'
-        },
-        'User.password_hash': {
-          write: 'system_only',  // Never writable via API
-          read: 'NEVER'  // Never readable by any role
-        },
-        'ParentProfile.address_line_1': {
-          write: 'own_or_admin',
-          read: ['trust_admin', 'super_admin']  // Never readable by caregivers
+      
+      rls_user_condition_example: `
+        // In entity schema (e.g., entities/CaregiverProfile.json)
+        {
+          "rls": {
+            "read": {
+              "user_condition": {
+                "$or": [
+                  {"is_published": true},  // Public profiles
+                  {"data.user_id": "{{user.id}}"},  // Own profile
+                  {"role": "admin"},  // Admin access
+                  {"role": "trust_admin"}
+                ]
+              }
+            },
+            "write": {
+              "user_condition": {
+                "$or": [
+                  {"data.user_id": "{{user.id}}"},  // Own profile
+                  {"role": {"$in": ["admin", "trust_admin"]}}
+                ]
+              }
+            }
+          }
         }
+      `,
+      
+      backend_function_role_check: `
+        // Gate 3: Explicit role check in backend function
+        // After authGuard returns user:
+        
+        export default async function updateCaregiverVerification(req, context) {
+          const { base44 } = context;
+          
+          // authGuard handles Gates 1 & 2
+          const user = await authGuard(base44);
+          
+          // Gate 3: Role check for admin-only actions
+          if (user.role !== 'admin' && user.role !== 'trust_admin') {
+            return Response.json(
+              { error: 'Permission denied' },
+              { status: 403 }
+            );
+          }
+          
+          // Authorized - proceed with business logic
+          const { profileId, is_verified } = await req.json();
+          await base44.asServiceRole.entities.CaregiverProfile.update(
+            profileId,
+            { is_verified }
+          );
+          
+          return Response.json({ success: true });
+        }
+      `,
+      
+      role_source: {
+        authoritative: 'User entity in database (via base44.auth.me())',
+        not_jwt_claims: 'Do NOT rely on JWT payload - role may have changed',
+        live_read: 'Every request reads current role from DB via auth.me()'
       },
+      
       on_failure: {
         http_status: 403,
-        response: { error: 'Permission denied' },  // Generic - don't reveal which permission failed
-        action: 'Show generic permission denied page',
-        log_to: 'MiddlewareRejectionLog',
-        log_fields: {
-          user_id: 'user.id',
-          user_role: 'user.role',
-          gate_failed: 'gate_3_insufficient_role',
-          action_attempted: 'request.method + " " + request.entity + "." + request.field',
-          target_entity_type: 'request.entity',
-          ip_address: 'request.ip'
-        }
-      },
-      implementation_note: `
-        // Pseudocode
-        const user = await base44.entities.User.read(jwtPayload.user_id);
-        const hasPermission = checkRolePermission(user.role, request.entity, request.action, request.field);
-        if (!hasPermission) {
-          await logRejection('gate_3_insufficient_role', request, user);
-          return 403;
-        }
-        
-        // Edge.1: Role changes take effect immediately on next request
-        // If user.role changed from super_admin to support_admin mid-session,
-        // they immediately lose admin permissions without needing to log out
-      `
+        response: { error: 'Permission denied' },
+        action: 'Generic error - do not reveal which permission failed',
+        log_to: 'MiddlewareRejectionLog (optional)'
+      }
     },
     
     /**
      * GATE 4: Record Ownership or Admin Override
-     * Access.5: Does user own this record, OR have explicit admin override?
+     * BUILD REQUIRED: RLS entity-user field comparison rules
      */
     gate_4_record_ownership: {
-      checks: [
-        'If action is on a specific record (not list/search):',
-        '  - User owns the record (record.created_by === user.email OR record.user_id === user.id), OR',
-        '  - User has admin role (trust_admin, super_admin) with explicit override permission'
-      ],
-      ownership_rules: {
-        CaregiverProfile: 'user_id === current_user.id OR admin',
-        ParentProfile: 'user_id === current_user.id OR admin',
-        BookingRequest: 'parent_profile.user_id === current_user.id OR caregiver_profile.user_id === current_user.id OR admin',
-        Message: 'thread.parent_user_id === current_user.id OR thread.caregiver_user_id === current_user.id OR admin',
-        AvailabilitySlot: 'caregiver_profile.user_id === current_user.id OR admin',
-        Certification: 'caregiver_profile.user_id === current_user.id OR admin'
+      build_required: true,
+      
+      implementation: 'RLS entity-user field comparison in entity schemas',
+      
+      rls_ownership_examples: {
+        
+        caregiver_profile: `
+          // entities/CaregiverProfile.json
+          {
+            "rls": {
+              "read": {
+                "user_condition": {
+                  "$or": [
+                    {"is_published": true},  // Public profiles
+                    {"data.user_id": "{{user.id}}"},  // Own profile
+                    {"role": {"$in": ["admin", "trust_admin"]}}
+                  ]
+                }
+              },
+              "write": {
+                "user_condition": {
+                  "$or": [
+                    {"data.user_id": "{{user.id}}"},  // Own profile
+                    {"role": {"$in": ["admin", "trust_admin"]}}
+                  ]
+                }
+              }
+            }
+          }
+        `,
+        
+        booking_request: `
+          // entities/BookingRequest.json
+          {
+            "rls": {
+              "read": {
+                "user_condition": {
+                  "$or": [
+                    {"data.parent_id": "{{user.id}}"},  // Parent's booking
+                    {"data.caregiver_id": "{{user.id}}"},  // Caregiver's booking
+                    {"role": {"$in": ["admin", "trust_admin"]}}
+                  ]
+                }
+              },
+              "write": {
+                "user_condition": {
+                  "$or": [
+                    {"data.parent_id": "{{user.id}}"},
+                    {"data.caregiver_id": "{{user.id}}"},
+                    {"role": {"$in": ["admin", "trust_admin"]}}
+                  ]
+                }
+              }
+            }
+          }
+        `,
+        
+        message: `
+          // entities/Message.json
+          {
+            "rls": {
+              "read": {
+                "user_condition": {
+                  "$or": [
+                    {"data.sender_user_id": "{{user.id}}"},
+                    {"data.recipient_user_id": "{{user.id}}"},
+                    {"role": {"$in": ["admin", "trust_admin"]}}
+                  ]
+                }
+              },
+              "write": {
+                "user_condition": {
+                  "$or": [
+                    {"data.sender_user_id": "{{user.id}}"},
+                    {"role": {"$in": ["admin", "trust_admin"]}}
+                  ]
+                }
+              }
+            }
+          }
+        `
       },
+      
+      security_principle: {
+        same_response: 'RLS rules return 403 for both non-existent and unauthorized records',
+        no_information_leak: 'Attacker cannot determine if record exists or not',
+        rationale: 'Prevents ID enumeration attacks'
+      },
+      
       on_failure: {
         http_status: 403,
-        response: { error: 'Permission denied' },  // Abuse.2: Don't distinguish between "not exists" and "not owned"
-        action: 'Show generic permission denied page',
-        log_to: 'MiddlewareRejectionLog',
-        log_fields: {
-          user_id: 'user.id',
-          user_role: 'user.role',
-          gate_failed: 'gate_4_record_not_owned',
-          action_attempted: 'request.method + " " + request.entity',
-          target_entity_type: 'request.entity',
-          target_entity_id: 'request.recordId',
-          ip_address: 'request.ip'
-        }
-      },
-      security_principle: {
-        // Abuse.2: Information disclosure prevention
-        same_response_for: [
-          'Record does not exist',
-          'Record exists but user cannot access it'
-        ],
-        rationale: 'Prevents attackers from enumerating valid record IDs by testing access patterns'
-      },
-      implementation_note: `
-        // Pseudocode
-        if (request.recordId) {
-          const record = await base44.entities[request.entity].read(request.recordId);
-          if (!record) {
-            // Don't reveal whether record exists or not - return same 403
-            await logRejection('gate_4_record_not_owned', request, user);
-            return 403;
-          }
-          
-          const ownsRecord = checkOwnership(record, user, request.entity);
-          const hasAdminOverride = ['trust_admin', 'super_admin'].includes(user.role);
-          
-          if (!ownsRecord && !hasAdminOverride) {
-            // Same 403 response whether record doesn't exist or user doesn't own it
-            await logRejection('gate_4_record_not_owned', request, user);
-            return 403;
-          }
-        }
-      `
+        response: { error: 'Permission denied' },
+        action: 'Generic error - same for "not exists" and "not authorized"',
+        log_to: 'MiddlewareRejectionLog (optional)'
+      }
     }
   },
   
