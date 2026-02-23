@@ -3,44 +3,281 @@
  * 
  * THIS IS A DOCUMENTATION COMPONENT - NOT FUNCTIONAL CODE
  * 
- * This component exists solely to document the Base44 platform configuration
- * required for F-002 Field-Level Security. These rules CANNOT be enforced by
- * entity schema alone - they must be configured in the Base44 dashboard.
- * 
- * STATUS: Phase 0 - Entity schemas updated with security annotations
- * NEXT STEP: Configure field-level permissions in Base44 dashboard
+ * STATUS: Phase 0 — Confirmed — Implementation Clarified
  * 
  * ============================================================================
- * CRITICAL PLATFORM CONFIGURATION REQUIREMENTS
+ * PLATFORM-MANAGED vs BUILD REQUIRED
+ * ============================================================================
+ * 
+ * PLATFORM-MANAGED (No Build Required):
+ * - password_hash field (do NOT define in User entity)
+ * - Basic field exclusion (automatic when field not in schema)
+ * 
+ * BUILD REQUIRED:
+ * - Add rls blocks to individual fields in entity schema JSON files
+ * - Phone reveal logic (backend function - context-dependent)
+ * - Remove password_hash from User entity schema (if exists)
+ * 
+ * CRITICAL: Do NOT define password_hash in User.json
+ * - Base44 manages password_hash internally
+ * - Defining it causes a schema validation error
+ * 
+ * ============================================================================
+ * FIELD-LEVEL SECURITY IMPLEMENTATION: rls BLOCKS IN SCHEMA
  * ============================================================================
  */
 
-const F002_CONFIGURATION_CHECKLIST = {
+const F002_FIELD_LEVEL_SECURITY_SPECIFICATION = {
   
   /**
-   * 1. PII FIELD ACCESS RESTRICTIONS
-   * Configure in: Base44 Dashboard → Entities → Field Permissions
+   * IMPLEMENTATION MECHANISM: rls BLOCKS IN ENTITY SCHEMA
+   * Add directly to field definitions in entity JSON files
    */
-  pii_fields: {
+  implementation_pattern: {
+    where: 'Add rls block to individual field definitions in entities/*.json',
+    not_separate_panel: 'NOT a separate configuration panel',
+    
+    basic_syntax: `
+      // In entity schema JSON file
+      {
+        "properties": {
+          "field_name": {
+            "type": "string",
+            "rls": {
+              "read": <rule>,
+              "write": <rule>
+            }
+          }
+        }
+      }
+    `,
+    
+    rule_types: {
+      boolean: 'true (allow all) or false (deny all)',
+      user_condition: '{"user_condition": {"role": "admin"}}',
+      or_conditions: '{"$or": [{"user_condition": {"role": "admin"}}, {"created_by_id": "{{user.id}}"}]}'
+    }
+  },
+  
+  /**
+   * 1. ADMIN-ONLY FIELDS (Role-Based FLS)
+   */
+  admin_only_fields: {
+    
+    'CaregiverProfile.is_verified': {
+      implementation: `
+        // entities/CaregiverProfile.json
+        "is_verified": {
+          "type": "boolean",
+          "default": false,
+          "rls": {
+            "read": true,  // Public - visible in search results
+            "write": {
+              "$or": [
+                {"user_condition": {"role": "trust_admin"}},
+                {"user_condition": {"role": "super_admin"}}
+              ]
+            }
+          }
+        }
+      `,
+      read_access: 'Public (visible in search results)',
+      write_access: 'trust_admin and super_admin only',
+      rejection: 'Base44 returns 403 for non-admin write attempts',
+      audit: 'Optional: Log write attempts to AdminActionLog in backend function'
+    },
+    
+    'Message.body_original': {
+      implementation: `
+        // entities/Message.json
+        "body_original": {
+          "type": "string",
+          "rls": {
+            "read": {
+              "$or": [
+                {"user_condition": {"role": "admin"}},
+                {"user_condition": {"role": "trust_admin"}}
+              ]
+            },
+            "write": {
+              "$or": [
+                {"user_condition": {"role": "admin"}},
+                {"user_condition": {"role": "trust_admin"}}
+              ]
+            }
+          }
+        }
+      `,
+      visibility: 'Admin-only (trust_admin, super_admin)',
+      purpose: 'Moderation and abuse investigation',
+      parent_caregiver_access: 'Excluded (403 Forbidden)',
+      public_field: 'Message.content (sanitized version)'
+    },
+    
+    'FlaggedContent.resolution_note': {
+      implementation: `
+        // entities/FlaggedContent.json
+        "resolution_note": {
+          "type": "string",
+          "rls": {
+            "read": {"user_condition": {"role": {"$in": ["admin", "trust_admin"]}}},
+            "write": {"user_condition": {"role": {"$in": ["admin", "trust_admin"]}}}
+          }
+        }
+      `,
+      visibility: 'Admin-only',
+      purpose: 'Admin notes on moderation resolution'
+    }
+  },
+  
+  /**
+   * 2. OWNER-RESTRICTED FIELDS (Ownership-Based FLS)
+   */
+  owner_restricted_fields: {
+    
+    'ParentProfile.address_line_1': {
+      implementation: `
+        // entities/ParentProfile.json
+        "address_line_1": {
+          "type": "string",
+          "rls": {
+            "read": {
+              "$or": [
+                {"data.user_id": "{{user.id}}"},  // Owner
+                {"user_condition": {"role": {"$in": ["admin", "trust_admin"]}}}
+              ]
+            },
+            "write": {
+              "$or": [
+                {"data.user_id": "{{user.id}}"},
+                {"user_condition": {"role": {"$in": ["admin", "trust_admin"]}}}
+              ]
+            }
+          }
+        }
+      `,
+      read_access: 'Owner and admin only',
+      caregiver_access: '403 Forbidden',
+      search_results: 'Excluded (RLS enforces at query level)',
+      audit: 'Optional: Log admin access to PIIAccessLog'
+    },
+    
+    'ParentProfile.address_line_2': {
+      implementation: 'Same rls block as address_line_1',
+      visibility: 'Owner and admin only'
+    },
+    
+    'ParentProfile.zip_code': {
+      implementation: `
+        // entities/ParentProfile.json
+        "zip_code": {
+          "type": "string",
+          "rls": {
+            "read": {
+              "$or": [
+                {"data.user_id": "{{user.id}}"},
+                {"user_condition": {"role": {"$in": ["admin", "trust_admin"]}}}
+              ]
+            },
+            "write": {
+              "$or": [
+                {"data.user_id": "{{user.id}}"},
+                {"user_condition": {"role": {"$in": ["admin", "trust_admin"]}}}
+              ]
+            }
+          }
+        }
+      `,
+      visibility: 'Owner and admin only',
+      internal_use: 'Proximity calculations (backend function)',
+      caregiver_exposure: 'Approximate area only (e.g., "within 5 miles")',
+      raw_value: 'Never exposed to caregivers (RLS enforces)'
+    }
+  },
+  
+  /**
+   * 3. CONTEXT-DEPENDENT FIELD (Backend Function Required)
+   */
+  context_dependent_fields: {
     
     'User.phone': {
-      default_visibility: 'admin_only',  // trust_admin, super_admin
-      conditional_access: {
-        role: 'parent',
-        condition: 'associated BookingRequest.status = accepted',
-        delivery: 'email_automation_only',  // F-077, NOT in UI
-        ui_visibility: 'NEVER'
-      },
-      audit: 'Log to PIIAccessLog on every access',
-      platform_config: 'Set field visibility rules + exclude from API responses'
-    },
+      challenge: 'Cannot be expressed as static FLS rule',
+      reason: 'Access depends on BookingRequest state between two users',
+      
+      implementation_approach: 'Backend function with manual check',
+      
+      backend_function_logic: `
+        // functions/revealPhoneNumber.ts
+        export default async function revealPhoneNumber(req, context) {
+          const { base44 } = context;
+          const user = await base44.auth.me();
+          
+          const { caregiver_id } = await req.json();
+          
+          // Check if accepted booking exists between parent and caregiver
+          const bookings = await base44.entities.BookingRequest.filter({
+            parent_id: user.id,
+            caregiver_id: caregiver_id,
+            status: 'accepted'
+          });
+          
+          if (bookings.length === 0) {
+            return Response.json({ error: 'No accepted booking' }, { status: 403 });
+          }
+          
+          // Fetch caregiver's phone number
+          const caregiver = await base44.asServiceRole.entities.User.read(caregiver_id);
+          
+          // Log PII access
+          await base44.entities.PIIAccessLog.create({
+            accessor_user_id: user.id,
+            accessor_role: user.role,
+            target_entity_type: 'User',
+            target_entity_id: caregiver_id,
+            field_accessed: 'phone',
+            access_timestamp: new Date().toISOString(),
+            access_context: 'booking_accepted',
+            booking_context_id: bookings[0].id
+          });
+          
+          return Response.json({ phone: caregiver.phone });
+        }
+      `,
+      
+      default_visibility: 'Excluded from User entity queries',
+      conditional_access: 'Backend function checks BookingRequest.status',
+      ui_visibility: 'Never shown in UI - email delivery only',
+      audit: 'Log to PIIAccessLog on access'
+    }
+  },
+  
+  /**
+   * 4. PLATFORM-MANAGED FIELDS (Do NOT Define)
+   */
+  platform_managed_fields: {
     
     'User.password_hash': {
-      visibility: 'HIDDEN_FROM_ALL_ROLES',  // including super_admin
-      api_response: 'PERMANENTLY_EXCLUDED',
-      verification: 'Check browser Network tab - field must not appear in any response',
-      platform_config: 'Enable Base44 field exclusion setting for this field'
-    },
+      status: 'REMOVE FROM SCHEMA',
+      platform_managed: true,
+      
+      critical_warning: 'Do NOT define password_hash in User.json',
+      reason: 'Base44 manages password_hash internally',
+      error: 'Defining it causes a schema validation error',
+      
+      action_required: 'Delete password_hash field from entities/User.json if it exists',
+      
+      security: [
+        'Base44 never returns password_hash in API responses',
+        'Base44 handles password hashing with bcrypt (see F-026)',
+        'No configuration needed - automatic exclusion'
+      ]
+    }
+  },
+  
+  /**
+   * 5. SIGNED URL PRIVATE FILES
+   */
+  signed_url_fields: {
     
     'ParentProfile.address_line_1': {
       visibility: 'admin_only',
