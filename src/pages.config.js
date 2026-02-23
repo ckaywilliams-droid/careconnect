@@ -47,8 +47,16 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import RoleSelection from './pages/RoleSelection';
+import Register from './pages/Register';
 
-export const pagesConfig = {
-	Pages: {}
+
+export const PAGES = {
+    "RoleSelection": RoleSelection,
+    "Register": Register,
 }
 
+export const pagesConfig = {
+    mainPage: "RoleSelection",
+    Pages: PAGES,
+};
