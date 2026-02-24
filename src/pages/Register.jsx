@@ -7,19 +7,20 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Loader2, Eye, EyeOff, AlertCircle, ArrowLeft } from 'lucide-react';
+import PasswordStrengthIndicator from '@/components/PasswordStrengthIndicator';
 
 /**
- * F-021: REGISTRATION FORM (UI.2)
+ * F-028: REGISTRATION FORM (UI.2)
  * 
  * Second screen in split registration flow.
  * User enters details to create account. Role is pre-selected from previous screen.
  * 
  * SECURITY REQUIREMENTS:
- * - Logic.2: ToS acceptance validated server-side (checkbox state sent with form)
- * - Data.4: Password hashed with bcrypt before storage (F-026)
- * - Abuse.2: CAPTCHA integrated (F-023) - placeholder for now
- * - Triggers.1: Atomic User + Profile + PolicyAcceptance creation
+ * - Logic.3: Submit disabled until all validations pass AND checkbox checked
+ * - Triggers.2: confirm_password is client-side only, not sent to server
+ * - Data.2: CAPTCHA token submitted with form (F-023)
+ * - Abuse.2: CAPTCHA + server validation + rate limiting
  */
 export default function Register() {
   const navigate = useNavigate();
@@ -240,12 +241,27 @@ export default function Register() {
   const roleDisplayName = role === 'parent' ? 'Parent' : 'Caregiver';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
-      <Card className="max-w-md w-full">
+    <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center p-4">
+      <Card className="max-w-md w-full shadow-lg border-[#E5E2DC]">
         <CardHeader>
-          <CardTitle className="text-2xl">Create your {roleDisplayName} account</CardTitle>
-          <CardDescription>
-            Join our community of {role === 'parent' ? 'families' : 'caregivers'}
+          {/* F-028 States.2: Back button */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/select-role')}
+            className="w-fit mb-4 text-[#643737] hover:text-[#0C2119] hover:bg-[#E5E2DC]"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to role selection
+          </Button>
+          
+          {/* F-028 UI.2: Heading with role shown */}
+          <CardTitle className="text-2xl text-[#0C2119]">
+            Create your account
+          </CardTitle>
+          <CardDescription className="text-[#643737]">
+            as a {roleDisplayName}
           </CardDescription>
         </CardHeader>
 
@@ -326,15 +342,16 @@ export default function Register() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              
+              {/* F-028 UI.3: Password strength indicator */}
+              <PasswordStrengthIndicator password={formData.password} />
+              
               {errors.password && (
                 <p className="text-sm text-red-500">{errors.password}</p>
               )}
-              <p className="text-xs text-gray-500">
-                Min 8 characters, 1 number, 1 special character
-              </p>
             </div>
 
-            {/* Confirm Password */}
+            {/* F-028 Logic.2: Confirm Password - field order intentional */}
             <div className="space-y-2">
               <Label htmlFor="confirm_password">
                 Confirm Password <span className="text-red-500">*</span>
@@ -359,50 +376,13 @@ export default function Register() {
                   {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+              {/* F-028 Errors.2: Password mismatch shown on blur */}
               {errors.confirm_password && (
                 <p className="text-sm text-red-500">{errors.confirm_password}</p>
               )}
             </div>
 
-            {/* F-023 UI.1: CAPTCHA Widget - Below all fields, above submit button */}
-            <div className="captcha-container space-y-2">
-              {/* 
-                F-023: reCAPTCHA v2 or v3 integration
-                
-                For v2 (checkbox):
-                  import ReCAPTCHA from 'react-google-recaptcha';
-                  <ReCAPTCHA
-                    sitekey={process.env.REACT_APP_RECAPTCHA_SITE_KEY}
-                    onChange={(token) => setCaptchaToken(token)}
-                  />
-                
-                For v3 (invisible):
-                  Load script: https://www.google.com/recaptcha/api.js?render={SITE_KEY}
-                  On submit: token = await grecaptcha.execute(SITE_KEY, {action: 'register'})
-                
-                Server validates token before User creation (Logic.2)
-              */}
-              <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                <div className="flex items-center justify-center space-x-2 text-sm text-gray-600">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                  <span>reCAPTCHA Widget (F-023)</span>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  Protected by reCAPTCHA • Privacy • Terms
-                </p>
-              </div>
-              
-              {/* F-023 UI.2: CAPTCHA error display - inline below widget */}
-              {errors.captcha && (
-                <p className="text-sm text-red-500">
-                  Please complete the security check to continue.
-                </p>
-              )}
-            </div>
-
-            {/* F-021 Logic.2: ToS Acceptance */}
+            {/* F-028 Logic.2: ToS checkbox before CAPTCHA */}
             <div className="space-y-2">
               <div className="flex items-start space-x-2">
                 <Checkbox
@@ -422,12 +402,12 @@ export default function Register() {
                   disabled={loading}
                   className={errors.tos_accepted ? 'border-red-500' : ''}
                 />
-                <Label htmlFor="tos_accepted" className="text-sm font-normal leading-relaxed">
-                  I accept the{' '}
+                <Label htmlFor="tos_accepted" className="text-sm font-normal leading-relaxed text-[#643737]">
+                  I agree to the{' '}
                   <Link
                     to="/legal/terms-of-service"
                     target="_blank"
-                    className="text-blue-600 hover:text-blue-700 underline"
+                    className="text-[#C36239] hover:text-[#75290F] underline"
                   >
                     Terms of Service
                   </Link>
@@ -435,7 +415,7 @@ export default function Register() {
                   <Link
                     to="/legal/privacy-policy"
                     target="_blank"
-                    className="text-blue-600 hover:text-blue-700 underline"
+                    className="text-[#C36239] hover:text-[#75290F] underline"
                   >
                     Privacy Policy
                   </Link>
@@ -446,10 +426,32 @@ export default function Register() {
               )}
             </div>
 
-            {/* Submit Button */}
+            {/* F-028 Data.2: CAPTCHA Widget */}
+            <div className="captcha-container space-y-2">
+              <div className="bg-[#E5E2DC] border-2 border-dashed border-[#9C9F95] rounded-lg p-4 text-center">
+                <div className="flex items-center justify-center space-x-2 text-sm text-[#643737]">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                  <span>reCAPTCHA Widget (F-023)</span>
+                </div>
+                <p className="text-xs text-[#9C9F95] mt-2">
+                  Protected by reCAPTCHA • Privacy • Terms
+                </p>
+              </div>
+              
+              {/* F-028 Abuse.1: CAPTCHA error display */}
+              {errors.captcha && (
+                <p className="text-sm text-red-500">
+                  Please complete the security check
+                </p>
+              )}
+            </div>
+
+            {/* F-028 Logic.3: Submit Button - disabled until all valid */}
             <Button
               type="submit"
-              className="w-full"
+              className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
               disabled={!isFormValid() || loading}
             >
               {loading ? (
@@ -458,17 +460,17 @@ export default function Register() {
                   Creating account...
                 </>
               ) : (
-                'Create Account'
+                'Create account'
               )}
             </Button>
 
-            {/* F-021 UI.2: Google SSO */}
+            {/* F-028 UI.2: Google SSO */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
+                <span className="w-full border-t border-[#E5E2DC]" />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-white px-2 text-muted-foreground">
+                <span className="bg-white px-2 text-[#9C9F95]">
                   Or sign up with
                 </span>
               </div>
@@ -477,7 +479,7 @@ export default function Register() {
             <Button
               type="button"
               variant="outline"
-              className="w-full"
+              className="w-full border-[#E5E2DC] text-[#0C2119] hover:bg-[#E5E2DC]"
               onClick={handleGoogleSSO}
               disabled={loading}
             >
@@ -503,12 +505,12 @@ export default function Register() {
             </Button>
           </form>
 
-          {/* Sign In Link */}
-          <div className="mt-6 text-center text-sm text-gray-600">
+          {/* F-028 UI.2: Sign In Link */}
+          <div className="mt-6 text-center text-sm text-[#643737]">
             Already have an account?{' '}
             <Link
               to="/login"
-              className="text-blue-600 hover:text-blue-700 font-medium underline"
+              className="text-[#C36239] hover:text-[#75290F] font-medium underline"
             >
               Sign in
             </Link>

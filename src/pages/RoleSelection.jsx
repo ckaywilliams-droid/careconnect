@@ -22,94 +22,84 @@ export default function RoleSelection() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center p-4">
       <div className="max-w-5xl w-full">
-        {/* Header */}
+        {/* F-028 UI.1: Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-3">
-            Join Our Caregiving Community
+          <h1 className="text-4xl font-bold text-[#0C2119] mb-3">
+            Join as a...
           </h1>
-          <p className="text-lg text-gray-600">
-            Choose how you'd like to get started
+          <p className="text-lg text-[#643737]">
+            Choose your role to get started
           </p>
         </div>
 
-        {/* F-021 UI.1: Two large cards side by side */}
-        <div className="grid md:grid-cols-2 gap-6">
+        {/* F-028 UI.1: Two cards side by side */}
+        <div className="grid md:grid-cols-2 gap-8">
           
           {/* Parent Card */}
           <Card 
-            className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-blue-500"
+            className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
             onClick={() => selectRole('parent')}
           >
             <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center">
-                <Users className="w-8 h-8 text-blue-600" />
+              <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
+                <Users className="w-10 h-10 text-[#643737]" />
               </div>
-              <CardTitle className="text-2xl mb-2">I need a babysitter</CardTitle>
-              <CardDescription className="text-base">
-                Find trusted caregivers for your family
+              <CardTitle className="text-2xl mb-2 text-[#0C2119]">Parent / Guardian</CardTitle>
+              <CardDescription className="text-base text-[#643737]">
+                Find trusted babysitters near you
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <Button 
                 size="lg" 
-                className="w-full bg-blue-600 hover:bg-blue-700"
+                className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
                 onClick={(e) => {
                   e.stopPropagation();
                   selectRole('parent');
                 }}
               >
-                Get Started as a Parent
+                Get started
               </Button>
-              <ul className="mt-4 text-sm text-gray-600 space-y-2 text-left">
-                <li>✓ Browse verified caregiver profiles</li>
-                <li>✓ Read reviews from other families</li>
-                <li>✓ Book trusted babysitters instantly</li>
-              </ul>
             </CardContent>
           </Card>
 
           {/* Caregiver Card */}
           <Card 
-            className="cursor-pointer hover:shadow-xl transition-all duration-300 hover:scale-105 border-2 hover:border-indigo-500"
+            className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
             onClick={() => selectRole('caregiver')}
           >
             <CardHeader className="text-center pb-4">
-              <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center">
-                <Heart className="w-8 h-8 text-indigo-600" />
+              <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
+                <Heart className="w-10 h-10 text-[#643737]" />
               </div>
-              <CardTitle className="text-2xl mb-2">I am a babysitter</CardTitle>
-              <CardDescription className="text-base">
-                Connect with families in your area
+              <CardTitle className="text-2xl mb-2 text-[#0C2119]">Babysitter / Caregiver</CardTitle>
+              <CardDescription className="text-base text-[#643737]">
+                Offer your childcare services
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
               <Button 
                 size="lg" 
-                className="w-full bg-indigo-600 hover:bg-indigo-700"
+                className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
                 onClick={(e) => {
                   e.stopPropagation();
                   selectRole('caregiver');
                 }}
               >
-                Get Started as a Caregiver
+                Get started
               </Button>
-              <ul className="mt-4 text-sm text-gray-600 space-y-2 text-left">
-                <li>✓ Create your professional profile</li>
-                <li>✓ Set your own rates and availability</li>
-                <li>✓ Build your reputation with reviews</li>
-              </ul>
             </CardContent>
           </Card>
         </div>
 
         {/* Footer */}
-        <div className="text-center mt-8 text-sm text-gray-600">
+        <div className="text-center mt-8 text-sm text-[#643737]">
           Already have an account?{' '}
           <button
             onClick={() => navigate('/login')}
-            className="text-blue-600 hover:text-blue-700 font-medium underline"
+            className="text-[#C36239] hover:text-[#75290F] font-medium underline"
           >
             Sign in
           </button>
