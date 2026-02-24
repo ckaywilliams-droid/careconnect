@@ -65,7 +65,7 @@ export default function Home() {
             <div className="flex flex-wrap gap-4">
               <Button
                 size="lg"
-                className="bg-orange-500 hover:bg-orange-600 text-white px-8 h-12"
+                className="bg-[#C36239] hover:bg-[#75290F] text-white px-8 h-12"
                 onClick={() => window.location.href = createPageUrl('FindCaregivers')}
               >
                 <Search className="w-5 h-5 mr-2" />
@@ -93,7 +93,7 @@ export default function Home() {
           </div>
           <Link 
             to={createPageUrl('FindCaregivers')} 
-            className="text-orange-500 hover:text-orange-600 font-medium flex items-center gap-1"
+            className="text-[#C36239] hover:text-[#75290F] font-medium flex items-center gap-1"
           >
             View all →
           </Link>
@@ -145,8 +145,8 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {/* Step 1 */}
             <Card className="text-center p-8 hover:shadow-lg transition-shadow">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 text-orange-600 mb-6 mx-auto">
-                <div className="absolute -mt-10 -ml-10 w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-bold">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#E5E2DC] text-[#75290F] mb-6 mx-auto">
+                <div className="absolute -mt-10 -ml-10 w-8 h-8 rounded-full bg-[#C36239] text-white flex items-center justify-center text-sm font-bold">
                   1
                 </div>
                 <Search className="w-8 h-8" />
@@ -160,8 +160,8 @@ export default function Home() {
 
             {/* Step 2 */}
             <Card className="text-center p-8 hover:shadow-lg transition-shadow">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 text-orange-600 mb-6 mx-auto">
-                <div className="absolute -mt-10 -ml-10 w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-bold">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#E5E2DC] text-[#75290F] mb-6 mx-auto">
+                <div className="absolute -mt-10 -ml-10 w-8 h-8 rounded-full bg-[#C36239] text-white flex items-center justify-center text-sm font-bold">
                   2
                 </div>
                 <Calendar className="w-8 h-8" />
@@ -175,8 +175,8 @@ export default function Home() {
 
             {/* Step 3 */}
             <Card className="text-center p-8 hover:shadow-lg transition-shadow">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-100 text-orange-600 mb-6 mx-auto">
-                <div className="absolute -mt-10 -ml-10 w-8 h-8 rounded-full bg-orange-500 text-white flex items-center justify-center text-sm font-bold">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[#E5E2DC] text-[#75290F] mb-6 mx-auto">
+                <div className="absolute -mt-10 -ml-10 w-8 h-8 rounded-full bg-[#C36239] text-white flex items-center justify-center text-sm font-bold">
                   3
                 </div>
                 <CheckCircle className="w-8 h-8" />
@@ -192,17 +192,17 @@ export default function Home() {
       </div>
 
       {/* Trust Badges Section */}
-      <div className="bg-emerald-900 text-white py-12">
+      <div className="bg-[#434C30] text-white py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Badge 1 */}
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#C36239] flex items-center justify-center">
                 <Shield className="w-6 h-6" />
               </div>
               <div>
                 <h4 className="font-bold mb-1">Background Checked</h4>
-                <p className="text-sm text-emerald-100">
+                <p className="text-sm text-[#E5E2DC]">
                   Every caregiver passes comprehensive background verification
                 </p>
               </div>
@@ -210,12 +210,12 @@ export default function Home() {
 
             {/* Badge 2 */}
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#C36239] flex items-center justify-center">
                 <Award className="w-6 h-6" />
               </div>
               <div>
                 <h4 className="font-bold mb-1">Verified Credentials</h4>
-                <p className="text-sm text-emerald-100">
+                <p className="text-sm text-[#E5E2DC]">
                   Certifications and qualifications manually reviewed
                 </p>
               </div>
@@ -223,12 +223,12 @@ export default function Home() {
 
             {/* Badge 3 */}
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#C36239] flex items-center justify-center">
                 <Users className="w-6 h-6" />
               </div>
               <div>
                 <h4 className="font-bold mb-1">Experienced Pros</h4>
-                <p className="text-sm text-emerald-100">
+                <p className="text-sm text-[#E5E2DC]">
                   Minimum 2 years experience and excellent references
                 </p>
               </div>
@@ -236,12 +236,12 @@ export default function Home() {
 
             {/* Badge 4 */}
             <div className="flex items-start gap-4">
-              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
+              <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#C36239] flex items-center justify-center">
                 <Star className="w-6 h-6" />
               </div>
               <div>
                 <h4 className="font-bold mb-1">Quality Guaranteed</h4>
-                <p className="text-sm text-emerald-100">
+                <p className="text-sm text-[#E5E2DC]">
                   Only the best qualify. Ongoing quality checks and reviews
                 </p>
               </div>
@@ -251,7 +251,7 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <footer className="bg-emerald-950 text-white py-12">
+      <footer className="bg-[#0C2119] text-white py-12">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
             {/* Column 1 - Logo & Tagline */}
@@ -260,7 +260,7 @@ export default function Home() {
                 <div className="text-2xl">🧡</div>
                 <h3 className="text-xl font-bold">CareNest</h3>
               </div>
-              <p className="text-sm text-emerald-200">
+              <p className="text-sm text-[#9C9F95]">
                 Connecting trusted, vetted caregivers in your area.
               </p>
             </div>
@@ -270,12 +270,12 @@ export default function Home() {
               <h4 className="font-bold mb-3">For Families</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link to={createPageUrl('FindCaregivers')} className="text-emerald-200 hover:text-white">
+                  <Link to={createPageUrl('FindCaregivers')} className="text-[#9C9F95] hover:text-white">
                     Find Caregivers
                   </Link>
                 </li>
                 <li>
-                  <Link to={createPageUrl('MyBookings')} className="text-emerald-200 hover:text-white">
+                  <Link to={createPageUrl('MyBookings')} className="text-[#9C9F95] hover:text-white">
                     My Bookings
                   </Link>
                 </li>
@@ -287,12 +287,12 @@ export default function Home() {
               <h4 className="font-bold mb-3">For Caregivers</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link to={createPageUrl('CaregiverDashboard')} className="text-emerald-200 hover:text-white">
+                  <Link to={createPageUrl('CaregiverDashboard')} className="text-[#9C9F95] hover:text-white">
                     Dashboard
                   </Link>
                 </li>
                 <li>
-                  <Link to={createPageUrl('CaregiverProfile')} className="text-emerald-200 hover:text-white">
+                  <Link to={createPageUrl('CaregiverProfile')} className="text-[#9C9F95] hover:text-white">
                     Create Profile
                   </Link>
                 </li>
@@ -304,12 +304,12 @@ export default function Home() {
               <h4 className="font-bold mb-3">Support</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <a href="#" className="text-emerald-200 hover:text-white">
+                  <a href="#" className="text-[#9C9F95] hover:text-white">
                     Help Center
                   </a>
                 </li>
                 <li>
-                  <a href="mailto:support@carenest.com" className="text-emerald-200 hover:text-white">
+                  <a href="mailto:support@carenest.com" className="text-[#9C9F95] hover:text-white">
                     Contact Us
                   </a>
                 </li>
@@ -318,8 +318,8 @@ export default function Home() {
           </div>
 
           {/* Copyright */}
-          <div className="border-t border-emerald-800 pt-6 text-center">
-            <p className="text-sm text-emerald-300">
+          <div className="border-t border-[#434C30] pt-6 text-center">
+            <p className="text-sm text-[#9C9F95]">
               © {new Date().getFullYear()} CareNest. All rights reserved.
             </p>
           </div>
