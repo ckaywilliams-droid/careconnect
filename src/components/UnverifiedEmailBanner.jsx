@@ -5,20 +5,19 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertTriangle, X, Loader2 } from 'lucide-react';
 
 /**
- * F-024 UI.2: PERSISTENT DASHBOARD BANNER (UNVERIFIED USERS)
+ * F-029 UI.3: PERSISTENT DASHBOARD BANNER (UNVERIFIED USERS)
  * 
- * Yellow warning bar shown at top of every page for unverified users.
- * Includes resend link and dismissible (but re-appears on page reload until verified).
- * Banner disappears automatically when email_verified becomes true (via polling).
+ * Sticky warning bar shown at top of all dashboard pages for unverified users.
+ * Includes resend link. Banner disappears automatically when email_verified becomes true.
  * 
  * USAGE:
- * Import and place at top of Layout component or each dashboard page.
+ * Import and place at top of Layout component.
  * 
  * FEATURES:
- * - Polls email_verified status every 10 seconds
+ * - F-029 Access.2: Shows for unverified users on all protected pages
+ * - F-029 States.2: Polls email_verified status every 10 seconds
+ * - F-029 UI.3: Sticky yellow bar with warning icon and resend link
  * - Disappears automatically when verified (no page reload needed)
- * - Inline resend functionality with rate limiting
- * - Temporary dismiss (banner returns on page reload if still unverified)
  */
 export default function UnverifiedEmailBanner() {
   const [user, setUser] = useState(null);
@@ -50,7 +49,7 @@ export default function UnverifiedEmailBanner() {
     checkVerificationStatus();
   }, []);
 
-  // F-024 UI.2: Poll for verification status every 10 seconds
+  // F-029 States.2: Poll for verification status every 10 seconds
   useEffect(() => {
     if (!user || user.email_verified) return;
 
@@ -58,7 +57,7 @@ export default function UnverifiedEmailBanner() {
       try {
         const currentUser = await base44.auth.me();
         
-        // F-024 UI.2: Banner disappears automatically when verified
+        // F-029 UI.3: Banner disappears automatically when verified
         if (currentUser.email_verified) {
           setUser(currentUser);
           clearInterval(pollInterval);
@@ -76,9 +75,8 @@ export default function UnverifiedEmailBanner() {
     setResendSuccess(false);
 
     try {
-      // F-024 Abuse.1: Resend verification email
-      // In production, this would call backend function
-      // Placeholder: await base44.functions.resendVerificationEmail()
+      // F-029 Triggers.1: Resend automation (F-024)
+      // In production: await base44.functions.resendVerificationEmail()
       
       console.log('Resending verification email');
       
@@ -111,35 +109,33 @@ export default function UnverifiedEmailBanner() {
 
   return (
     <div className="sticky top-0 z-50">
-      {/* F-024 UI.2: Yellow warning bar */}
-      <Alert className="rounded-none border-x-0 border-t-0 bg-yellow-50 border-yellow-200">
+      {/* F-029 UI.3: Sticky yellow bar */}
+      <Alert className="rounded-none border-x-0 border-t-0 bg-[#C36239] border-[#75290F]">
         <div className="container mx-auto">
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3 flex-1">
-              <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0" />
+              <AlertTriangle className="h-5 w-5 text-white flex-shrink-0" />
               
-              <AlertDescription className="text-sm text-yellow-800 flex-1">
-                {/* F-024 UI.2: Warning message */}
-                <span className="font-medium">Your email is not verified.</span>
-                {' '}
-                Some features are unavailable.
+              <AlertDescription className="text-sm text-white flex-1">
+                {/* F-029 UI.3: Warning message */}
+                <span className="font-medium">Please verify your email to unlock all features.</span>
                 
                 {/* Success message */}
                 {resendSuccess && (
-                  <span className="ml-2 text-green-700 font-medium">
-                    ✓ Email sent! Check your inbox.
+                  <span className="ml-2 text-[#E5E2DC] font-medium">
+                    ✓ Email sent!
                   </span>
                 )}
               </AlertDescription>
             </div>
 
-            {/* F-024 UI.2: Resend link */}
+            {/* F-029 UI.3: Resend link */}
             <Button
               variant="ghost"
               size="sm"
               onClick={handleResend}
               disabled={resending}
-              className="text-yellow-800 hover:text-yellow-900 hover:bg-yellow-100 flex-shrink-0"
+              className="text-white hover:text-white hover:bg-[#75290F] flex-shrink-0"
             >
               {resending ? (
                 <>
@@ -147,14 +143,14 @@ export default function UnverifiedEmailBanner() {
                   Sending...
                 </>
               ) : (
-                'Resend verification email'
+                'Resend email'
               )}
             </Button>
 
             {/* Dismiss button (temporary) */}
             <button
               onClick={() => setDismissed(true)}
-              className="text-yellow-600 hover:text-yellow-800 flex-shrink-0"
+              className="text-white hover:text-[#E5E2DC] flex-shrink-0"
               aria-label="Dismiss"
             >
               <X className="h-4 w-4" />

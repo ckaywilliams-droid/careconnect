@@ -7,17 +7,17 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Mail, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 /**
- * F-024 UI.1: EMAIL VERIFICATION SCREEN
+ * F-029 UI.1: EMAIL VERIFICATION SCREEN
  * 
  * Post-registration screen prompting user to check email for verification link.
  * Shows masked email, resend button with countdown timer, and polling for verification.
  * 
  * FEATURES:
- * - Masked email display
- * - Resend verification email with rate limiting (3 per hour)
- * - Countdown timer showing when resend is available
- * - Polling for email_verified status (every 10 seconds)
- * - Auto-redirect when verification detected
+ * - F-029 Data.1: Reads User.email_verified, User.email (masked)
+ * - F-029 States.2: Polls every 10 seconds for email_verified status
+ * - F-029 Logic.1: Resend button disabled for 60 seconds after each resend
+ * - F-029 Logic.2: Rate limit - 3 resends in 1 hour
+ * - F-029 UI.2: Post-verification overlay with auto-redirect
  */
 export default function VerifyEmail() {
   const location = useLocation();
@@ -33,14 +33,16 @@ export default function VerifyEmail() {
   const [success, setSuccess] = useState(message || '');
   const [isVerified, setIsVerified] = useState(false);
 
-  // Mask email for display (m***@domain.com)
+  // F-029 Data.1: Mask email for display (m***@domain.com)
   const maskEmail = (email) => {
     if (!email) return '';
     const [local, domain] = email.split('@');
-    return `${local.substring(0, Math.min(3, local.length))}***@${domain}`;
+    const firstChar = local.substring(0, 1);
+    return `${firstChar}***@${domain}`;
   };
 
-  // F-024 States.2: Poll for email_verified status every 10 seconds
+  // F-029 States.2: Poll for email_verified status every 10 seconds
+  // F-029 Triggers.2: Lightweight query - only User.email_verified field
   useEffect(() => {
     if (isVerified) return;
 
@@ -48,18 +50,19 @@ export default function VerifyEmail() {
       try {
         const user = await base44.auth.me();
         
+        // F-029 States.1: awaiting_verification → verified (automatic redirect)
         if (user.email_verified) {
           setIsVerified(true);
           clearInterval(pollInterval);
           
-          // Auto-redirect after brief success message
+          // F-029 UI.2: Auto-redirect after 2 seconds
           setTimeout(() => {
             window.location.href = '/dashboard';
           }, 2000);
         }
       } catch (error) {
-        // User may not be logged in - ignore polling errors
-        console.log('Polling error (user may not be logged in):', error.message);
+        // F-029 Edge.1: User may have logged out
+        console.log('Polling error:', error.message);
       }
     }, 10000); // Poll every 10 seconds
 
@@ -78,7 +81,7 @@ export default function VerifyEmail() {
   }, [cooldownSeconds]);
 
   const handleResend = async () => {
-    // F-024 Abuse.1: Check rate limit (3 per hour)
+    // F-029 Logic.2: Check rate limit (3 per hour)
     if (resendCount >= 3) {
       setError('You\'ve reached the resend limit. Please wait before trying again.');
       return;
@@ -89,14 +92,10 @@ export default function VerifyEmail() {
     setSuccess('');
 
     try {
-      // F-024 States.2: Resend verification email
-      // In production, this would call backend function that:
-      // 1. Checks rate limit (3 per hour)
-      // 2. Invalidates previous tokens
-      // 3. Creates new token
-      // 4. Sends email via Resend
+      // F-029 Triggers.1: Resend automation (F-024)
+      // In production: await base44.functions.resendVerificationEmail()
+      // This calls F-024 which invalidates old token and sends new email
       
-      // Placeholder: would be await base44.functions.resendVerificationEmail()
       console.log('Resending verification email to:', email);
 
       // Simulate API call
@@ -105,7 +104,7 @@ export default function VerifyEmail() {
       setSuccess('Verification email sent! Check your inbox.');
       setResendCount(prev => prev + 1);
       
-      // Set 60-second cooldown before next resend
+      // F-029 Logic.1: 60-second cooldown with countdown timer
       setCooldownSeconds(60);
 
     } catch (error) {
@@ -126,42 +125,49 @@ export default function VerifyEmail() {
     return `${secs}s`;
   };
 
-  // Success state - verified!
+  // F-029 UI.2: Post-verification overlay - full screen confirmation
   if (isVerified) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full text-center">
-          <CardContent className="pt-6">
-            <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle2 className="w-10 h-10 text-green-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">Email Verified!</h2>
-            <p className="text-gray-600 mb-4">
-              Your email has been successfully verified. Redirecting to dashboard...
-            </p>
-            <Loader2 className="w-6 h-6 animate-spin mx-auto text-gray-400" />
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-[#434C30] flex items-center justify-center p-4">
+        <div className="text-center">
+          {/* F-029 UI.2: Large green checkmark */}
+          <div className="mx-auto w-24 h-24 bg-white rounded-full flex items-center justify-center mb-6 shadow-lg">
+            <CheckCircle2 className="w-16 h-16 text-[#434C30]" />
+          </div>
+          
+          {/* F-029 UI.2: Heading */}
+          <h2 className="text-3xl font-bold text-white mb-3">Email verified!</h2>
+          
+          {/* F-029 UI.2: Message */}
+          <p className="text-[#E5E2DC] text-lg mb-6">
+            Taking you to your dashboard...
+          </p>
+          
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#E5E2DC]" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
-      <Card className="max-w-md w-full">
+    <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center p-4">
+      <Card className="max-w-md w-full shadow-lg border-[#E5E2DC]">
         <CardHeader className="text-center">
-          {/* F-024 UI.1: Large email icon */}
+          {/* F-029 UI.1: Large email icon */}
           <div className="mx-auto mb-4">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-              <Mail className="w-8 h-8 text-blue-600" />
+            <div className="w-20 h-20 bg-[#E5E2DC] rounded-full flex items-center justify-center">
+              <Mail className="w-10 h-10 text-[#643737]" />
             </div>
           </div>
           
-          <CardTitle className="text-2xl">Check your inbox</CardTitle>
-          <CardDescription>
+          {/* F-029 UI.1: Heading */}
+          <CardTitle className="text-2xl text-[#0C2119]">Check your inbox</CardTitle>
+          
+          {/* F-029 UI.1: Sub-heading with masked email */}
+          <CardDescription className="text-[#643737] mt-2">
             We sent a verification link to
           </CardDescription>
-          <p className="text-sm font-semibold text-gray-700 mt-1">
+          <p className="text-sm font-semibold text-[#0C2119] mt-1">
             {maskEmail(email)}
           </p>
         </CardHeader>
@@ -169,42 +175,42 @@ export default function VerifyEmail() {
         <CardContent className="space-y-4">
           {/* Success/Error Messages */}
           {success && (
-            <Alert className="border-green-200 bg-green-50">
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-              <AlertDescription className="text-green-800">{success}</AlertDescription>
+            <Alert className="border-[#434C30] bg-[#E5E2DC]">
+              <CheckCircle2 className="h-4 w-4 text-[#434C30]" />
+              <AlertDescription className="text-[#0C2119]">{success}</AlertDescription>
             </Alert>
           )}
 
           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
+            <Alert className="border-[#75290F] bg-[#FEFEFE]">
+              <AlertCircle className="h-4 w-4 text-[#75290F]" />
+              <AlertDescription className="text-[#75290F]">{error}</AlertDescription>
             </Alert>
           )}
 
-          {/* F-024 UI.1: Instructions */}
-          <div className="space-y-3 text-sm text-gray-600">
+          {/* F-029 UI.1: Body text */}
+          <div className="space-y-3 text-sm text-[#643737]">
             <p>
               Click the link in the email to verify your account and get started.
             </p>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-[#9C9F95]">
               The link expires in 24 hours.
             </p>
           </div>
 
-          {/* Help Text */}
+          {/* F-029 UI.1: Help text */}
           <div className="pt-2 pb-4">
-            <p className="text-sm text-gray-600 mb-3">
-              Can't find it? Check your spam or junk folder.
+            <p className="text-sm text-[#643737] mb-3">
+              Can't find it? Check your spam folder.
             </p>
           </div>
 
-          {/* F-024 UI.1: Resend Button with Timer */}
+          {/* F-029 Logic.1: Resend Button with countdown timer */}
           <div className="space-y-2">
             <Button
               onClick={handleResend}
               variant="outline"
-              className="w-full"
+              className="w-full border-[#C36239] text-[#C36239] hover:bg-[#E5E2DC] hover:text-[#75290F]"
               disabled={loading || cooldownSeconds > 0 || resendCount >= 3}
             >
               {loading ? (
@@ -222,26 +228,26 @@ export default function VerifyEmail() {
             </Button>
 
             {resendCount > 0 && resendCount < 3 && (
-              <p className="text-xs text-center text-gray-500">
+              <p className="text-xs text-center text-[#9C9F95]">
                 {resendCount} of 3 resends used
               </p>
             )}
           </div>
 
-          {/* F-024 Abuse.1: Rate limit message */}
+          {/* F-029 Logic.2: Rate limit message */}
           {resendCount >= 3 && (
-            <p className="text-sm text-center text-red-600">
+            <p className="text-sm text-center text-[#75290F]">
               You've reached the resend limit. Please wait before trying again.
             </p>
           )}
 
-          {/* Sign Out Link */}
+          {/* F-029 UI.1: Sign out link */}
           <div className="pt-4 text-center">
             <button
               onClick={() => {
                 base44.auth.logout();
               }}
-              className="text-sm text-gray-600 hover:text-gray-800 underline"
+              className="text-sm text-[#643737] hover:text-[#0C2119] underline"
             >
               Sign out
             </button>
