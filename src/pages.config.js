@@ -59,6 +59,9 @@ import AdminCreateAccount from './pages/AdminCreateAccount';
 import AdminFirstLogin from './pages/AdminFirstLogin';
 import SuspendedAccount from './pages/SuspendedAccount';
 import ModerationQueue from './pages/ModerationQueue';
+import AdminDisputeDashboard from './pages/AdminDisputeDashboard';
+import DisputeDetail from './pages/DisputeDetail';
+import SubmitEvidence from './pages/SubmitEvidence';
 
 
 export const PAGES = {
@@ -74,6 +77,9 @@ export const PAGES = {
     "AdminFirstLogin": AdminFirstLogin,
     "SuspendedAccount": SuspendedAccount,
     "ModerationQueue": ModerationQueue,
+    "AdminDisputeDashboard": AdminDisputeDashboard,
+    "DisputeDetail": DisputeDetail,
+    "SubmitEvidence": SubmitEvidence,
 }
 
 export const pagesConfig = {
