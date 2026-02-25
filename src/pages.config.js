@@ -57,6 +57,7 @@ import VerifyEmail from './pages/VerifyEmail';
 import AdminRoles from './pages/AdminRoles';
 import AdminCreateAccount from './pages/AdminCreateAccount';
 import AdminFirstLogin from './pages/AdminFirstLogin';
+import SuspendedAccount from './pages/SuspendedAccount';
 
 
 export const PAGES = {
@@ -70,6 +71,7 @@ export const PAGES = {
     "AdminRoles": AdminRoles,
     "AdminCreateAccount": AdminCreateAccount,
     "AdminFirstLogin": AdminFirstLogin,
+    "SuspendedAccount": SuspendedAccount,
 }
 
 export const pagesConfig = {
