@@ -49,21 +49,23 @@
  */
 import EmailVerified from './pages/EmailVerified';
 import ForgotPassword from './pages/ForgotPassword';
+import Home from './pages/Home';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import RoleSelection from './pages/RoleSelection';
 import VerifyEmail from './pages/VerifyEmail';
-import Home from './pages/Home';
+import AdminRoles from './pages/AdminRoles';
 
 
 export const PAGES = {
     "EmailVerified": EmailVerified,
     "ForgotPassword": ForgotPassword,
+    "Home": Home,
     "Register": Register,
     "ResetPassword": ResetPassword,
     "RoleSelection": RoleSelection,
     "VerifyEmail": VerifyEmail,
-    "Home": Home,
+    "AdminRoles": AdminRoles,
 }
 
 export const pagesConfig = {
