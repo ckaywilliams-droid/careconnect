@@ -58,6 +58,7 @@ import AdminRoles from './pages/AdminRoles';
 import AdminCreateAccount from './pages/AdminCreateAccount';
 import AdminFirstLogin from './pages/AdminFirstLogin';
 import SuspendedAccount from './pages/SuspendedAccount';
+import ModerationQueue from './pages/ModerationQueue';
 
 
 export const PAGES = {
@@ -72,6 +73,7 @@ export const PAGES = {
     "AdminCreateAccount": AdminCreateAccount,
     "AdminFirstLogin": AdminFirstLogin,
     "SuspendedAccount": SuspendedAccount,
+    "ModerationQueue": ModerationQueue,
 }
 
 export const pagesConfig = {
