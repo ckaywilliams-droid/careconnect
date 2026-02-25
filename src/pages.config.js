@@ -55,6 +55,8 @@ import ResetPassword from './pages/ResetPassword';
 import RoleSelection from './pages/RoleSelection';
 import VerifyEmail from './pages/VerifyEmail';
 import AdminRoles from './pages/AdminRoles';
+import AdminCreateAccount from './pages/AdminCreateAccount';
+import AdminFirstLogin from './pages/AdminFirstLogin';
 
 
 export const PAGES = {
@@ -66,6 +68,8 @@ export const PAGES = {
     "RoleSelection": RoleSelection,
     "VerifyEmail": VerifyEmail,
     "AdminRoles": AdminRoles,
+    "AdminCreateAccount": AdminCreateAccount,
+    "AdminFirstLogin": AdminFirstLogin,
 }
 
 export const pagesConfig = {
