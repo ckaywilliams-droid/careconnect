@@ -47,39 +47,41 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import AdminCreateAccount from './pages/AdminCreateAccount';
+import AdminFirstLogin from './pages/AdminFirstLogin';
+import AdminRoles from './pages/AdminRoles';
 import EmailVerified from './pages/EmailVerified';
 import ForgotPassword from './pages/ForgotPassword';
 import Home from './pages/Home';
+import ModerationQueue from './pages/ModerationQueue';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import RoleSelection from './pages/RoleSelection';
-import VerifyEmail from './pages/VerifyEmail';
-import AdminRoles from './pages/AdminRoles';
-import AdminCreateAccount from './pages/AdminCreateAccount';
-import AdminFirstLogin from './pages/AdminFirstLogin';
 import SuspendedAccount from './pages/SuspendedAccount';
-import ModerationQueue from './pages/ModerationQueue';
+import VerifyEmail from './pages/VerifyEmail';
 import AdminDisputeDashboard from './pages/AdminDisputeDashboard';
 import DisputeDetail from './pages/DisputeDetail';
 import SubmitEvidence from './pages/SubmitEvidence';
+import AdminDashboard from './pages/AdminDashboard';
 
 
 export const PAGES = {
+    "AdminCreateAccount": AdminCreateAccount,
+    "AdminFirstLogin": AdminFirstLogin,
+    "AdminRoles": AdminRoles,
     "EmailVerified": EmailVerified,
     "ForgotPassword": ForgotPassword,
     "Home": Home,
+    "ModerationQueue": ModerationQueue,
     "Register": Register,
     "ResetPassword": ResetPassword,
     "RoleSelection": RoleSelection,
-    "VerifyEmail": VerifyEmail,
-    "AdminRoles": AdminRoles,
-    "AdminCreateAccount": AdminCreateAccount,
-    "AdminFirstLogin": AdminFirstLogin,
     "SuspendedAccount": SuspendedAccount,
-    "ModerationQueue": ModerationQueue,
+    "VerifyEmail": VerifyEmail,
     "AdminDisputeDashboard": AdminDisputeDashboard,
     "DisputeDetail": DisputeDetail,
     "SubmitEvidence": SubmitEvidence,
+    "AdminDashboard": AdminDashboard,
 }
 
 export const pagesConfig = {
