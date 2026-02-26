@@ -73,10 +73,17 @@ Deno.serve(async (req) => {
         let message;
         if (proposedStart === existingStart && proposedEnd === existingEnd) {
           // F-053 Errors.1: Exact overlap
-          message = `You already have a slot from ${existing.start_time} to ${existing.end_time} on ${slot_date}. Please choose a different time.`;
+          if (existing.status === 'soft_locked') {
+            message = `This time overlaps with a slot that has a pending booking request.`;
+          } else {
+            message = `You already have a slot from ${existing.start_time} to ${existing.end_time} on ${slot_date}. Please choose a different time.`;
+          }
         } else if (existing.status === 'booked') {
           // F-053 Errors.3: Booked slot conflict
           message = `This time conflicts with a confirmed booking from ${existing.start_time} to ${existing.end_time}. You cannot add a slot that overlaps with a confirmed booking.`;
+        } else if (existing.status === 'soft_locked') {
+          // F-055 Errors.1: Soft-locked slot overlap
+          message = `This slot overlaps with a slot that has a pending booking request (${existing.start_time}–${existing.end_time}).`;
         } else {
           // F-053 Errors.2: Partial overlap
           message = `This slot overlaps with your existing ${existing.start_time}–${existing.end_time} slot on ${slot_date}. Please adjust the start or end time.`;
