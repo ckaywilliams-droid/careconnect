@@ -200,15 +200,105 @@ export default function Register() {
     // In production, this would:
     // 1. Store role in signed server-side session (Access.4, Edge.2)
     // 2. Initiate OAuth flow
-    console.log('Google SSO with role:', role);
+    console.log('Google SSO with role:', selectedRole);
     // base44.auth.redirectToLogin() or custom OAuth flow
   };
 
-  if (!role) {
-    return null; // Will redirect in useEffect
-  }
+  const roleDisplayName = selectedRole === 'parent' ? 'Parent' : 'Caregiver';
 
-  const roleDisplayName = role === 'parent' ? 'Parent' : 'Caregiver';
+  // Role selection step
+  if (step === 'role-select') {
+    return (
+      <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center p-4">
+        <div className="max-w-5xl w-full">
+          <div className="text-center mb-12">
+            <h1 className="text-4xl font-bold text-[#0C2119] mb-3">
+              Join as a...
+            </h1>
+            <p className="text-lg text-[#643737]">
+              Choose your role to get started
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            {/* Parent Card */}
+            <Card 
+              className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
+              onClick={() => {
+                setSelectedRole('parent');
+                setStep('form');
+              }}
+            >
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
+                  <Users className="w-10 h-10 text-[#643737]" />
+                </div>
+                <CardTitle className="text-2xl mb-2 text-[#0C2119]">Parent / Guardian</CardTitle>
+                <CardDescription className="text-base text-[#643737]">
+                  Find trusted babysitters near you
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                <Button 
+                  size="lg" 
+                  className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRole('parent');
+                    setStep('form');
+                  }}
+                >
+                  Get started
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Caregiver Card */}
+            <Card 
+              className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
+              onClick={() => {
+                setSelectedRole('caregiver');
+                setStep('form');
+              }}
+            >
+              <CardHeader className="text-center pb-4">
+                <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
+                  <Heart className="w-10 h-10 text-[#643737]" />
+                </div>
+                <CardTitle className="text-2xl mb-2 text-[#0C2119]">Babysitter / Caregiver</CardTitle>
+                <CardDescription className="text-base text-[#643737]">
+                  Offer your childcare services
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="text-center">
+                <Button 
+                  size="lg" 
+                  className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedRole('caregiver');
+                    setStep('form');
+                  }}
+                >
+                  Get started
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="text-center mt-8 text-sm text-[#643737]">
+            Already have an account?{' '}
+            <button
+              onClick={() => navigate('/login')}
+              className="text-[#C36239] hover:text-[#75290F] font-medium underline"
+            >
+              Sign in
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center p-4">
