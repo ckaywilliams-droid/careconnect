@@ -166,60 +166,33 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // F-021 Triggers.1: Registration sequence
-      // In a real implementation, this would call a backend function that:
-      // 1. Validates fields server-side
-      // 2. Checks duplicate email (Triggers.2)
-      // 3. Validates CAPTCHA (Abuse.2, F-023)
-      // 4. Hashes password with bcrypt (F-026)
-      // 5. Creates User record
-      // 6. Creates CaregiverProfile or ParentProfile (Logic.3)
-      // 7. Creates PolicyAcceptance records (Data.3)
-      // 8. Sends verification email (F-024)
-      
-      // Placeholder: Direct entity creation (would be backend function in production)
-      // NOTE: This is simplified - actual implementation needs backend function
-      // for atomic transaction and proper security
-      
+      // F-021 Triggers.1: Call backend registration function
       const registrationData = {
         email: formData.email.toLowerCase().trim(),
         full_name: formData.full_name.trim(),
-        role: role,
-        // password would be hashed server-side (F-026)
-        // tos_accepted would be validated server-side (Logic.2)
+        password: formData.password,
+        role: role
       };
 
-      // This would be: await base44.functions.registerUser(registrationData)
-      console.log('Registration attempt:', registrationData);
-
-      // F-021 Audit.1: Log successful registration (would be server-side)
-      console.info('User registered', {
-        role: role,
-        registration_method: 'email',
-        timestamp: new Date().toISOString()
-      });
+      const response = await base44.functions.invoke('registerUser', registrationData);
 
       // Redirect to email verification screen (F-029)
       navigate(createPageUrl('VerifyEmail'), {
         state: {
-          email: formData.email,
-          message: 'Registration successful! Please check your email to verify your account.'
+          email: response.data.email,
+          message: response.data.message
         }
       });
 
     } catch (error) {
-      // F-021 Audit.2: Log failed registration (would be server-side)
-      console.warn('Registration failed', {
-        reason: error.message,
-        timestamp: new Date().toISOString()
-      });
-
       // F-021 Errors.1: Display specific error
-      if (error.message?.includes('already exists')) {
+      const errorMessage = error.response?.data?.error || error.message || 'Registration failed. Please try again.';
+      
+      if (errorMessage.includes('Email already registered')) {
         // F-021 Triggers.2: Duplicate email message
-        setGeneralError('An account with this email already exists. Sign in instead.');
+        setGeneralError('Email already registered. Please sign in instead.');
       } else {
-        setGeneralError(error.message || 'Registration failed. Please try again.');
+        setGeneralError(errorMessage);
       }
     } finally {
       setLoading(false);
