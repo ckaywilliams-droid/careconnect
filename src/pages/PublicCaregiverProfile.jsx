@@ -7,8 +7,6 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, MapPin, Star, AlertCircle, Edit2 } from 'lucide-react';
-import CertificationsSection from '@/components/caregiver/CertificationsSection';
-import AvailabilitySection from '@/components/caregiver/AvailabilitySection';
 
 export default function PublicCaregiverProfile() {
   const { slug } = useParams();
