@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Search, Calendar, CheckCircle, Shield, Award, Users, Star } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Search, Calendar, CheckCircle, Shield, Award, Users, Star, MapPin } from 'lucide-react';
 
 export default function Home() {
+  const navigate = useNavigate();
   const [featuredCaregivers, setFeaturedCaregivers] = useState([]);
+  const [verifiedCount, setVerifiedCount] = useState(0);
   const [user, setUser] = useState(null);
+  const [location, setLocation] = useState('');
+  const [date, setDate] = useState('');
 
   useEffect(() => {
     loadData();
@@ -17,24 +22,101 @@ export default function Home() {
 
   const loadData = async () => {
     try {
-      // Load current user
-      const currentUser = await base44.auth.me();
-      setUser(currentUser);
+      // Check if user is authenticated (but don't block page if not)
+      try {
+        const currentUser = await base44.auth.me();
+        setUser(currentUser);
+      } catch {
+        // User not authenticated - this is fine for public page
+      }
 
-      // Load featured caregivers (verified, published, high ratings)
+      // Load featured caregivers (verified, published, limit 4)
       const caregivers = await base44.entities.CaregiverProfile.filter(
         { is_verified: true, is_published: true },
         '-average_rating',
-        3
+        4
       );
       setFeaturedCaregivers(caregivers);
+
+      // Get total verified caregiver count for trust signals
+      const allVerified = await base44.entities.CaregiverProfile.filter(
+        { is_verified: true, is_published: true }
+      );
+      setVerifiedCount(allVerified.length);
     } catch (err) {
       console.error('Error loading data:', err);
     }
   };
 
+  const handleSearch = () => {
+    // Route to marketplace with query params
+    const params = new URLSearchParams();
+    if (location) params.set('location', location);
+    if (date) params.set('date', date);
+    
+    const url = params.toString() 
+      ? `${createPageUrl('Marketplace')}?${params.toString()}`
+      : createPageUrl('Marketplace');
+    
+    navigate(url);
+  };
+
   return (
     <div className="min-h-screen bg-white">
+      {/* Sticky Navigation Header */}
+      <nav className="sticky top-0 z-50 bg-white border-b shadow-sm">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to={createPageUrl('Home')} className="flex items-center gap-2">
+              <div className="text-2xl">🧡</div>
+              <span className="text-xl font-bold text-gray-900">CareNest</span>
+            </Link>
+
+            {/* Navigation Links & Auth Buttons */}
+            <div className="flex items-center gap-4">
+              <Link 
+                to={createPageUrl('Marketplace')} 
+                className="text-gray-700 hover:text-[#C36239] font-medium hidden md:block"
+              >
+                Find a Caregiver
+              </Link>
+              
+              {user ? (
+                // Authenticated - show role-based link
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const dashboardPage = user.role === 'parent' ? 'ParentDashboard' : 
+                                         user.role === 'caregiver' ? 'CaregiverDashboard' : 
+                                         'AdminDashboard';
+                    navigate(createPageUrl(dashboardPage));
+                  }}
+                >
+                  My Dashboard
+                </Button>
+              ) : (
+                // Unauthenticated - show Sign In / Sign Up
+                <>
+                  <Button
+                    variant="ghost"
+                    onClick={() => base44.auth.redirectToLogin(createPageUrl('Home'))}
+                  >
+                    Sign In
+                  </Button>
+                  <Button
+                    className="bg-[#C36239] hover:bg-[#75290F] text-white"
+                    onClick={() => base44.auth.redirectToLogin(createPageUrl('RoleSelection'))}
+                  >
+                    Sign Up
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </nav>
+
       {/* Hero Section */}
       <div 
         className="relative h-[600px] bg-cover bg-center"
@@ -43,7 +125,7 @@ export default function Home() {
         }}
       >
         <div className="container mx-auto px-4 h-full flex items-center">
-          <div className="max-w-2xl text-white">
+          <div className="max-w-3xl text-white">
             {/* Badge */}
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
               <Shield className="w-4 h-4" />
@@ -61,25 +143,50 @@ export default function Home() {
               check availability, and book with confidence.
             </p>
 
-            {/* CTAs */}
-            <div className="flex flex-wrap gap-4">
-              <Button
-                size="lg"
-                className="bg-[#C36239] hover:bg-[#75290F] text-white px-8 h-12"
-                onClick={() => window.location.href = createPageUrl('FindCaregivers')}
-              >
-                <Search className="w-5 h-5 mr-2" />
-                Find a Caregiver
-              </Button>
+            {/* Search Bar */}
+            <div className="bg-white rounded-lg shadow-xl p-4 mb-8">
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="flex-1 flex items-center gap-2 px-4 py-2 border rounded-lg bg-white">
+                  <MapPin className="w-5 h-5 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Enter city or zip code"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="border-0 p-0 focus-visible:ring-0 text-gray-900"
+                  />
+                </div>
+                <div className="flex-1 flex items-center gap-2 px-4 py-2 border rounded-lg bg-white">
+                  <Calendar className="w-5 h-5 text-gray-400" />
+                  <Input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="border-0 p-0 focus-visible:ring-0 text-gray-900"
+                  />
+                </div>
+                <Button
+                  size="lg"
+                  className="bg-[#C36239] hover:bg-[#75290F] text-white px-8"
+                  onClick={handleSearch}
+                >
+                  <Search className="w-5 h-5 mr-2" />
+                  Search
+                </Button>
+              </div>
+            </div>
+
+            {/* Secondary CTA */}
+            {!user && (
               <Button
                 size="lg"
                 variant="outline"
                 className="border-white text-white hover:bg-white/10 px-8 h-12"
-                onClick={() => window.location.href = createPageUrl('CaregiverDashboard')}
+                onClick={() => base44.auth.redirectToLogin(createPageUrl('RoleSelection'))}
               >
-                I'm a Caregiver
+                Become a Caregiver
               </Button>
-            </div>
+            )}
           </div>
         </div>
       </div>
@@ -99,7 +206,7 @@ export default function Home() {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {featuredCaregivers.map((caregiver) => (
             <Card key={caregiver.id} className="overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative">
@@ -191,9 +298,23 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Trust Badges Section */}
+      {/* Trust Signals Section */}
       <div className="bg-[#434C30] text-white py-12">
         <div className="container mx-auto px-4">
+          {/* Trust Signals Bar */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center gap-2 bg-[#C36239] px-6 py-3 rounded-full mb-4">
+              <Shield className="w-5 h-5" />
+              <span className="text-lg font-bold">
+                {verifiedCount}+ Verified Caregivers Ready to Help
+              </span>
+            </div>
+            <p className="text-[#E5E2DC]">
+              All caregivers are background-checked, verified, and reviewed by our team
+            </p>
+          </div>
+
+          {/* Trust Badges Grid */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             {/* Badge 1 */}
             <div className="flex items-start gap-4">
@@ -299,17 +420,22 @@ export default function Home() {
               </ul>
             </div>
 
-            {/* Column 4 - Support */}
+            {/* Column 4 - Legal & Support */}
             <div>
-              <h4 className="font-bold mb-3">Support</h4>
+              <h4 className="font-bold mb-3">Legal & Support</h4>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <a href="#" className="text-[#9C9F95] hover:text-white">
-                    Help Center
+                  <a href="#privacy" className="text-[#9C9F95] hover:text-white">
+                    Privacy Policy
                   </a>
                 </li>
                 <li>
-                  <a href="mailto:support@carenest.com" className="text-[#9C9F95] hover:text-white">
+                  <a href="#terms" className="text-[#9C9F95] hover:text-white">
+                    Terms of Service
+                  </a>
+                </li>
+                <li>
+                  <a href="#contact" className="text-[#9C9F95] hover:text-white">
                     Contact Us
                   </a>
                 </li>
@@ -317,11 +443,21 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Copyright */}
-          <div className="border-t border-[#434C30] pt-6 text-center">
-            <p className="text-sm text-[#9C9F95]">
-              © {new Date().getFullYear()} CareNest. All rights reserved.
-            </p>
+          {/* Copyright & Legal Links */}
+          <div className="border-t border-[#434C30] pt-6">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-sm text-[#9C9F95]">
+                © {new Date().getFullYear()} CareNest. All rights reserved.
+              </p>
+              <div className="flex gap-6 text-sm">
+                <a href="#privacy" className="text-[#9C9F95] hover:text-white">
+                  Privacy Policy
+                </a>
+                <a href="#terms" className="text-[#9C9F95] hover:text-white">
+                  Terms of Service
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>

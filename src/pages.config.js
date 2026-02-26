@@ -48,8 +48,12 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import AdminCreateAccount from './pages/AdminCreateAccount';
+import AdminDashboard from './pages/AdminDashboard';
+import AdminDisputeDashboard from './pages/AdminDisputeDashboard';
 import AdminFirstLogin from './pages/AdminFirstLogin';
 import AdminRoles from './pages/AdminRoles';
+import AdminUsers from './pages/AdminUsers';
+import DisputeDetail from './pages/DisputeDetail';
 import EmailVerified from './pages/EmailVerified';
 import ForgotPassword from './pages/ForgotPassword';
 import Home from './pages/Home';
@@ -57,19 +61,19 @@ import ModerationQueue from './pages/ModerationQueue';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import RoleSelection from './pages/RoleSelection';
+import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
-import AdminDisputeDashboard from './pages/AdminDisputeDashboard';
-import DisputeDetail from './pages/DisputeDetail';
-import SubmitEvidence from './pages/SubmitEvidence';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminUsers from './pages/AdminUsers';
 
 
 export const PAGES = {
     "AdminCreateAccount": AdminCreateAccount,
+    "AdminDashboard": AdminDashboard,
+    "AdminDisputeDashboard": AdminDisputeDashboard,
     "AdminFirstLogin": AdminFirstLogin,
     "AdminRoles": AdminRoles,
+    "AdminUsers": AdminUsers,
+    "DisputeDetail": DisputeDetail,
     "EmailVerified": EmailVerified,
     "ForgotPassword": ForgotPassword,
     "Home": Home,
@@ -77,13 +81,9 @@ export const PAGES = {
     "Register": Register,
     "ResetPassword": ResetPassword,
     "RoleSelection": RoleSelection,
+    "SubmitEvidence": SubmitEvidence,
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
-    "AdminDisputeDashboard": AdminDisputeDashboard,
-    "DisputeDetail": DisputeDetail,
-    "SubmitEvidence": SubmitEvidence,
-    "AdminDashboard": AdminDashboard,
-    "AdminUsers": AdminUsers,
 }
 
 export const pagesConfig = {
