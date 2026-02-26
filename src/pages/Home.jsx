@@ -74,7 +74,7 @@ export default function Home() {
             </Link>
 
             {/* Navigation Links & Auth Buttons */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <Link 
                 to={createPageUrl('Marketplace')} 
                 className="text-gray-700 hover:text-[#C36239] font-medium hidden md:block"
@@ -83,12 +83,12 @@ export default function Home() {
               </Link>
               
               {user ? (
-                // Authenticated - show role-based link
+                // Authenticated - show role-based dashboard link
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const dashboardPage = user.role === 'parent' ? 'ParentDashboard' : 
-                                         user.role === 'caregiver' ? 'CaregiverDashboard' : 
+                    const dashboardPage = user.app_role === 'parent' ? 'ParentDashboard' : 
+                                         user.app_role === 'caregiver' ? 'CaregiverDashboard' : 
                                          'AdminDashboard';
                     navigate(createPageUrl(dashboardPage));
                   }}
@@ -96,7 +96,7 @@ export default function Home() {
                   My Dashboard
                 </Button>
               ) : (
-                // Unauthenticated - show Sign In / Sign Up
+                // Unauthenticated - show Sign In and role-specific Sign Up buttons
                 <>
                   <Button
                     variant="ghost"
@@ -105,10 +105,16 @@ export default function Home() {
                     Sign In
                   </Button>
                   <Button
-                    className="bg-[#C36239] hover:bg-[#75290F] text-white"
-                    onClick={() => base44.auth.redirectToLogin(createPageUrl('RoleSelection'))}
+                    variant="outline"
+                    onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=parent`)}
                   >
-                    Sign Up
+                    Sign up as Parent
+                  </Button>
+                  <Button
+                    className="bg-[#C36239] hover:bg-[#75290F] text-white"
+                    onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=caregiver`)}
+                  >
+                    Become a Caregiver
                   </Button>
                 </>
               )}
@@ -176,16 +182,26 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Secondary CTA */}
+            {/* Secondary CTAs */}
             {!user && (
-              <Button
-                size="lg"
-                variant="outline"
-                className="border-white text-white hover:bg-white/10 px-8 h-12"
-                onClick={() => base44.auth.redirectToLogin(createPageUrl('RoleSelection'))}
-              >
-                Become a Caregiver
-              </Button>
+              <div className="flex flex-wrap gap-4">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-white text-white hover:bg-white/10 px-8 h-12"
+                  onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=parent`)}
+                >
+                  Sign up as Parent
+                </Button>
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-white text-white hover:bg-white/10 px-8 h-12"
+                  onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=caregiver`)}
+                >
+                  Become a Caregiver
+                </Button>
+              </div>
             )}
           </div>
         </div>
