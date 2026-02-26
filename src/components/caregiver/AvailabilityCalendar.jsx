@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, isToday, format, startOfDay } from 'date-fns';
 import CalendarDayCell from './CalendarDayCell';
 import DayDetailPanel from './DayDetailPanel';
+import SlotStatusLegend from './SlotStatusLegend';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
