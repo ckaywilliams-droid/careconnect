@@ -46,14 +46,22 @@ Deno.serve(async (req) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create User entity
-        const newUser = await base44.asServiceRole.entities.User.create({
-            full_name: trimmedName,
-            email: normalizedEmail,
-            password_hash: hashedPassword,
-            app_role: role,
-            email_verified: false
-        });
+        // Check if user already exists (invited)
+        const invitedUser = await base44.asServiceRole.entities.User.filter({ email: normalizedEmail });
+        
+        let newUser;
+        if (invitedUser && invitedUser.length > 0) {
+            // Update existing invited user
+            newUser = invitedUser[0];
+            await base44.asServiceRole.entities.User.update(newUser.id, {
+                full_name: trimmedName,
+                password_hash: hashedPassword,
+                email_verified: false
+            });
+        } else {
+            // Create new user (fallback if not invited)
+            return Response.json({ error: 'User must be invited before registration' }, { status: 403 });
+        }
 
         // Create profile based on role
         if (role === 'parent') {
