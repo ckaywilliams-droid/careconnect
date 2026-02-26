@@ -52,9 +52,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // F-042: Generate unique slug
-    const baseSlug = generateBaseSlug(user.full_name || user.email);
-    const slug = await generateUniqueSlug(base44, baseSlug);
+    // F-042 Data.2: Generate unique slug
+    const baseSlug = generateBaseSlug(user.full_name, user.id);
+    const { slug, collisionCount } = await generateUniqueSlug(base44, baseSlug, user.id);
 
     // F-041 Triggers.2: If slug generation failed after retries
     if (!slug) {
@@ -92,8 +92,8 @@ Deno.serve(async (req) => {
       is_deleted: false
     });
 
-    // F-041 Audit.1: Log profile creation
-    console.log(`[createCaregiverProfile] Profile created: user_id=${user.id}, profile_id=${profile.id}, slug=${slug}`);
+    // F-042 Audit.1: Log profile creation with slug details
+    console.log(`[createCaregiverProfile] Profile created: user_id=${user.id}, profile_id=${profile.id}, slug=${slug}, collisions=${collisionCount}`);
 
     return Response.json({ 
       success: true, 
@@ -114,50 +114,97 @@ Deno.serve(async (req) => {
 });
 
 /**
- * F-042: Generate base slug from user name or email
+ * F-042 Data.2, Data.3: Generate base slug from user full_name
+ * Algorithm:
+ * 1. Lowercase
+ * 2. Replace non-alphanumeric with hyphens
+ * 3. Collapse multiple hyphens to one
+ * 4. Strip leading/trailing hyphens
+ * 5. Truncate to 60 chars at word boundary
+ * 6. Fallback for edge cases (empty or all-hyphens)
  */
-function generateBaseSlug(nameOrEmail) {
-  // Remove @ and domain from email if present
-  let base = nameOrEmail.split('@')[0];
-  
-  // Convert to lowercase, replace spaces/special chars with hyphens
-  base = base
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
-  
-  // Truncate to 30 chars
-  if (base.length > 30) {
-    base = base.substring(0, 30).replace(/-+$/, '');
+function generateBaseSlug(fullName, userId) {
+  if (!fullName) {
+    // F-042 Edge.2: Fallback for missing name
+    console.warn(`[generateBaseSlug] Missing full_name for user ${userId} - using UUID fallback`);
+    return `caregiver-${userId.substring(0, 8)}`;
   }
-  
-  return base || 'caregiver';
+
+  // F-042 Data.2: Lowercase and replace non-alphanumeric with hyphens
+  let slug = fullName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-') // Replace any non-alphanumeric sequence with single hyphen
+    .replace(/-+/g, '-') // Collapse multiple hyphens to one
+    .replace(/^-+|-+$/g, ''); // Strip leading and trailing hyphens
+
+  // F-042 Edge.2, Edge.3: Check if slug is empty or all hyphens
+  if (!slug || slug.length === 0) {
+    console.warn(`[generateBaseSlug] Normalized slug is empty for "${fullName}" - using UUID fallback`);
+    return `caregiver-${userId.substring(0, 8)}`;
+  }
+
+  // F-042 Data.2, Edge.1: Truncate to 60 chars at word boundary
+  if (slug.length > 60) {
+    // Try to truncate at last hyphen (word boundary) before char 60
+    const truncated = slug.substring(0, 60);
+    const lastHyphen = truncated.lastIndexOf('-');
+    
+    if (lastHyphen > 0) {
+      // Truncate at word boundary
+      slug = truncated.substring(0, lastHyphen);
+    } else {
+      // No word boundary found - truncate at exactly 60 chars
+      slug = truncated;
+    }
+    
+    // Remove trailing hyphen if present
+    slug = slug.replace(/-+$/, '');
+  }
+
+  return slug;
 }
 
 /**
- * F-042: Generate unique slug with collision handling
+ * F-042 Triggers.2: Generate unique slug with collision handling
+ * Uses incremental counter (-2, -3, etc) for collisions
+ * Falls back to UUID after 10 attempts
  */
-async function generateUniqueSlug(base44, baseSlug, maxAttempts = 10) {
+async function generateUniqueSlug(base44, baseSlug, userId, maxAttempts = 10) {
   let slug = baseSlug;
-  let attempt = 0;
+  let collisionCount = 0;
 
-  while (attempt < maxAttempts) {
-    // Check if slug exists
-    const existing = await base44.asServiceRole.entities.CaregiverProfile.filter({ 
+  // Check base slug first
+  const baseExists = await base44.asServiceRole.entities.CaregiverProfile.filter({ 
+    slug: slug 
+  });
+
+  if (!baseExists || baseExists.length === 0) {
+    // F-042 Audit.1: Log successful generation with no collisions
+    console.log(`[generateUniqueSlug] Slug generated: ${slug} (0 collisions)`);
+    return { slug, collisionCount: 0 };
+  }
+
+  // F-042 Triggers.2: Handle collisions with incremental counter
+  for (let counter = 2; counter <= maxAttempts + 1; counter++) {
+    slug = `${baseSlug}-${counter}`;
+    collisionCount++;
+
+    const exists = await base44.asServiceRole.entities.CaregiverProfile.filter({ 
       slug: slug 
     });
 
-    if (!existing || existing.length === 0) {
-      return slug; // Found unique slug
+    if (!exists || exists.length === 0) {
+      // F-042 Audit.1: Log successful generation with collision count
+      console.log(`[generateUniqueSlug] Slug generated: ${slug} (${collisionCount} collisions)`);
+      return { slug, collisionCount };
     }
-
-    // Collision detected - append random suffix
-    attempt++;
-    const randomSuffix = Math.random().toString(36).substring(2, 6);
-    slug = `${baseSlug}-${randomSuffix}`;
   }
 
-  // F-041 Triggers.2: Max attempts exceeded
-  console.error(`[generateUniqueSlug] Failed to generate unique slug after ${maxAttempts} attempts for base: ${baseSlug}`);
-  return null;
+  // F-042 Triggers.2: Fallback to UUID after max attempts
+  const fallbackSlug = `${baseSlug}-${userId.substring(0, 8)}`;
+  
+  // F-042 Audit.2: Log fallback event
+  console.warn(`[generateUniqueSlug] UUID fallback slug: ${fallbackSlug} after ${collisionCount} collisions`);
+  
+  return { slug: fallbackSlug, collisionCount };
 }
