@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
-import { X, Trash2, Edit2, Plus } from 'lucide-react';
+import { X, Edit2, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
+import SlotEntryForm from './SlotEntryForm';
 
 const STATUS_CONFIG = {
   open: { label: 'Open', color: 'bg-green-100 text-green-800' },
