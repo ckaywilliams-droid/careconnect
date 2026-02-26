@@ -115,13 +115,13 @@ export default function Home() {
                   <Button
                     variant="outline"
                     className="hidden sm:inline-flex"
-                    onClick={() => navigate(createPageUrl('Register'), { state: { role: 'parent' } })}
+                    onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=parent`)}
                   >
                     Sign up as Parent
                   </Button>
                   <Button
                     className="bg-[#C36239] hover:bg-[#75290F] text-white"
-                    onClick={() => navigate(createPageUrl('Register'), { state: { role: 'caregiver' } })}
+                    onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=caregiver`)}
                   >
                     Become a Caregiver
                   </Button>
@@ -198,7 +198,7 @@ export default function Home() {
                    size="lg"
                    variant="outline"
                    className="border-white text-white hover:bg-white/10 px-8 h-12"
-                   onClick={() => navigate(createPageUrl('Register'), { state: { role: 'parent' } })}
+                   onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=parent`)}
                  >
                    Sign up as Parent
                  </Button>
@@ -206,7 +206,7 @@ export default function Home() {
                    size="lg"
                    variant="outline"
                    className="border-white text-white hover:bg-white/10 px-8 h-12"
-                   onClick={() => navigate(createPageUrl('Register'), { state: { role: 'caregiver' } })}
+                   onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=caregiver`)}
                  >
                    Become a Caregiver
                  </Button>
