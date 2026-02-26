@@ -86,6 +86,9 @@ export default function AvailabilityCalendar({ slots, onRefresh, isLoading, care
         </div>
       </div>
 
+      {/* F-058 UI.1: Status legend */}
+      <SlotStatusLegend />
+
       {/* Past month banner */}
       {isBefore(monthEnd, new Date()) && (
         <div className="bg-muted p-3 rounded-md text-sm text-muted-foreground">
