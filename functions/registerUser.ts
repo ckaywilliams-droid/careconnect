@@ -52,6 +52,7 @@ Deno.serve(async (req) => {
             email: normalizedEmail,
             password_hash: hashedPassword,
             app_role: role,
+            role: role,
             email_verified: false
         });
 
