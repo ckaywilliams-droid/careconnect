@@ -30,8 +30,8 @@ Deno.serve(async (req) => {
     }
 
     // F-041 Errors.2: Only create profile for caregivers
-    if (user.role !== 'caregiver') {
-      console.log(`[createCaregiverProfile] Skipping - User ${user.id} is not a caregiver (role: ${user.role})`);
+    if (user.app_role !== 'caregiver') {
+      console.log(`[createCaregiverProfile] Skipping - User ${user.id} is not a caregiver (app_role: ${user.app_role})`);
       return Response.json({ 
         success: true, 
         message: 'Not a caregiver user - no profile created' 
