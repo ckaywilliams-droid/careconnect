@@ -6,7 +6,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
 
     // F-055 Audit.3: Admin-only function for monitoring soft-locks
-    if (!user || !['support_admin', 'trust_admin', 'super_admin'].includes(user.app_role)) {
+    if (!user || !['support_admin', 'trust_admin', 'super_admin'].includes(user.role)) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

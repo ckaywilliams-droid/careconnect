@@ -90,9 +90,10 @@ async function checkUnpublishRateLimit(base44, userId) {
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
   
   // Query admin action logs for recent publish/unpublish actions
+  // Note: We use created_by (auto-set by platform) to filter caregiver's own actions
   const recentActions = await base44.entities.AdminActionLog.filter({
-    admin_user_id: userId,
-    action_timestamp: { $gte: oneHourAgo }
+    created_by: userId,
+    created_date: { $gte: oneHourAgo }
   });
 
   // Count publish-related actions

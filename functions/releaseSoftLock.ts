@@ -30,16 +30,15 @@ Deno.serve(async (req) => {
 
     const slot = slots[0];
 
-    // F-055 (post-MVP): Only the owning caregiver or admin can release soft locks
-    // For now, allow any authenticated user to release (will be restricted in F-055)
-    if (user.app_role !== 'caregiver' && user.app_role !== 'super_admin') {
-      // Verify ownership if caregiver
-      if (user.app_role === 'caregiver' && slot.caregiver_user_id !== user.id) {
-        return Response.json(
-          { error: 'You do not own this slot' },
-          { status: 403 }
-        );
-      }
+    // F-055 Security: Only the owning caregiver or admin can release soft locks
+    const isAdmin = ['support_admin', 'trust_admin', 'super_admin'].includes(user.role);
+    const isOwner = slot.caregiver_user_id === user.id;
+    
+    if (!isAdmin && !isOwner) {
+      return Response.json(
+        { error: 'Unauthorized: Only the caregiver who owns this slot or an admin can release soft locks' },
+        { status: 403 }
+      );
     }
 
     // Only release if currently soft_locked

@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { randomBytes } from 'node:crypto';
+import bcrypt from 'npm:bcryptjs';
 
 /**
  * F-031 Triggers.1: CREATE ADMIN ACCOUNT BACKEND FUNCTION
@@ -212,13 +212,13 @@ function generateTemporaryPassword() {
 }
 
 /**
- * Hash password using bcrypt (platform-managed in production)
- * This is a placeholder - Base44 handles password hashing
+ * Hash password using bcrypt
  */
 async function hashPassword(password) {
-  // In production, Base44 platform handles bcrypt hashing
-  // This is just for type compatibility
-  return `bcrypt_hash_${password}`;
+  // Use bcryptjs for proper password hashing
+  // Note: bcryptjs is imported at the top
+  const bcrypt = await import('npm:bcryptjs');
+  return await bcrypt.default.hash(password, 10);
 }
 
 /**
