@@ -56,8 +56,20 @@ Deno.serve(async (req) => {
         });
 
         // Create profile based on role
-        if (role === 'caregiver') {
-            const slug = `caregiver-${newUser.id}`;
+        if (role === 'parent') {
+            await base44.asServiceRole.entities.ParentProfile.create({
+                user_id: newUser.id,
+                display_name: trimmedName
+            });
+        } else if (role === 'caregiver') {
+            // Generate slug for caregiver
+            const baseSlug = trimmedName
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '-')
+                .replace(/-+/g, '-')
+                .replace(/^-+|-+$/g, '');
+            const slug = baseSlug || `caregiver-${newUser.id.substring(0, 8)}`;
+            
             await base44.asServiceRole.entities.CaregiverProfile.create({
                 user_id: newUser.id,
                 slug: slug,
@@ -65,11 +77,6 @@ Deno.serve(async (req) => {
                 is_verified: false,
                 is_published: false,
                 completion_pct: 0
-            });
-        } else if (role === 'parent') {
-            await base44.asServiceRole.entities.ParentProfile.create({
-                user_id: newUser.id,
-                display_name: trimmedName
             });
         }
 
