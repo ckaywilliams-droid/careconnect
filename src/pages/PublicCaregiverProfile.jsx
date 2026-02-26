@@ -3,123 +3,98 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { MapPin, DollarSign, Calendar, CheckCircle, Shield, Languages, Award, AlertTriangle } from 'lucide-react';
-import BookingRequestModal from '@/components/BookingRequestModal';
+import { CheckCircle2, MapPin, Star, AlertCircle, Edit2 } from 'lucide-react';
+import CertificationsSection from '@/components/caregiver/CertificationsSection';
+import AvailabilitySection from '@/components/caregiver/AvailabilitySection';
 
 export default function PublicCaregiverProfile() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
-  const [availabilitySlots, setAvailabilitySlots] = useState([]);
   const [certifications, setCertifications] = useState([]);
-  const [user, setUser] = useState(null);
+  const [availabilitySlots, setAvailabilitySlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showBookingModal, setShowBookingModal] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [user, setUser] = useState(null);
+  const [isOwnProfile, setIsOwnProfile] = useState(false);
 
   useEffect(() => {
-    loadProfile();
-  }, [slug]);
-
-  const loadProfile = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Check if user is authenticated
+    const fetchProfile = async () => {
       try {
+        setLoading(true);
+        setError(null);
+
+        // Get current user
         const currentUser = await base44.auth.me();
         setUser(currentUser);
-      } catch {
-        setUser(null);
-      }
 
-      // Load caregiver profile
-      const profiles = await base44.entities.CaregiverProfile.filter({
-        slug: slug,
-        is_published: true
-      });
+        // Fetch caregiver profile
+        const response = await base44.functions.invoke('getCaregiverPublicProfile', {
+          slug: slug
+        });
 
-      if (!profiles || profiles.length === 0) {
-        setError('Caregiver profile not found or is not available.');
+        if (response.status === 404) {
+          setError('Caregiver not found');
+          setProfile(null);
+          return;
+        }
+
+        if (response.data) {
+          setProfile(response.data.profile);
+          setCertifications(response.data.certifications || []);
+          setAvailabilitySlots(response.data.availabilitySlots || []);
+
+          // Check if user is viewing their own profile
+          if (currentUser && currentUser.id === response.data.profile.user_id) {
+            setIsOwnProfile(true);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching profile:', err);
+        if (err.response?.status === 404) {
+          setError('Caregiver not found');
+        } else {
+          setError('Failed to load profile');
+        }
+      } finally {
         setLoading(false);
-        return;
       }
+    };
 
-      const caregiverProfile = profiles[0];
-      setProfile(caregiverProfile);
-
-      // Load availability slots (open slots only)
-      const slots = await base44.entities.AvailabilitySlot.filter({
-        caregiver_profile_id: caregiverProfile.id,
-        status: 'open'
-      }, 'start_datetime');
-      setAvailabilitySlots(slots);
-
-      // Load certifications
-      const certs = await base44.entities.Certification.filter({
-        caregiver_profile_id: caregiverProfile.id,
-        is_deleted: false,
-        is_suppressed: false,
-        verification_status: 'verified'
-      });
-      setCertifications(certs);
-
-      setLoading(false);
-    } catch (err) {
-      console.error('Error loading profile:', err);
-      setError('Failed to load caregiver profile.');
-      setLoading(false);
+    if (slug) {
+      fetchProfile();
     }
-  };
-
-  const handleRequestBooking = () => {
-    if (!user) {
-      // Not logged in - redirect to login with return URL
-      const returnUrl = window.location.pathname;
-      base44.auth.redirectToLogin(returnUrl);
-      return;
-    }
-
-    // Check if user is a parent
-    if (user.app_role !== 'parent') {
-      alert('Only parents can request bookings.');
-      return;
-    }
-
-    setShowBookingModal(true);
-  };
-
-  const handleSlotClick = (slot) => {
-    setSelectedSlot(slot);
-    handleRequestBooking();
-  };
+  }, [slug]);
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#FEFEFE] to-[#F5F1EC] flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#C36239] mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#C36239]"></div>
+          <p className="mt-4 text-[#643737]">Loading profile...</p>
         </div>
       </div>
     );
   }
 
-  if (error || !profile) {
+  if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="p-6 text-center">
-            <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-bold text-gray-900 mb-2">Profile Not Found</h2>
-            <p className="text-gray-600 mb-4">{error}</p>
-            <Button onClick={() => navigate(createPageUrl('Marketplace'))}>
-              Browse Caregivers
+      <div className="min-h-screen bg-gradient-to-br from-[#FEFEFE] to-[#F5F1EC] flex items-center justify-center p-4">
+        <Card className="max-w-md w-full border-2 border-[#E5E2DC]">
+          <CardHeader className="text-center">
+            <AlertCircle className="w-12 h-12 text-[#C36239] mx-auto mb-3" />
+            <CardTitle className="text-2xl text-[#0C2119]">Caregiver Not Found</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center space-y-4">
+            <p className="text-[#643737]">{error}</p>
+            <Button
+              onClick={() => navigate(createPageUrl('Home'))}
+              className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
+            >
+              Back to Home
             </Button>
           </CardContent>
         </Card>
@@ -127,273 +102,341 @@ export default function PublicCaregiverProfile() {
     );
   }
 
-  const servicesArray = profile.services_offered ? profile.services_offered.split(',').map(s => s.trim()) : [];
-  const languagesArray = profile.languages ? profile.languages.split(',').map(l => l.trim()) : [];
-  const ageGroupsArray = profile.age_groups ? profile.age_groups.split(',').map(a => a.trim()) : [];
+  if (!profile) {
+    return null;
+  }
+
+  const hourlyRateDisplay = profile.hourly_rate_cents
+    ? `$${(profile.hourly_rate_cents / 100).toFixed(2)}/hr`
+    : 'Rate on request';
+
+  const servicesArray = profile.services_offered
+    ? profile.services_offered.split(',').map(s => s.trim())
+    : [];
+
+  const ageGroupsArray = profile.age_groups
+    ? profile.age_groups.split(',').map(a => a.trim())
+    : [];
+
+  const renderBookingCTA = () => {
+    if (!user) {
+      return (
+        <Button
+          size="lg"
+          className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
+          onClick={() => base44.auth.redirectToLogin(window.location.href)}
+        >
+          Sign in to Request Booking
+        </Button>
+      );
+    }
+
+    if (user.app_role === 'caregiver') {
+      return (
+        <Button
+          variant="outline"
+          size="lg"
+          className="w-full border-[#C36239] text-[#C36239]"
+          onClick={() => navigate(createPageUrl('CaregiverProfile'))}
+        >
+          View Your Own Profile
+        </Button>
+      );
+    }
+
+    if (!user.email_verified) {
+      return (
+        <Button
+          disabled
+          size="lg"
+          className="w-full bg-gray-300 text-gray-600 cursor-not-allowed"
+        >
+          Verify Your Email to Book
+        </Button>
+      );
+    }
+
+    return (
+      <Button
+        size="lg"
+        className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
+        onClick={() => {
+          // TODO: Open booking modal with this caregiver pre-selected
+        }}
+      >
+        Request Booking
+      </Button>
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#FEFEFE] to-[#F5F1EC]">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#434C30] to-[#0C2119] h-48"></div>
+      <div className="relative">
+        <div
+          className="w-full h-64 md:h-80 bg-gradient-to-r from-[#C36239] to-[#8B4513] bg-cover bg-center"
+          style={{
+            backgroundImage: profile.header_image_url
+              ? `url(${profile.header_image_url})`
+              : undefined
+          }}
+        />
 
-      <div className="container mx-auto px-4 -mt-24 pb-12">
-        {/* Profile Header Card */}
-        <Card className="mb-8">
-          <CardContent className="p-8">
-            <div className="flex flex-col md:flex-row gap-6 items-start">
-              {/* Profile Photo */}
-              <div className="relative">
-                <img
-                  src={profile.profile_photo_url || 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400'}
-                  alt={profile.display_name}
-                  className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-lg"
-                />
-                {profile.is_verified && (
-                  <div className="absolute -bottom-2 -right-2 bg-green-600 text-white rounded-full p-2">
-                    <CheckCircle className="w-6 h-6" />
-                  </div>
-                )}
+        {/* Profile Photo */}
+        <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
+          <div className="relative">
+            <img
+              src={profile.profile_photo_url || 'https://via.placeholder.com/140?text=No+Photo'}
+              alt={profile.display_name}
+              className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white shadow-lg object-cover"
+            />
+            {profile.is_verified && (
+              <div className="absolute bottom-2 right-2 bg-white rounded-full p-1 shadow-md">
+                <CheckCircle2 className="w-6 h-6 text-green-600" />
               </div>
+            )}
+          </div>
+        </div>
 
-              {/* Profile Info */}
-              <div className="flex-1">
-                <div className="flex items-start justify-between flex-wrap gap-4">
-                  <div>
-                    <div className="flex items-center gap-3 mb-2">
-                      <h1 className="text-3xl font-bold text-gray-900">{profile.display_name}</h1>
-                      {profile.is_verified && (
-                        <Badge className="bg-green-600 text-white">
-                          <Shield className="w-3 h-3 mr-1" />
-                          Verified
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-4 text-gray-600 mb-4">
-                      <div className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        <span>{profile.city}, {profile.state}</span>
-                      </div>
-                      {profile.experience_years && (
-                        <div>
-                          <span className="font-semibold">{profile.experience_years}</span> years experience
-                        </div>
-                      )}
-                    </div>
-                  </div>
+        {/* Edit Button (if own profile) */}
+        {isOwnProfile && (
+          <Button
+            size="icon"
+            className="absolute top-4 right-4 bg-white hover:bg-gray-100 text-[#C36239] shadow-lg"
+            onClick={() => navigate(createPageUrl('CaregiverProfile'))}
+            title="Edit your profile"
+          >
+            <Edit2 className="w-4 h-4" />
+          </Button>
+        )}
+      </div>
 
-                  {/* Hourly Rate */}
-                  <div className="text-right">
-                    <div className="text-3xl font-bold text-[#C36239]">
-                      ${(profile.hourly_rate_cents / 100).toFixed(0)}/hr
-                    </div>
-                    <p className="text-sm text-gray-500">Starting rate</p>
-                  </div>
+      {/* Main Content */}
+      <div className="max-w-4xl mx-auto px-4 pt-24 pb-24 md:pb-8">
+        {/* Name & Rating */}
+        <div className="text-center mb-8">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <h1 className="text-3xl md:text-4xl font-bold text-[#0C2119]">
+              {profile.display_name}
+            </h1>
+            {profile.is_verified && (
+              <div title="Background verified by our team">
+                <CheckCircle2 className="w-7 h-7 text-green-600" />
+              </div>
+            )}
+          </div>
+
+          {/* Rate Pill */}
+          <Badge className="bg-[#C36239] text-white text-lg px-6 py-2 mb-4">
+            {hourlyRateDisplay}
+          </Badge>
+
+          {/* Rating & Location */}
+          <div className="flex items-center justify-center gap-6 text-[#643737] text-sm md:text-base">
+            {profile.average_rating > 0 && (
+              <div className="flex items-center gap-1">
+                <div className="flex">
+                  {[...Array(5)].map((_, i) => (
+                    <Star
+                      key={i}
+                      className={`w-4 h-4 ${
+                        i < Math.round(profile.average_rating)
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
                 </div>
+                <span>
+                  {profile.average_rating.toFixed(1)} ({profile.total_reviews} reviews)
+                </span>
+              </div>
+            )}
+            {(profile.city || profile.state) && (
+              <div className="flex items-center gap-1">
+                <MapPin className="w-4 h-4" />
+                <span>{profile.city && `${profile.city}, `}{profile.state}</span>
+              </div>
+            )}
+            {profile.total_bookings_completed > 0 && (
+              <span>{profile.total_bookings_completed} completed bookings</span>
+            )}
+          </div>
+        </div>
 
-                {/* Action Buttons */}
-                <div className="flex gap-3 mt-6">
-                  <Button
-                    size="lg"
-                    className="bg-[#C36239] hover:bg-[#75290F] text-white"
-                    onClick={handleRequestBooking}
+        {/* Services & Age Groups */}
+        <div className="space-y-6 mb-8">
+          {servicesArray.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-[#0C2119] mb-3 uppercase tracking-wide">
+                Services
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {servicesArray.map((service) => (
+                  <Badge
+                    key={service}
+                    className="bg-[#E5E2DC] text-[#643737] hover:bg-[#D4D1CC]"
                   >
-                    <Calendar className="w-5 h-5 mr-2" />
-                    Request Booking
-                  </Button>
-                  {user && (
-                    <Button variant="outline" size="lg">
-                      Report
-                    </Button>
-                  )}
-                </div>
+                    {service.replace(/_/g, ' ')}
+                  </Badge>
+                ))}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* About Section */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">About</h2>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">
-                  {profile.bio || 'No bio provided.'}
+          {ageGroupsArray.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold text-[#0C2119] mb-3 uppercase tracking-wide">
+                Age Groups
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {ageGroupsArray.map((group) => (
+                  <Badge
+                    key={group}
+                    className="bg-[#E5E2DC] text-[#643737] hover:bg-[#D4D1CC]"
+                  >
+                    {group.replace(/_/g, ' ')}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* About */}
+        {profile.bio && (
+          <Card className="mb-8 border-[#E5E2DC]">
+            <CardHeader>
+              <CardTitle className="text-[#0C2119]">About</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-[#643737] leading-relaxed whitespace-pre-wrap">
+                {profile.bio}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Experience & Languages */}
+        <div className="grid md:grid-cols-2 gap-4 mb-8">
+          {profile.experience_years !== undefined && profile.experience_years !== null && (
+            <Card className="border-[#E5E2DC]">
+              <CardHeader>
+                <CardTitle className="text-[#0C2119]">Experience</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-[#643737]">
+                  {profile.experience_years} {profile.experience_years === 1 ? 'year' : 'years'} of experience
                 </p>
               </CardContent>
             </Card>
+          )}
 
-            {/* Services & Age Groups */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Services Offered</h2>
-                <div className="flex flex-wrap gap-2 mb-6">
-                  {servicesArray.length > 0 ? (
-                    servicesArray.map((service, idx) => (
-                      <Badge key={idx} variant="secondary" className="text-sm">
-                        {service.replace(/_/g, ' ')}
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">No services listed</p>
-                  )}
-                </div>
-
-                <h3 className="text-xl font-bold text-gray-900 mb-3">Age Groups</h3>
-                <div className="flex flex-wrap gap-2">
-                  {ageGroupsArray.length > 0 ? (
-                    ageGroupsArray.map((age, idx) => (
-                      <Badge key={idx} variant="outline" className="text-sm">
-                        {age.replace(/_/g, ' ')}
-                      </Badge>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">No age groups listed</p>
-                  )}
-                </div>
+          {profile.languages && (
+            <Card className="border-[#E5E2DC]">
+              <CardHeader>
+                <CardTitle className="text-[#0C2119]">Languages</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-[#643737]">{profile.languages}</p>
               </CardContent>
             </Card>
+          )}
+        </div>
 
-            {/* Availability Calendar */}
-            <Card>
-              <CardContent className="p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Availability</h2>
-                {availabilitySlots.length > 0 ? (
-                  <div className="space-y-2">
-                    {availabilitySlots.slice(0, 10).map((slot) => (
-                      <button
-                        key={slot.id}
-                        onClick={() => handleSlotClick(slot)}
-                        className="w-full flex items-center justify-between p-4 border border-green-200 bg-green-50 hover:bg-green-100 rounded-lg transition-colors text-left"
-                      >
-                        <div>
-                          <div className="font-semibold text-gray-900">
-                            {new Date(slot.start_datetime).toLocaleDateString('en-US', { 
-                              weekday: 'long', 
-                              year: 'numeric', 
-                              month: 'long', 
-                              day: 'numeric' 
-                            })}
-                          </div>
-                          <div className="text-sm text-gray-600">
-                            {new Date(slot.start_datetime).toLocaleTimeString('en-US', { 
-                              hour: 'numeric', 
-                              minute: '2-digit' 
-                            })} - {new Date(slot.end_datetime).toLocaleTimeString('en-US', { 
-                              hour: 'numeric', 
-                              minute: '2-digit' 
-                            })}
-                          </div>
-                        </div>
-                        <Badge className="bg-green-600 text-white">Available</Badge>
-                      </button>
-                    ))}
-                    {availabilitySlots.length > 10 && (
-                      <p className="text-sm text-gray-500 text-center mt-4">
-                        +{availabilitySlots.length - 10} more slots available
+        {/* Certifications */}
+        {certifications.length > 0 && (
+          <Card className="mb-8 border-[#E5E2DC]">
+            <CardHeader>
+              <CardTitle className="text-[#0C2119]">Certifications</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {certifications.map((cert) => (
+                  <div
+                    key={cert.id}
+                    className="flex items-center justify-between p-3 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC]"
+                  >
+                    <div>
+                      <p className="font-medium text-[#0C2119]">{cert.cert_name}</p>
+                      <p className="text-sm text-[#643737]">{cert.issuing_organization}</p>
+                    </div>
+                    {cert.expiry_date && (
+                      <p className="text-sm text-[#643737]">
+                        Expires: {new Date(cert.expiry_date).toLocaleDateString()}
                       </p>
                     )}
                   </div>
-                ) : (
-                  <Alert>
-                    <AlertDescription>
-                      No availability slots currently posted. Check back soon!
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {certifications.length === 0 && (
+          <div className="mb-8 p-4 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC] text-center text-[#643737]">
+            No certifications listed.
           </div>
+        )}
 
-          {/* Sidebar */}
-          <div className="space-y-8">
-            {/* Languages */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Languages className="w-5 h-5" />
-                  Languages
-                </h3>
-                <div className="space-y-2">
-                  {languagesArray.length > 0 ? (
-                    languagesArray.map((lang, idx) => (
-                      <div key={idx} className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-[#C36239] rounded-full"></div>
-                        <span className="text-gray-700">{lang}</span>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">No languages listed</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Certifications */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Award className="w-5 h-5" />
-                  Certifications
-                </h3>
-                <div className="space-y-3">
-                  {certifications.length > 0 ? (
-                    certifications.map((cert) => (
-                      <div key={cert.id} className="flex items-start gap-3">
-                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-gray-900">{cert.cert_name}</div>
-                          {cert.issuing_organization && (
-                            <div className="text-sm text-gray-600">{cert.issuing_organization}</div>
-                          )}
-                          {cert.expiry_date && (
-                            <div className="text-xs text-gray-500">
-                              Expires: {new Date(cert.expiry_date).toLocaleDateString()}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-gray-500">No certifications listed</p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Profile Stats */}
-            <Card>
-              <CardContent className="p-6">
-                <h3 className="text-lg font-bold text-gray-900 mb-4">Profile Stats</h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Completed Bookings</span>
-                    <span className="font-semibold">{profile.total_bookings_completed || 0}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Profile Completion</span>
-                    <span className="font-semibold">{profile.completion_pct || 0}%</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+        {/* Availability */}
+        <Card className="mb-8 border-[#E5E2DC]">
+          <CardHeader>
+            <CardTitle className="text-[#0C2119]">Upcoming Availability</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {availabilitySlots.length > 0 ? (
+              <div className="space-y-2">
+                {availabilitySlots.slice(0, 7).map((slot) => {
+                  const startDate = new Date(slot.slot_start_time);
+                  const endDate = new Date(slot.slot_end_time);
+                  return (
+                    <div
+                      key={slot.id}
+                      className="flex items-center justify-between p-3 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC]"
+                    >
+                      <span className="font-medium text-[#0C2119]">
+                        {startDate.toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric'
+                        })}
+                      </span>
+                      <span className="text-[#643737]">
+                        {startDate.toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })}{' '}
+                        -{' '}
+                        {endDate.toLocaleTimeString('en-US', {
+                          hour: 'numeric',
+                          minute: '2-digit',
+                          hour12: true
+                        })}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="text-center text-[#643737]">
+                No upcoming availability — contact to enquire.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Booking Request Modal */}
-      {showBookingModal && (
-        <BookingRequestModal
-          profile={profile}
-          availabilitySlots={availabilitySlots}
-          preselectedSlot={selectedSlot}
-          onClose={() => {
-            setShowBookingModal(false);
-            setSelectedSlot(null);
-          }}
-        />
-      )}
+      {/* Sticky Booking CTA */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#E5E2DC] shadow-2xl md:hidden p-4 z-40">
+        {renderBookingCTA()}
+      </div>
+
+      {/* Desktop Inline CTA */}
+      <div className="hidden md:block max-w-4xl mx-auto px-4 pb-8">
+        {renderBookingCTA()}
+      </div>
     </div>
   );
 }
