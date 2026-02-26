@@ -13,6 +13,7 @@ export default function Home() {
   const [featuredCaregivers, setFeaturedCaregivers] = useState([]);
   const [verifiedCount, setVerifiedCount] = useState(0);
   const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
   const [location, setLocation] = useState('');
   const [date, setDate] = useState('');
 
@@ -28,6 +29,9 @@ export default function Home() {
         setUser(currentUser);
       } catch {
         // User not authenticated - this is fine for public page
+        setUser(null);
+      } finally {
+        setAuthChecked(true);
       }
 
       // Load featured caregivers (verified, published, limit 4)
@@ -45,6 +49,7 @@ export default function Home() {
       setVerifiedCount(allVerified.length);
     } catch (err) {
       console.error('Error loading data:', err);
+      setAuthChecked(true);
     }
   };
 
@@ -82,7 +87,10 @@ export default function Home() {
                 Find a Caregiver
               </Link>
               
-              {user ? (
+              {!authChecked ? (
+                // Loading state
+                <div className="h-9 w-32 bg-gray-200 animate-pulse rounded"></div>
+              ) : user ? (
                 // Authenticated - show role-based dashboard link
                 <Button
                   variant="outline"
@@ -106,6 +114,7 @@ export default function Home() {
                   </Button>
                   <Button
                     variant="outline"
+                    className="hidden sm:inline-flex"
                     onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=parent`)}
                   >
                     Sign up as Parent
