@@ -8,6 +8,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 import SlotEntryForm from './SlotEntryForm';
+import SlotStatusBadge from './SlotStatusBadge';
 
 const STATUS_CONFIG = {
   open: { label: 'Open', color: 'bg-green-100 text-green-800' },
