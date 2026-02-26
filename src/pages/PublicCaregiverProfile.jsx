@@ -377,15 +377,15 @@ export default function PublicCaregiverProfile() {
           </div>
         )}
 
-        {/* Availability */}
+        {/* F-058 Logic.3: Availability - parents see only open slots, no status labels */}
         <Card className="mb-8 border-[#E5E2DC]">
           <CardHeader>
-            <CardTitle className="text-[#0C2119]">Upcoming Availability</CardTitle>
+            <CardTitle className="text-[#0C2119]">Available times</CardTitle>
           </CardHeader>
           <CardContent>
-            {availabilitySlots.length > 0 ? (
+            {availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked).length > 0 ? (
               <div className="space-y-2">
-                {availabilitySlots.slice(0, 7).map((slot) => {
+                {availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked).slice(0, 7).map((slot) => {
                   const startDate = new Date(slot.slot_start_time);
                   const endDate = new Date(slot.slot_end_time);
                   return (
@@ -406,7 +406,7 @@ export default function PublicCaregiverProfile() {
                           minute: '2-digit',
                           hour12: true
                         })}{' '}
-                        -{' '}
+                        –{' '}
                         {endDate.toLocaleTimeString('en-US', {
                           hour: 'numeric',
                           minute: '2-digit',
@@ -419,7 +419,7 @@ export default function PublicCaregiverProfile() {
               </div>
             ) : (
               <p className="text-center text-[#643737]">
-                No upcoming availability — contact to enquire.
+                No available times — contact to enquire.
               </p>
             )}
           </CardContent>
