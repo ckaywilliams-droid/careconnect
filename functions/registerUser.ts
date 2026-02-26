@@ -57,28 +57,36 @@ Deno.serve(async (req) => {
         });
 
         // Create profile based on role
-        if (role === 'parent') {
-            await base44.asServiceRole.entities.ParentProfile.create({
-                user_id: newUser.id,
-                display_name: trimmedName
-            });
-        } else if (role === 'caregiver') {
-            // Generate slug for caregiver
-            const baseSlug = trimmedName
-                .toLowerCase()
-                .replace(/[^a-z0-9]+/g, '-')
-                .replace(/-+/g, '-')
-                .replace(/^-+|-+$/g, '');
-            const slug = baseSlug || `caregiver-${newUser.id.substring(0, 8)}`;
-            
-            await base44.asServiceRole.entities.CaregiverProfile.create({
-                user_id: newUser.id,
-                slug: slug,
-                display_name: trimmedName,
-                is_verified: false,
-                is_published: false,
-                completion_pct: 0
-            });
+        try {
+            if (role === 'parent') {
+                await base44.asServiceRole.entities.ParentProfile.create({
+                    user_id: newUser.id,
+                    display_name: trimmedName
+                });
+            } else if (role === 'caregiver') {
+                // Generate slug for caregiver
+                const baseSlug = trimmedName
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^-+|-+$/g, '');
+                const slug = baseSlug || `caregiver-${newUser.id.substring(0, 8)}`;
+                
+                await base44.asServiceRole.entities.CaregiverProfile.create({
+                    user_id: newUser.id,
+                    slug: slug,
+                    display_name: trimmedName,
+                    is_verified: false,
+                    is_published: false,
+                    completion_pct: 0
+                });
+            }
+        } catch (profileError) {
+            console.error(`Failed to create ${role} profile:`, profileError);
+            return Response.json({
+                error: `Failed to create ${role} profile`,
+                detail: profileError.message
+            }, { status: 500 });
         }
 
         // Generate verification token (64 random hex chars)
