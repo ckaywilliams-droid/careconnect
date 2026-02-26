@@ -66,6 +66,7 @@ import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
 import CaregiverAvailability from './pages/CaregiverAvailability';
+import CaregiverProfile from './pages/CaregiverProfile';
 
 
 export const PAGES = {
@@ -88,6 +89,7 @@ export const PAGES = {
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
     "CaregiverAvailability": CaregiverAvailability,
+    "CaregiverProfile": CaregiverProfile,
 }
 
 export const pagesConfig = {
