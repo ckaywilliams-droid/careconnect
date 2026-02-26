@@ -2,7 +2,6 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Scale } from 'lucide-react';
 import { 
   LayoutDashboard, 
   Users, 
