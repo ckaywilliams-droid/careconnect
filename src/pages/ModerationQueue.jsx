@@ -176,7 +176,7 @@ export default function ModerationQueue() {
               </TabsTrigger>
               <TabsTrigger value="reviewed">Reviewed</TabsTrigger>
               <TabsTrigger value="resolved">Resolved (Archived)</TabsTrigger>
-            </Tabs>
+            </TabsList>
 
             {/* F-040 UI.1: Split panel layout */}
             <div className="flex gap-6 h-[calc(100vh-250px)]">
