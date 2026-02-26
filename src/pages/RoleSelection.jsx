@@ -19,7 +19,7 @@ export default function RoleSelection() {
   const selectRole = (role) => {
     // F-021 Logic.1: Role selection before registration form
     // Pass role via navigation state (validated server-side)
-    navigate('/register', { state: { role } });
+    navigate(createPageUrl('Register'), { state: { role } });
   };
 
   return (
