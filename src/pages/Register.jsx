@@ -199,7 +199,7 @@ export default function Register() {
       });
 
       // Redirect to email verification screen (F-029)
-      navigate('/verify-email', {
+      navigate(createPageUrl('VerifyEmail'), {
         state: {
           email: formData.email,
           message: 'Registration successful! Please check your email to verify your account.'
