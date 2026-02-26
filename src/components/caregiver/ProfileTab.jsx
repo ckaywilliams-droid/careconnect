@@ -21,6 +21,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
+import ProfileCompletion from './ProfileCompletion';
 
 /**
  * F-048: Profile Edit Form
