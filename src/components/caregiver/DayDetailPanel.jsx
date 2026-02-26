@@ -17,7 +17,7 @@ const STATUS_CONFIG = {
 
 export default function DayDetailPanel({ date, slots, onClose, caregiverProfileId }) {
   const [editingSlot, setEditingSlot] = useState(null);
-  const [deletingSlot, setDeletingSlot] = useState(null);
+  const [isCreating, setIsCreating] = useState(false);
   const [isDesktop] = useState(window.innerWidth >= 1024);
 
   // Fetch booking details for soft-locked and booked slots
