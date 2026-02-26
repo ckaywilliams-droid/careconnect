@@ -53,6 +53,8 @@ import AdminDisputeDashboard from './pages/AdminDisputeDashboard';
 import AdminFirstLogin from './pages/AdminFirstLogin';
 import AdminRoles from './pages/AdminRoles';
 import AdminUsers from './pages/AdminUsers';
+import CaregiverAvailability from './pages/CaregiverAvailability';
+import CaregiverProfile from './pages/CaregiverProfile';
 import DisputeDetail from './pages/DisputeDetail';
 import EmailVerified from './pages/EmailVerified';
 import ForgotPassword from './pages/ForgotPassword';
@@ -65,8 +67,6 @@ import RoleSelection from './pages/RoleSelection';
 import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
-import CaregiverAvailability from './pages/CaregiverAvailability';
-import CaregiverProfile from './pages/CaregiverProfile';
 
 
 export const PAGES = {
@@ -76,6 +76,8 @@ export const PAGES = {
     "AdminFirstLogin": AdminFirstLogin,
     "AdminRoles": AdminRoles,
     "AdminUsers": AdminUsers,
+    "CaregiverAvailability": CaregiverAvailability,
+    "CaregiverProfile": CaregiverProfile,
     "DisputeDetail": DisputeDetail,
     "EmailVerified": EmailVerified,
     "ForgotPassword": ForgotPassword,
@@ -88,8 +90,6 @@ export const PAGES = {
     "SubmitEvidence": SubmitEvidence,
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
-    "CaregiverAvailability": CaregiverAvailability,
-    "CaregiverProfile": CaregiverProfile,
 }
 
 export const pagesConfig = {
