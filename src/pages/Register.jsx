@@ -167,7 +167,7 @@ export default function Register() {
         email: formData.email.toLowerCase().trim(),
         full_name: formData.full_name.trim(),
         password: formData.password,
-        role: role
+        role: selectedRole
       };
 
       const response = await base44.functions.invoke('registerUser', registrationData);
