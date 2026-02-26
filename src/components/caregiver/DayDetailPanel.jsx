@@ -68,34 +68,44 @@ export default function DayDetailPanel({ date, slots, onClose, caregiverProfileI
                 key={slot.id}
                 className="border rounded-lg p-3 space-y-2"
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-medium">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1">
+                    <div className="font-semibold text-base">
                       {slot.start_time} - {slot.end_time}
                     </div>
-                    {status && (
-                      <div className={cn('text-xs inline-block px-2 py-1 rounded mt-1', status.color)}>
-                        {status.label}
-                      </div>
-                    )}
+                    <SlotStatusBadge slot={slot} parentName={booking?.parent_name} showLabel={true} />
                   </div>
 
-                  {/* Quick actions */}
+                  {/* Quick edit */}
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => setEditingSlot(slot)}
-                    className="h-8 w-8 p-0"
+                    className="h-8 w-8 p-0 flex-shrink-0"
                   >
                     <Edit2 className="h-3.5 w-3.5" />
                   </Button>
                 </div>
 
-                {/* Booking details if booked/soft-locked */}
-                {booking && (
-                  <div className="text-xs bg-muted p-2 rounded space-y-1">
-                    <div><strong>Request from:</strong> {booking.parent_name || 'Parent'}</div>
-                    {booking.status && <div><strong>Status:</strong> {booking.status}</div>}
+                {/* F-058 UI.3: Soft-locked slot details */}
+                {slot.status === 'soft_locked' && booking && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
+                    <p className="text-sm font-medium text-amber-900">
+                      Request from {booking.parent_name || 'Parent'}
+                    </p>
+                    {booking.created_date && (
+                      <p className="text-xs text-amber-700 mt-1">
+                        Requested {format(new Date(booking.created_date), 'MMM d, yyyy')}
+                      </p>
+                    )}
+                    <div className="flex gap-2 mt-3">
+                      <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700">
+                        Accept
+                      </Button>
+                      <Button size="sm" variant="outline" className="h-7 text-xs">
+                        Decline
+                      </Button>
+                    </div>
                   </div>
                 )}
 
