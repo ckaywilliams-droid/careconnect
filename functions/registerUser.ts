@@ -50,8 +50,8 @@ Deno.serve(async (req) => {
         const newUser = await base44.asServiceRole.entities.User.create({
             full_name: trimmedName,
             email: normalizedEmail,
-            password: hashedPassword,
-            role: role,
+            password_hash: hashedPassword,
+            app_role: role,
             email_verified: false
         });
 
