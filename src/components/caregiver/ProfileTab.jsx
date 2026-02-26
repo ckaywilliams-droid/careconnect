@@ -212,20 +212,19 @@ export default function ProfileTab({ user, profile, onProfileUpdate }) {
 
   return (
     <div className="space-y-6">
-      {/* Profile Completion & Publish */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Profile Status</CardTitle>
-              <CardDescription>
-                Complete your profile to publish and start receiving booking requests
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">{completion}%</div>
-                <div className="text-xs text-gray-500">Complete</div>
+      {/* Profile Completion Indicator - F-047 */}
+      <ProfileCompletion profile={profile} />
+
+      {/* Profile Publish Control */}
+      {profile.completion_pct === 100 && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-green-900">Publish Your Profile</CardTitle>
+                <CardDescription className="text-green-700">
+                  Your profile is complete and verified. Publish it to start receiving bookings!
+                </CardDescription>
               </div>
               <div className="flex items-center gap-2">
                 <Label htmlFor="publish-toggle">Published</Label>
@@ -233,29 +232,22 @@ export default function ProfileTab({ user, profile, onProfileUpdate }) {
                   id="publish-toggle"
                   checked={profile.is_published}
                   onCheckedChange={handlePublishToggle}
-                  disabled={togglePublishMutation.isLoading || !profile.is_verified}
+                  disabled={togglePublishMutation.isLoading}
                 />
               </div>
             </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-blue-600 h-2 rounded-full transition-all"
-              style={{ width: `${completion}%` }}
-            />
-          </div>
-          {!profile.is_verified && (
-            <Alert className="mt-4 border-yellow-200 bg-yellow-50">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription className="text-yellow-800">
-                Your profile is pending admin verification. You cannot publish until verified.
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-      </Card>
+          </CardHeader>
+        </Card>
+      )}
+
+      {profile.completion_pct < 100 && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            Complete all fields to publish your profile. You're at {profile.completion_pct}% — scroll down to fill in any missing information.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Profile Photos */}
       <Card>
