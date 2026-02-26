@@ -26,15 +26,11 @@ import PasswordStrengthIndicator from '@/components/PasswordStrengthIndicator';
 export default function Register() {
   const navigate = useNavigate();
   const location = useLocation();
-  const role = location.state?.role;
+  const roleFromState = location.state?.role;
 
-  // F-021 Logic.1: Role must be selected from previous screen
-  useEffect(() => {
-    if (!role || !['parent', 'caregiver'].includes(role)) {
-      // No valid role - redirect to role selector
-      navigate('/select-role');
-    }
-  }, [role, navigate]);
+  // F-021 Logic.1: Show role selector inline if not provided
+  const [step, setStep] = useState(roleFromState && ['parent', 'caregiver'].includes(roleFromState) ? 'form' : 'role-select');
+  const [selectedRole, setSelectedRole] = useState(roleFromState || null);
 
   const [formData, setFormData] = useState({
     full_name: '',
