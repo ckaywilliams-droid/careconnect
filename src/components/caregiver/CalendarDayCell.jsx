@@ -55,16 +55,17 @@ export default function CalendarDayCell({ date, slots, isToday: isTodayDay, isPa
         {format(date, 'd')}
       </div>
 
-      {/* Slot indicators */}
+      {/* F-058 Slot indicators with status colors and icons */}
       <div className="mt-1 space-y-1">
-        {displaySlots.map((slot, idx) => (
-          <div key={idx} className="flex items-center gap-1">
-            <div className={cn('h-1.5 w-1.5 rounded-full', getStatusColor(slot.status))} />
-            <span className="text-xs text-muted-foreground truncate">
-              {slot.start_time}
-            </span>
-          </div>
-        ))}
+        {displaySlots.map((slot, idx) => {
+          const display = getSlotDisplay(slot);
+          return (
+            <div key={idx} className={cn('flex items-center justify-between gap-1 px-1.5 py-0.5 rounded text-white text-xs font-medium', display.color)}>
+              <span className="truncate">{slot.start_time}</span>
+              {display.icon}
+            </div>
+          );
+        })}
 
         {/* F-056 Logic.2: Overflow indicator */}
         {overflowCount > 0 && (
