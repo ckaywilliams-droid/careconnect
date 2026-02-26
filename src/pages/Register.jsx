@@ -26,7 +26,9 @@ import PasswordStrengthIndicator from '@/components/PasswordStrengthIndicator';
 export default function Register() {
   const navigate = useNavigate();
   const location = useLocation();
-  const roleFromState = location.state?.role;
+  const searchParams = new URLSearchParams(location.search);
+  const roleFromUrl = searchParams.get('role');
+  const roleFromState = location.state?.role || roleFromUrl;
 
   // F-021 Logic.1: Show role selector inline if not provided
   const [step, setStep] = useState(roleFromState && ['parent', 'caregiver'].includes(roleFromState) ? 'form' : 'role-select');
