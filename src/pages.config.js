@@ -63,6 +63,7 @@ import AdminDisputeDashboard from './pages/AdminDisputeDashboard';
 import DisputeDetail from './pages/DisputeDetail';
 import SubmitEvidence from './pages/SubmitEvidence';
 import AdminDashboard from './pages/AdminDashboard';
+import AdminUsers from './pages/AdminUsers';
 
 
 export const PAGES = {
@@ -82,6 +83,7 @@ export const PAGES = {
     "DisputeDetail": DisputeDetail,
     "SubmitEvidence": SubmitEvidence,
     "AdminDashboard": AdminDashboard,
+    "AdminUsers": AdminUsers,
 }
 
 export const pagesConfig = {
