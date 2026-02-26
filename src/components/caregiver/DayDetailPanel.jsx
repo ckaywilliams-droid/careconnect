@@ -123,6 +123,60 @@ export default function DayDetailPanel({ date, slots, onClose, caregiverProfileI
     </div>
   );
 
+  // Show form if creating or editing
+  if (isCreating || editingSlot) {
+    const formContent = (
+      <SlotEntryForm
+        initialSlot={editingSlot}
+        date={date}
+        existingSlots={slots}
+        caregiverProfileId={caregiverProfileId}
+        onSuccess={handleFormSuccess}
+        onCancel={() => {
+          setIsCreating(false);
+          setEditingSlot(null);
+        }}
+      />
+    );
+
+    if (!isDesktop) {
+      return (
+        <Sheet open={true} onOpenChange={onClose}>
+          <SheetContent side="bottom" className="rounded-t-xl max-h-[90vh]">
+            <div className="mt-4 pb-6 overflow-y-auto">
+              {formContent}
+            </div>
+          </SheetContent>
+        </Sheet>
+      );
+    }
+
+    return (
+      <>
+        <div className="fixed right-0 top-0 h-full w-96 bg-white border-l shadow-lg z-40 flex flex-col">
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="font-semibold">
+              {editingSlot ? 'Edit Slot' : 'Add Slot'}
+            </h2>
+            <Button size="icon" variant="ghost" onClick={() => {
+              setIsCreating(false);
+              setEditingSlot(null);
+            }}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-6">
+            {formContent}
+          </div>
+        </div>
+        <div className="fixed inset-0 bg-black/20 z-30" onClick={() => {
+          setIsCreating(false);
+          setEditingSlot(null);
+        }} />
+      </>
+    );
+  }
+
   // Mobile: Bottom sheet, Desktop: Side panel
   if (!isDesktop) {
     return (
@@ -154,42 +208,6 @@ export default function DayDetailPanel({ date, slots, onClose, caregiverProfileI
         </div>
       </div>
       <div className="fixed inset-0 bg-black/20 z-30" onClick={onClose} />
-
-      {/* Delete confirmation dialog */}
-      {deletingSlot && (
-        <Dialog open={!!deletingSlot} onOpenChange={() => setDeletingSlot(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Delete Slot?</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete this time slot ({deletingSlot.start_time} - {deletingSlot.end_time})?
-            </p>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setDeletingSlot(null)}>
-                Cancel
-              </Button>
-              <Button variant="destructive" onClick={() => handleDelete(deletingSlot)}>
-                Delete
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Edit slot form - would be modal */}
-      {editingSlot && (
-        <Dialog open={!!editingSlot} onOpenChange={() => setEditingSlot(null)}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Edit Slot</DialogTitle>
-            </DialogHeader>
-            <p className="text-sm text-muted-foreground">
-              Edit form would go here - connects to F-057 slot form
-            </p>
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   );
 }
