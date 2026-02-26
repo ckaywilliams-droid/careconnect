@@ -306,14 +306,14 @@ export default function Register() {
         <CardHeader>
           {/* F-028 States.2: Back button */}
           <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/select-role')}
-            className="w-fit mb-4 text-[#643737] hover:text-[#0C2119] hover:bg-[#E5E2DC]"
+           type="button"
+           variant="ghost"
+           size="sm"
+           onClick={() => setStep('role-select')}
+           className="w-fit mb-4 text-[#643737] hover:text-[#0C2119] hover:bg-[#E5E2DC]"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to role selection
+           <ArrowLeft className="w-4 h-4 mr-2" />
+           Back to role selection
           </Button>
           
           {/* F-028 UI.2: Heading with role shown */}
