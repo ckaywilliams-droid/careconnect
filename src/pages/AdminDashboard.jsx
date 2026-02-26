@@ -16,13 +16,13 @@ import {
   Menu,
   X
 } from 'lucide-react';
-import OverviewSection from '@/components/admin/sections/OverviewSection';
-import UsersSection from '@/components/admin/sections/UsersSection';
-import VerificationQueueSection from '@/components/admin/sections/VerificationQueueSection';
-import ModerationQueueSection from '@/components/admin/sections/ModerationQueueSection';
-import BookingControlsSection from '@/components/admin/sections/BookingControlsSection';
-import AvailabilitySection from '@/components/admin/sections/AvailabilitySection';
-import AuditLogSection from '@/components/admin/sections/AuditLogSection';
+import OverviewSection from '@/components/admin/sections/OverviewSection.jsx';
+import UsersSection from '@/components/admin/sections/UsersSection.jsx';
+import VerificationQueueSection from '@/components/admin/sections/VerificationQueueSection.jsx';
+import ModerationQueueSection from '@/components/admin/sections/ModerationQueueSection.jsx';
+import BookingControlsSection from '@/components/admin/sections/BookingControlsSection.jsx';
+import AvailabilitySection from '@/components/admin/sections/AvailabilitySection.jsx';
+import AuditLogSection from '@/components/admin/sections/AuditLogSection.jsx';
 
 /**
  * P-02: ADMIN DASHBOARD PAGE
