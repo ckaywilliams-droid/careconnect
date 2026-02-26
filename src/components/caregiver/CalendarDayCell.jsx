@@ -1,14 +1,28 @@
 import React from 'react';
 import { format, isToday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { CheckCircle2, Clock, Lock, XCircle } from 'lucide-react';
 
 export default function CalendarDayCell({ date, slots, isToday: isTodayDay, isPast, onSelect }) {
-  // F-056 Logic.2 & Logic.3: Status color coding and overflow handling
-  const getStatusColor = (status) => {
-    if (status === 'open') return 'bg-green-500';
-    if (status === 'soft_locked') return 'bg-amber-500';
-    if (status === 'booked') return 'bg-slate-500';
-    return 'bg-gray-400';
+  // F-058 Logic.1: Status color and icon based on slot status and is_blocked
+  const getSlotDisplay = (slot) => {
+    if (slot.is_blocked) {
+      return {
+        color: 'bg-slate-300',
+        icon: <XCircle className="h-3 w-3" />,
+      };
+    }
+    
+    switch (slot.status) {
+      case 'open':
+        return { color: 'bg-green-600', icon: <CheckCircle2 className="h-3 w-3" /> };
+      case 'soft_locked':
+        return { color: 'bg-amber-600', icon: <Clock className="h-3 w-3" /> };
+      case 'booked':
+        return { color: 'bg-slate-700', icon: <Lock className="h-3 w-3" /> };
+      default:
+        return { color: 'bg-slate-400', icon: null };
+    }
   };
 
   const hasBlockout = slots.some(s => s.is_blocked);
