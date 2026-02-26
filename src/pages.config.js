@@ -58,13 +58,14 @@ import EmailVerified from './pages/EmailVerified';
 import ForgotPassword from './pages/ForgotPassword';
 import Home from './pages/Home';
 import ModerationQueue from './pages/ModerationQueue';
+import PublicCaregiverProfile from './pages/PublicCaregiverProfile';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import RoleSelection from './pages/RoleSelection';
 import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
-import PublicCaregiverProfile from './pages/PublicCaregiverProfile';
+import CaregiverAvailability from './pages/CaregiverAvailability';
 
 
 export const PAGES = {
@@ -79,13 +80,14 @@ export const PAGES = {
     "ForgotPassword": ForgotPassword,
     "Home": Home,
     "ModerationQueue": ModerationQueue,
+    "PublicCaregiverProfile": PublicCaregiverProfile,
     "Register": Register,
     "ResetPassword": ResetPassword,
     "RoleSelection": RoleSelection,
     "SubmitEvidence": SubmitEvidence,
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
-    "PublicCaregiverProfile": PublicCaregiverProfile,
+    "CaregiverAvailability": CaregiverAvailability,
 }
 
 export const pagesConfig = {
