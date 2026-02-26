@@ -110,14 +110,16 @@ export default function DayDetailPanel({ date, slots, onClose, caregiverProfileI
       )}
 
       {/* Add slot button */}
-      <Button
-        className="w-full"
-        variant="outline"
-        onClick={() => {/* Trigger slot creation form */}}
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Slot
-      </Button>
+      {!isCreating && (
+        <Button
+          className="w-full"
+          variant="outline"
+          onClick={() => setIsCreating(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Slot
+        </Button>
+      )}
     </div>
   );
 
