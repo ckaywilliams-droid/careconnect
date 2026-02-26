@@ -41,21 +41,12 @@ export default function DayDetailPanel({ date, slots, onClose, caregiverProfileI
     }
   });
 
-  const handleDelete = async (slot) => {
-    try {
-      // F-055 Validation: Check if slot can be deleted
-      const validation = await base44.functions.invoke('validateSlotDeletion', { slot_id: slot.id });
-      
-      if (!validation.data.success) {
-        alert(validation.data.error);
-        return;
-      }
-
-      await base44.entities.AvailabilitySlot.delete(slot.id);
-      setDeletingSlot(null);
-      // Optimistic update handled by parent component
-    } catch (error) {
-      alert('Failed to delete slot: ' + error.message);
+  const handleFormSuccess = () => {
+    // Form handles optimistic updates via subscription
+    if (editingSlot) {
+      setEditingSlot(null);
+    } else {
+      setIsCreating(false);
     }
   };
 
