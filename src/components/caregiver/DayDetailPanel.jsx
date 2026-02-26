@@ -80,24 +80,14 @@ export default function DayDetailPanel({ date, slots, onClose, caregiverProfileI
                   </div>
 
                   {/* Quick actions */}
-                  <div className="flex gap-1">
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setEditingSlot(slot)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit2 className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setDeletingSlot(slot)}
-                      className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setEditingSlot(slot)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <Edit2 className="h-3.5 w-3.5" />
+                  </Button>
                 </div>
 
                 {/* Booking details if booked/soft-locked */}
