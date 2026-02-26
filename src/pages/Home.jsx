@@ -115,13 +115,13 @@ export default function Home() {
                   <Button
                     variant="outline"
                     className="hidden sm:inline-flex"
-                    onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=parent`)}
+                    onClick={() => navigate(createPageUrl('Register'), { state: { role: 'parent' } })}
                   >
                     Sign up as Parent
                   </Button>
                   <Button
                     className="bg-[#C36239] hover:bg-[#75290F] text-white"
-                    onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=caregiver`)}
+                    onClick={() => navigate(createPageUrl('Register'), { state: { role: 'caregiver' } })}
                   >
                     Become a Caregiver
                   </Button>
@@ -195,18 +195,18 @@ export default function Home() {
             {!user && (
               <div className="flex flex-wrap gap-4">
                 <Button
-                   size="lg"
-                   variant="outline"
-                   className="border-white text-white hover:bg-white/10 px-8 h-12"
-                   onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=parent`)}
-                 >
-                   Sign up as Parent
-                 </Button>
+                  size="lg"
+                  variant="outline"
+                  className="border-white text-white hover:bg-white/10 px-8 h-12"
+                  onClick={() => navigate(createPageUrl('Register'), { state: { role: 'parent' } })}
+                >
+                  Sign up as Parent
+                </Button>
                  <Button
                    size="lg"
                    variant="outline"
                    className="border-white text-white hover:bg-white/10 px-8 h-12"
-                   onClick={() => base44.auth.redirectToLogin(`${createPageUrl('RoleSelection')}?role=caregiver`)}
+                   onClick={() => navigate(createPageUrl('Register'), { state: { role: 'caregiver' } })}
                  >
                    Become a Caregiver
                  </Button>
