@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Scale } from 'lucide-react';
 import { 
   LayoutDashboard, 
   Users, 
@@ -28,14 +29,14 @@ import { createPageUrl } from '@/utils';
  * - Sign-out button
  * - F-038 UI.2: Collapses to hamburger on mobile
  */
-export default function AdminSidebar({ user, mobileOpen, setMobileOpen }) {
+export default function AdminSidebar({ user, mobileOpen, setMobileOpen, pendingCount = 0 }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   const navItems = [
     { label: 'Dashboard', icon: LayoutDashboard, path: '/admin' },
     { label: 'User Management', icon: Users, path: '/admin-users' },
-    { label: 'Moderation Queue', icon: Shield, path: '/moderation-queue' },
+    { label: 'Moderation Queue', icon: Shield, path: '/moderation-queue', badge: pendingCount },
     { label: 'Disputes', icon: Scale, path: '/admin-dispute-dashboard' },
     { label: 'Flagged Content', icon: Flag, path: '/flagged-content' },
     { label: 'Audit Log', icon: FileText, path: '/audit-log' },
@@ -75,6 +76,12 @@ export default function AdminSidebar({ user, mobileOpen, setMobileOpen }) {
             >
               <Icon className="w-4 h-4 mr-3" />
               {item.label}
+              {/* F-040 Abuse.1: Pending count badge */}
+              {item.badge > 0 && (
+                <Badge variant="destructive" className="ml-auto">
+                  {item.badge}
+                </Badge>
+              )}
             </Button>
           );
         })}
