@@ -64,6 +64,7 @@ import RoleSelection from './pages/RoleSelection';
 import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
+import PublicCaregiverProfile from './pages/PublicCaregiverProfile';
 
 
 export const PAGES = {
@@ -84,6 +85,7 @@ export const PAGES = {
     "SubmitEvidence": SubmitEvidence,
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
+    "PublicCaregiverProfile": PublicCaregiverProfile,
 }
 
 export const pagesConfig = {
