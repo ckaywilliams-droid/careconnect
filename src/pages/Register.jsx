@@ -163,30 +163,27 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // F-021 Triggers.1: Call backend registration function
-      const registrationData = {
+      // Use Base44 native auth signup
+      await base44.auth.signUp({
         email: formData.email.toLowerCase().trim(),
-        full_name: formData.full_name.trim(),
         password: formData.password,
-        role: selectedRole
-      };
-
-      const response = await base44.functions.invoke('registerUser', registrationData);
+        data: {
+          full_name: formData.full_name.trim(),
+          app_role: selectedRole
+        }
+      });
 
       // Redirect to email verification screen (F-029)
       navigate(createPageUrl('VerifyEmail'), {
         state: {
-          email: response.data.email,
-          message: response.data.message
+          email: formData.email.toLowerCase().trim(),
+          message: 'Registration successful! Please check your email to verify your account.'
         }
       });
 
     } catch (error) {
-      // F-021 Errors.1: Display specific error
-      const errorMessage = error.response?.data?.error || error.message || 'Registration failed. Please try again.';
-      
-      if (errorMessage.includes('Email already registered')) {
-        // F-021 Triggers.2: Duplicate email message
+      const errorMessage = error.message || 'Registration failed. Please try again.';
+      if (errorMessage.toLowerCase().includes('already registered') || errorMessage.toLowerCase().includes('already exists')) {
         setGeneralError('Email already registered. Please sign in instead.');
       } else {
         setGeneralError(errorMessage);
