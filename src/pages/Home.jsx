@@ -54,15 +54,12 @@ export default function Home() {
   };
 
   const handleSearch = () => {
-    // Route to marketplace with query params
     const params = new URLSearchParams();
-    if (location) params.set('location', location);
+    if (location) params.set('city', location);
     if (date) params.set('date', date);
-    
-    const url = params.toString() 
-      ? `${createPageUrl('Marketplace')}?${params.toString()}`
-      : createPageUrl('Marketplace');
-    
+    const url = params.toString()
+      ? `${createPageUrl('FindCaregivers')}?${params.toString()}`
+      : createPageUrl('FindCaregivers');
     navigate(url);
   };
 
@@ -81,7 +78,7 @@ export default function Home() {
             {/* Navigation Links & Auth Buttons */}
             <div className="flex items-center gap-3">
               <Link 
-                to={createPageUrl('Marketplace')} 
+                to={createPageUrl('FindCaregivers')} 
                 className="text-gray-700 hover:text-[#C36239] font-medium hidden md:block"
               >
                 Find a Caregiver
