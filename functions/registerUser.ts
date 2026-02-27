@@ -75,10 +75,7 @@ Deno.serve(async (req) => {
                 await base44.asServiceRole.entities.CaregiverProfile.create({
                     user_id: newUser.id,
                     slug: slug,
-                    display_name: trimmedName,
-                    is_verified: false,
-                    is_published: false,
-                    completion_pct: 0
+                    display_name: trimmedName
                 });
             }
         } catch (profileError) {
