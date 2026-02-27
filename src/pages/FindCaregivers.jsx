@@ -373,7 +373,10 @@ export default function FindCaregivers() {
                                     )}
                                 </h3>
                                 <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">
-                                    Try a different date, expand your search area, or remove some filters to see more results.
+                                    {filters.zip
+                                        ? `No caregivers found in zip code ${filters.zip}. Try a nearby zip code or remove the location filter.`
+                                        : 'Try a different date, expand your search area, or remove some filters to see more results.'
+                                    }
                                 </p>
                                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                     <Button
