@@ -59,9 +59,19 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                 )}
             </div>
 
-            {/* Date */}
+            {/* F-064: Date Availability Filter */}
             <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-gray-700">Date Needed</Label>
+                <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-gray-700">Date Needed</Label>
+                    {filters.date && (
+                        <button
+                            onClick={() => set('date', '')}
+                            className="text-xs text-[#C36239] hover:underline"
+                        >
+                            Clear date
+                        </button>
+                    )}
+                </div>
                 <Input
                     type="date"
                     value={filters.date || ''}
@@ -69,6 +79,13 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                     onChange={e => set('date', e.target.value)}
                     className="text-sm"
                 />
+                {filters.date && (
+                    <p className="text-xs text-gray-500 font-medium">
+                        {new Date(filters.date + 'T00:00:00').toLocaleDateString('en-US', {
+                            weekday: 'long', month: 'long', day: 'numeric'
+                        })}
+                    </p>
+                )}
             </div>
 
             {/* Time Range */}
