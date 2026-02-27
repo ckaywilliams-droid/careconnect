@@ -6,8 +6,6 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.18';
  *   1. Creating the role-appropriate profile (CaregiverProfile or ParentProfile)
  *   2. Creating the EmailVerificationToken
  *   3. Sending the verification email
- *
- * Automations run with full server privileges, bypassing RLS on custom entities.
  */
 Deno.serve(async (req) => {
     try {
@@ -82,29 +80,31 @@ Deno.serve(async (req) => {
 
         // 2. Create email verification token (only for parent/caregiver roles)
         if (['parent', 'caregiver'].includes(app_role)) {
-            const tokenBytes = new Uint8Array(32);
-            crypto.getRandomValues(tokenBytes);
-            const verificationToken = Array.from(tokenBytes)
-                .map(b => b.toString(16).padStart(2, '0'))
-                .join('');
+            try {
+                const tokenBytes = new Uint8Array(32);
+                crypto.getRandomValues(tokenBytes);
+                const verificationToken = Array.from(tokenBytes)
+                    .map(b => b.toString(16).padStart(2, '0'))
+                    .join('');
 
-            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-            await base44.asServiceRole.entities.EmailVerificationToken.create({
-                user_id: userId,
-                token: verificationToken,
-                expires_at: expiresAt.toISOString()
-            });
-            results.token = 'EmailVerificationToken created';
+                const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+                await base44.asServiceRole.entities.EmailVerificationToken.create({
+                    user_id: userId,
+                    token: verificationToken,
+                    expires_at: expiresAt.toISOString()
+                });
+                results.token = 'EmailVerificationToken created';
 
-            // 3. Send verification email
-            const baseUrl = Deno.env.get('BASE_URL') || 'https://yourdomain.com';
-            const verificationLink = `${baseUrl}/verify?token=${verificationToken}`;
-            const displayName = full_name || 'there';
+                // 3. Send verification email (non-fatal)
+                try {
+                    const baseUrl = Deno.env.get('BASE_URL') || 'https://yourdomain.com';
+                    const verificationLink = `${baseUrl}/verify?token=${verificationToken}`;
+                    const displayName = full_name || 'there';
 
-            await base44.asServiceRole.integrations.Core.SendEmail({
-                to: email,
-                subject: 'Verify your email address',
-                body: `Hello ${displayName},
+                    await base44.asServiceRole.integrations.Core.SendEmail({
+                        to: email,
+                        subject: 'Verify your email address',
+                        body: `Hello ${displayName},
 
 Thank you for registering! Please verify your email address by clicking the link below:
 
@@ -116,8 +116,16 @@ If you didn't create an account, you can safely ignore this email.
 
 Best regards,
 The Team`
-            });
-            results.email = 'Verification email sent';
+                    });
+                    results.email = 'Verification email sent';
+                } catch (emailError) {
+                    console.error('SendEmail failed (non-fatal):', emailError.message);
+                    results.email = `Email skipped: ${emailError.message}`;
+                }
+            } catch (tokenError) {
+                console.error('EmailVerificationToken.create failed:', tokenError.message);
+                results.token = `Token creation failed: ${tokenError.message}`;
+            }
         }
 
         return Response.json({ success: true, results });
