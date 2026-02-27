@@ -93,22 +93,8 @@ Deno.serve(async (req) => {
                 });
                 results.token = 'EmailVerificationToken created';
 
-                // 3. Send verification email (non-fatal)
-                try {
-                    const baseUrl = Deno.env.get('BASE_URL') || 'https://yourdomain.com';
-                    const verificationLink = `${baseUrl}/verify?token=${verificationToken}`;
-                    const displayName = full_name || 'there';
-
-                    await base44.asServiceRole.integrations.Core.SendEmail({
-                        to: email,
-                        subject: 'Verify your email address',
-                        body: `Hello ${displayName},\n\nThank you for registering! Please verify your email address by clicking the link below:\n\n${verificationLink}\n\nThis link will expire in 24 hours.\n\nIf you didn't create an account, you can safely ignore this email.\n\nBest regards,\nThe Team`
-                    });
-                    results.email = 'Verification email sent';
-                } catch (emailError) {
-                    console.error('SendEmail failed (non-fatal):', emailError.message);
-                    results.email = `Email skipped: ${emailError.message}`;
-                }
+                // Note: Base44 native auth sends the verification email automatically.
+                results.email = 'Skipped - handled by native auth';
             } catch (tokenError) {
                 console.error('EmailVerificationToken.create failed:', tokenError.message);
                 results.token = `Token creation failed: ${tokenError.message}`;
