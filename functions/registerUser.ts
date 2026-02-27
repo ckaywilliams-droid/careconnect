@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.18';
-import bcrypt from 'npm:bcryptjs';
 
 /**
  * F-021: User Registration Backend Function
