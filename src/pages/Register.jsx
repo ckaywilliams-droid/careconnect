@@ -29,23 +29,38 @@ export default function Register() {
   const searchParams = new URLSearchParams(location.search);
   const roleFromState = location.state?.role || searchParams.get('role');
 
-  // Detect invited users via any common Base44 invite/token parameters in the URL.
-  // Also check if the user is already authenticated (Base44 auto-logs in invited users).
+  // ALL hooks must be declared before any conditional returns (React rules of hooks)
   const [alreadyLoggedIn, setAlreadyLoggedIn] = useState(false);
+  const [step, setStep] = useState(roleFromState && ['parent', 'caregiver'].includes(roleFromState) ? 'form' : 'role-select');
+  const [selectedRole, setSelectedRole] = useState(roleFromState || null);
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    password: '',
+    confirm_password: '',
+    tos_accepted: false
+  });
+  const [errors, setErrors] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [generalError, setGeneralError] = useState('');
+
+  // If the user is already authenticated when landing on register,
+  // they came via an invite link — show the invite screen instead.
+  useEffect(() => {
+    base44.auth.isAuthenticated().then((authenticated) => {
+      if (authenticated) setAlreadyLoggedIn(true);
+    });
+  }, []);
+
+  // Detect invited users: URL tokens OR already authenticated
   const isInviteLink =
     searchParams.has('invite_token') ||
     searchParams.has('access_token') ||
     searchParams.has('token') ||
     searchParams.get('type') === 'invite' ||
     alreadyLoggedIn;
-
-  useEffect(() => {
-    // If the user is already authenticated when landing on register,
-    // they are an invited user — redirect them to set a password instead.
-    base44.auth.isAuthenticated().then((authenticated) => {
-      if (authenticated) setAlreadyLoggedIn(true);
-    });
-  }, []);
 
   if (isInviteLink) {
     return (
@@ -76,24 +91,6 @@ export default function Register() {
       </div>
     );
   }
-
-  // F-021 Logic.1: Show role selector inline if not provided
-  const [step, setStep] = useState(roleFromState && ['parent', 'caregiver'].includes(roleFromState) ? 'form' : 'role-select');
-  const [selectedRole, setSelectedRole] = useState(roleFromState || null);
-
-  const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    password: '',
-    confirm_password: '',
-    tos_accepted: false
-  });
-
-  const [errors, setErrors] = useState({});
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [generalError, setGeneralError] = useState('');
 
   // Client-side validation
   const validateField = (name, value) => {
