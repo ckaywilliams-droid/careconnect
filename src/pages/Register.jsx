@@ -33,18 +33,35 @@ export default function Register() {
   // Base44 invite flow: user already has a pending record; they just need to set a password.
   const isInviteLink = searchParams.has('invite_token') || searchParams.has('access_token') || searchParams.get('type') === 'invite';
 
-  useEffect(() => {
-    if (isInviteLink) {
-      navigate('/login', {
-        replace: true,
-        state: {
-          inviteMessage: 'Your account is ready! Please use the "Forgot Password" option to set your password and activate your account.'
-        }
-      });
-    }
-  }, [isInviteLink, navigate]);
-
-  if (isInviteLink) return null;
+  if (isInviteLink) {
+    return (
+      <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white border border-[#E5E2DC] rounded-xl shadow-lg p-8 text-center space-y-6">
+          <div className="mx-auto w-16 h-16 bg-[#E5E2DC] rounded-full flex items-center justify-center">
+            <Users className="w-8 h-8 text-[#643737]" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-[#0C2119] mb-2">You've been invited!</h2>
+            <p className="text-[#643737]">
+              Your account is already set up. Use the <strong>"Forgot Password"</strong> option on the login page to set your password and activate your account.
+            </p>
+          </div>
+          <Button
+            className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
+            onClick={() => navigate(createPageUrl('ForgotPassword'))}
+          >
+            Set my password
+          </Button>
+          <p className="text-sm text-[#9C9F95]">
+            Already set your password?{' '}
+            <button onClick={() => navigate('/login')} className="text-[#C36239] hover:underline">
+              Sign in
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // F-021 Logic.1: Show role selector inline if not provided
   const [step, setStep] = useState(roleFromState && ['parent', 'caregiver'].includes(roleFromState) ? 'form' : 'role-select');
