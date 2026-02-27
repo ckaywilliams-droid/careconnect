@@ -22,6 +22,7 @@ const EMPTY_FILTERS = {
     time_to: '',
     age_group: '',
     service: '',
+    languages: '',
     verified: false,
     min_rate: '',
     max_rate: '',
@@ -55,6 +56,7 @@ function paramsToFilters(searchParams) {
         time_to: searchParams.get('time_to') || '',
         age_group: searchParams.get('age_group') || '',
         service: searchParams.get('service') || '',
+        languages: searchParams.get('languages') || '',
         verified: searchParams.get('verified') === 'true',
         min_rate: searchParams.get('min_rate') || '',
         max_rate: searchParams.get('max_rate') || '',
@@ -72,6 +74,7 @@ function countActiveFilters(filters) {
     if (filters.time_to) count++;
     if (filters.age_group) count++;
     if (filters.service) count++;
+    if (filters.languages) count++;
     if (filters.verified) count++;
     if (filters.min_rate) count++;
     if (filters.max_rate) count++;
@@ -110,6 +113,7 @@ export default function FindCaregivers() {
                 time_to: filtersToSearch.time_to || undefined,
                 age_group: filtersToSearch.age_group || undefined,
                 service: filtersToSearch.service || undefined,
+                languages: filtersToSearch.languages || undefined,
                 verified: filtersToSearch.verified || undefined,
                 min_rate: filtersToSearch.min_rate || undefined,
                 max_rate: filtersToSearch.max_rate || undefined,
