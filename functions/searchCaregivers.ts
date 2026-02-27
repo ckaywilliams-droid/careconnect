@@ -131,7 +131,7 @@ Deno.serve(async (req) => {
             experience_years: c.experience_years || null,
             created_date: c.created_date,
             // Available slots for requested date (for display on card)
-            available_slots: date
+            available_slots: validatedDate
                 ? (slotsByCaregiver[c.id] || []).map(s => ({ start_time: s.start_time, end_time: s.end_time }))
                 : [],
         }));
