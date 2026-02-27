@@ -137,6 +137,13 @@ export default function ForgotPassword() {
 
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Invite message */}
+            {inviteMessage && (
+              <Alert className="border-green-300 bg-green-50">
+                <AlertDescription className="text-green-800">{inviteMessage}</AlertDescription>
+              </Alert>
+            )}
+
             {/* Error Display */}
             {error && (
               <Alert variant="destructive">
