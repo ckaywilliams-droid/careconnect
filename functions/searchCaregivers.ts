@@ -66,12 +66,24 @@ Deno.serve(async (req) => {
             profiles = profiles.filter(c => c.hourly_rate_cents != null && c.hourly_rate_cents <= maxCents);
         }
 
+        // F-064 Logic.2: validate date — reject past dates (server-side date check)
+        let validatedDate = null;
+        if (date) {
+            const today = new Date().toISOString().split('T')[0];
+            // F-064 Logic.3: reject malformed strings — treat as no filter
+            const isValidFormat = /^\d{4}-\d{2}-\d{2}$/.test(date);
+            if (isValidFormat && date >= today) {
+                validatedDate = date;
+            }
+            // past date or malformed: silently treat as no date filter (Logic.3)
+        }
+
         // If a date is requested, join AvailabilitySlot to:
-        // (a) filter to caregivers who have open slots on that date
+        // (a) filter to caregivers who have open slots on that date (Data.2)
         // (b) attach matching slot times to each card
         let slotsByCaregiver = {}; // caregiver_profile_id -> slots[]
 
-        if (date) {
+        if (validatedDate) {
             const slots = await base44.asServiceRole.entities.AvailabilitySlot.filter(
                 { slot_date: date, status: 'open', is_blocked: false },
                 'start_time',
