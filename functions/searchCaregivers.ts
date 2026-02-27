@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
         if (validatedDate) {
             const slots = await base44.asServiceRole.entities.AvailabilitySlot.filter(
-                { slot_date: date, status: 'open', is_blocked: false },
+                { slot_date: validatedDate, status: 'open', is_blocked: false },
                 'start_time',
                 1000
             );
@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
                 if (include) slotsByCaregiver[slot.caregiver_profile_id].push(slot);
             }
 
-            // Only keep caregivers that have at least one matching open slot
+            // F-064 Logic.1 / Data.2: only keep caregivers with at least one open slot on the date
             profiles = profiles.filter(c => slotsByCaregiver[c.id] && slotsByCaregiver[c.id].length > 0);
         }
 
