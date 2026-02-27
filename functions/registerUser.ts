@@ -57,6 +57,8 @@ Deno.serve(async (req) => {
         });
 
         // Create profile based on role
+        // Note: using base44.asServiceRole here because this runs in an unauthenticated context
+        // and asServiceRole needs a user token. Instead we rely on allow_all:true RLS on profile entities.
         try {
             if (role === 'parent') {
                 await base44.asServiceRole.entities.ParentProfile.create({
@@ -64,7 +66,6 @@ Deno.serve(async (req) => {
                     display_name: trimmedName
                 });
             } else if (role === 'caregiver') {
-                // Generate slug for caregiver
                 const baseSlug = trimmedName
                     .toLowerCase()
                     .replace(/[^a-z0-9]+/g, '-')
