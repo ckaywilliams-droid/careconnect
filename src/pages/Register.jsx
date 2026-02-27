@@ -29,9 +29,23 @@ export default function Register() {
   const searchParams = new URLSearchParams(location.search);
   const roleFromState = location.state?.role || searchParams.get('role');
 
-  // Detect invite links — invited users must NOT go through registration.
-  // Base44 invite flow: user already has a pending record; they just need to set a password.
-  const isInviteLink = searchParams.has('invite_token') || searchParams.has('access_token') || searchParams.get('type') === 'invite';
+  // Detect invited users via any common Base44 invite/token parameters in the URL.
+  // Also check if the user is already authenticated (Base44 auto-logs in invited users).
+  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState(false);
+  const isInviteLink =
+    searchParams.has('invite_token') ||
+    searchParams.has('access_token') ||
+    searchParams.has('token') ||
+    searchParams.get('type') === 'invite' ||
+    alreadyLoggedIn;
+
+  useEffect(() => {
+    // If the user is already authenticated when landing on register,
+    // they are an invited user — redirect them to set a password instead.
+    base44.auth.isAuthenticated().then((authenticated) => {
+      if (authenticated) setAlreadyLoggedIn(true);
+    });
+  }, []);
 
   if (isInviteLink) {
     return (
