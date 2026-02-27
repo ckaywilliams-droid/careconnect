@@ -3,13 +3,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.18';
 const PAGE_SIZE = 20;
 
 Deno.serve(async (req) => {
-    const ip = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
-
     try {
         const base44 = createClientFromRequest(req);
-
-        // Parse request body
         const body = await req.json().catch(() => ({}));
+
         const {
             zip,
             city,
@@ -22,59 +19,84 @@ Deno.serve(async (req) => {
             date,
             time_from,
             time_to,
+            languages,
             sort = 'newest',
             page: rawPage = 1,
         } = body;
 
-        // Errors.1: Clamp invalid pages to 1
         const page = Math.max(1, parseInt(rawPage) || 1);
 
-        // --- Build filter object ---
-        // Data.3: Mandatory base conditions — always applied
+        // Mandatory base conditions (Data.3): is_published=true, profile_status=active
         const filter = {
             is_published: true,
+            profile_status: 'active',
             is_deleted: false,
         };
 
-        // Optional filters (AND logic — Logic.2)
+        // Optional filters — AND logic
         if (verified === true || verified === 'true') filter.is_verified = true;
         if (city) filter.city = city;
         if (state) filter.state = state;
         if (zip) filter.zip_code = zip;
         if (age_group) filter.age_groups = { $contains: age_group };
         if (service) filter.services_offered = { $contains: service };
+        if (languages) filter.languages = { $contains: languages };
 
-        // Sort mapping — Data.4 default: newest first
+        // Sort
         let sortField = '-created_date';
         if (sort === 'rate_asc') sortField = 'hourly_rate_cents';
         else if (sort === 'rate_desc') sortField = '-hourly_rate_cents';
         else if (sort === 'rating') sortField = '-average_rating';
 
-        // Fetch all matching profiles for total_count
-        const allResults = await base44.asServiceRole.entities.CaregiverProfile.filter(filter, sortField, 1000);
+        // Fetch profiles
+        let profiles = await base44.asServiceRole.entities.CaregiverProfile.filter(filter, sortField, 1000);
 
-        // Additional JS-level filtering that can't be done via entity filter
-        let filtered = allResults;
-
-        if (min_rate !== undefined && min_rate !== null && min_rate !== '') {
+        // JS-level rate filtering
+        if (min_rate !== undefined && min_rate !== '') {
             const minCents = parseInt(min_rate) * 100;
-            filtered = filtered.filter(c => c.hourly_rate_cents >= minCents);
+            profiles = profiles.filter(c => c.hourly_rate_cents != null && c.hourly_rate_cents >= minCents);
         }
-        if (max_rate !== undefined && max_rate !== null && max_rate !== '') {
+        if (max_rate !== undefined && max_rate !== '') {
             const maxCents = parseInt(max_rate) * 100;
-            filtered = filtered.filter(c => c.hourly_rate_cents <= maxCents);
+            profiles = profiles.filter(c => c.hourly_rate_cents != null && c.hourly_rate_cents <= maxCents);
         }
 
-        const total_count = filtered.length;
+        // If a date is requested, join AvailabilitySlot to:
+        // (a) filter to caregivers who have open slots on that date
+        // (b) attach matching slot times to each card
+        let slotsByCaregiver = {}; // caregiver_profile_id -> slots[]
+
+        if (date) {
+            const slots = await base44.asServiceRole.entities.AvailabilitySlot.filter(
+                { slot_date: date, status: 'open', is_blocked: false },
+                'start_time',
+                1000
+            );
+
+            // Index by caregiver_profile_id
+            for (const slot of slots) {
+                if (!slotsByCaregiver[slot.caregiver_profile_id]) {
+                    slotsByCaregiver[slot.caregiver_profile_id] = [];
+                }
+                // Optionally filter by requested time range
+                let include = true;
+                if (time_from && slot.end_time <= time_from) include = false;
+                if (time_to && slot.start_time >= time_to) include = false;
+                if (include) slotsByCaregiver[slot.caregiver_profile_id].push(slot);
+            }
+
+            // Only keep caregivers that have at least one matching open slot
+            profiles = profiles.filter(c => slotsByCaregiver[c.id] && slotsByCaregiver[c.id].length > 0);
+        }
+
+        const total_count = profiles.length;
         const total_pages = Math.max(1, Math.ceil(total_count / PAGE_SIZE));
         const clampedPage = Math.min(page, total_pages);
-
-        // Paginate
         const start = (clampedPage - 1) * PAGE_SIZE;
-        const pageResults = filtered.slice(start, start + PAGE_SIZE);
+        const pageResults = profiles.slice(start, start + PAGE_SIZE);
 
-        // Data.2: Sanitise output — never expose sensitive fields
-        const sanitised = pageResults.map(c => ({
+        // Sanitise output — never expose sensitive fields (Data.2)
+        const results = pageResults.map(c => ({
             id: c.id,
             slug: c.slug,
             display_name: c.display_name,
@@ -82,6 +104,7 @@ Deno.serve(async (req) => {
             hourly_rate_cents: c.hourly_rate_cents || null,
             services_offered: c.services_offered || null,
             age_groups: c.age_groups || null,
+            languages: c.languages || null,
             is_verified: c.is_verified || false,
             average_rating: c.average_rating || null,
             total_reviews: c.total_reviews || 0,
@@ -90,10 +113,14 @@ Deno.serve(async (req) => {
             bio: c.bio ? c.bio.substring(0, 200) : null,
             experience_years: c.experience_years || null,
             created_date: c.created_date,
+            // Available slots for requested date (for display on card)
+            available_slots: date
+                ? (slotsByCaregiver[c.id] || []).map(s => ({ start_time: s.start_time, end_time: s.end_time }))
+                : [],
         }));
 
         return Response.json({
-            results: sanitised,
+            results,
             total_count,
             current_page: clampedPage,
             total_pages,

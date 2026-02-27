@@ -15,23 +15,20 @@ const SERVICE_LABELS = {
     special_needs_care: 'Special Needs',
 };
 
-const AGE_LABELS = {
-    newborn_0_1: 'Newborns',
-    toddler_1_3: 'Toddlers',
-    preschool_3_5: 'Preschool',
-    school_age_5_12: 'School Age',
-    teenager_13_17: 'Teens',
-};
+function formatTime(t) {
+    if (!t) return '';
+    const [h, m] = t.split(':');
+    const hour = parseInt(h);
+    const ampm = hour >= 12 ? 'pm' : 'am';
+    const display = hour % 12 || 12;
+    return `${display}:${m}${ampm}`;
+}
 
-export default function CaregiverCard({ caregiver, user }) {
+export default function CaregiverCard({ caregiver, user, requestedDate }) {
     const navigate = useNavigate();
 
     const services = caregiver.services_offered
         ? caregiver.services_offered.split(',').map(s => s.trim()).filter(Boolean)
-        : [];
-
-    const ageGroups = caregiver.age_groups
-        ? caregiver.age_groups.split(',').map(a => a.trim()).filter(Boolean)
         : [];
 
     const rate = caregiver.hourly_rate_cents
@@ -42,45 +39,46 @@ export default function CaregiverCard({ caregiver, user }) {
         ? `${createPageUrl('PublicCaregiverProfile')}?slug=${caregiver.slug}`
         : null;
 
+    const slots = caregiver.available_slots || [];
+
     const handleBook = (e) => {
         e.preventDefault();
         if (!user) {
-            // Access.2: unauthenticated → prompt to sign in
-            navigate('/login');
+            base44.auth.redirectToLogin(window.location.href);
         } else {
             navigate(profileUrl);
         }
     };
 
-    const isParent = user?.app_role === 'parent';
     const isCaregiver = user?.app_role === 'caregiver';
+    const isParent = user?.app_role === 'parent';
 
     return (
-        <Card className="overflow-hidden hover:shadow-lg transition-shadow group">
+        <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-200 group bg-white">
             <Link to={profileUrl || '#'} className="block">
                 {/* Photo */}
-                <div className="relative h-52 bg-gray-100">
+                <div className="relative h-48 bg-gray-100 overflow-hidden">
                     <img
                         src={caregiver.profile_photo_url || 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=300&fit=crop'}
                         alt={caregiver.display_name}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     {caregiver.is_verified && (
-                        <div className="absolute top-3 left-3">
-                            <Badge className="bg-green-600 text-white flex items-center gap-1 text-xs">
+                        <div className="absolute top-2 left-2">
+                            <Badge className="bg-green-600 text-white flex items-center gap-1 text-xs shadow">
                                 <Shield className="w-3 h-3" /> Verified
                             </Badge>
                         </div>
                     )}
                     {rate && (
-                        <div className="absolute bottom-3 right-3 bg-white/95 rounded-lg px-2 py-1 text-sm font-bold text-gray-900 shadow">
+                        <div className="absolute bottom-2 right-2 bg-white/95 rounded-lg px-2 py-0.5 text-sm font-bold text-gray-900 shadow-sm">
                             {rate}
                         </div>
                     )}
                 </div>
             </Link>
 
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-4 space-y-2.5">
                 {/* Name & Rating */}
                 <div className="flex items-start justify-between gap-2">
                     <div>
@@ -107,46 +105,63 @@ export default function CaregiverCard({ caregiver, user }) {
 
                 {/* Bio snippet */}
                 {caregiver.bio && (
-                    <p className="text-xs text-gray-600 line-clamp-2">{caregiver.bio}</p>
+                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{caregiver.bio}</p>
                 )}
 
                 {/* Experience */}
-                {caregiver.experience_years && (
+                {caregiver.experience_years > 0 && (
                     <div className="flex items-center gap-1 text-xs text-gray-500">
                         <Clock className="w-3 h-3" />
                         {caregiver.experience_years} yr{caregiver.experience_years !== 1 ? 's' : ''} experience
                     </div>
                 )}
 
-                {/* Services tags */}
+                {/* Available slots for requested date */}
+                {requestedDate && slots.length > 0 && (
+                    <div>
+                        <p className="text-xs font-medium text-gray-600 mb-1">Available slots:</p>
+                        <div className="flex flex-wrap gap-1">
+                            {slots.slice(0, 4).map((s, i) => (
+                                <span
+                                    key={i}
+                                    className="text-xs bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5"
+                                >
+                                    {formatTime(s.start_time)}–{formatTime(s.end_time)}
+                                </span>
+                            ))}
+                            {slots.length > 4 && (
+                                <span className="text-xs text-gray-400">+{slots.length - 4} more</span>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Service tags */}
                 {services.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                         {services.slice(0, 3).map(s => (
-                            <Badge key={s} variant="secondary" className="text-xs px-2 py-0">
+                            <Badge key={s} variant="secondary" className="text-xs px-1.5 py-0">
                                 {SERVICE_LABELS[s] || s}
                             </Badge>
                         ))}
                         {services.length > 3 && (
-                            <Badge variant="secondary" className="text-xs px-2 py-0">
-                                +{services.length - 3}
-                            </Badge>
+                            <Badge variant="secondary" className="text-xs px-1.5 py-0">+{services.length - 3}</Badge>
                         )}
                     </div>
                 )}
 
-                {/* CTA — Access.2 */}
-                {!isCaregiver && (
+                {/* CTA */}
+                {!isCaregiver ? (
                     <Button
-                        className={`w-full text-sm ${isParent ? 'bg-[#C36239] hover:bg-[#75290F] text-white' : 'border border-[#C36239] text-[#C36239] hover:bg-[#C36239] hover:text-white'}`}
+                        className={`w-full text-sm mt-1 ${isParent ? 'bg-[#C36239] hover:bg-[#75290F] text-white' : 'border border-[#C36239] text-[#C36239] hover:bg-[#C36239] hover:text-white'}`}
                         variant={isParent ? 'default' : 'outline'}
                         onClick={handleBook}
                     >
                         {user ? 'View Profile & Book' : 'Sign in to book'}
                     </Button>
-                )}
-                {isCaregiver && (
+                ) : (
                     <Link to={profileUrl || '#'}>
-                        <Button variant="outline" className="w-full text-sm">View Profile</Button>
+                        <Button variant="outline" className="w-full text-sm mt-1">View Profile</Button>
                     </Link>
                 )}
             </CardContent>

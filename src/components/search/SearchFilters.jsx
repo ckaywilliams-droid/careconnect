@@ -24,6 +24,17 @@ const SERVICES = [
     { value: 'special_needs_care', label: 'Special Needs Care' },
 ];
 
+const LANGUAGES = [
+    { value: 'English', label: 'English' },
+    { value: 'Spanish', label: 'Spanish' },
+    { value: 'French', label: 'French' },
+    { value: 'Mandarin', label: 'Mandarin' },
+    { value: 'Portuguese', label: 'Portuguese' },
+    { value: 'Arabic', label: 'Arabic' },
+    { value: 'Hindi', label: 'Hindi' },
+    { value: 'Korean', label: 'Korean' },
+];
+
 export default function SearchFilters({ filters, onChange, onReset, activeCount }) {
     const set = (key, value) => onChange({ ...filters, [key]: value });
 
@@ -69,7 +80,6 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                         value={filters.time_from || ''}
                         onChange={e => set('time_from', e.target.value)}
                         className="text-sm w-full"
-                        placeholder="From"
                     />
                     <span className="text-gray-400 shrink-0">–</span>
                     <Input
@@ -77,7 +87,6 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                         value={filters.time_to || ''}
                         onChange={e => set('time_to', e.target.value)}
                         className="text-sm w-full"
-                        placeholder="To"
                     />
                 </div>
             </div>
@@ -105,7 +114,7 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                 />
             </div>
 
-            {/* Hourly Rate */}
+            {/* Max Hourly Rate */}
             <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">Max Hourly Rate ($/hr)</Label>
                 <Input
@@ -116,6 +125,25 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                     className="text-sm w-full"
                     min={0}
                 />
+            </div>
+
+            {/* Languages */}
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700">Language Spoken</Label>
+                <Select
+                    value={filters.languages || 'any'}
+                    onValueChange={v => set('languages', v === 'any' ? '' : v)}
+                >
+                    <SelectTrigger className="text-sm">
+                        <SelectValue placeholder="Any language" />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="any">Any language</SelectItem>
+                        {LANGUAGES.map(l => (
+                            <SelectItem key={l.value} value={l.value}>{l.label}</SelectItem>
+                        ))}
+                    </SelectContent>
+                </Select>
             </div>
 
             {/* Age Groups */}
