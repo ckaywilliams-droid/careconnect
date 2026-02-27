@@ -163,14 +163,12 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // Use Base44 native auth signup
-      await base44.auth.signUp({
+      // Use Base44 native auth register
+      await base44.auth.register({
         email: formData.email.toLowerCase().trim(),
         password: formData.password,
-        data: {
-          full_name: formData.full_name.trim(),
-          app_role: selectedRole
-        }
+        full_name: formData.full_name.trim(),
+        app_role: selectedRole
       });
 
       // Redirect to email verification screen (F-029)
