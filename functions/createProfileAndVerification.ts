@@ -15,13 +15,13 @@ Deno.serve(async (req) => {
         const payload = await req.json();
 
         // Support both automation payload shape and direct test calls
-        const user = payload.data || payload;
+        const data = payload.data || payload;
 
-        if (!user || !user.id) {
+        if (!data || !data.id) {
             return Response.json({ error: 'Invalid payload: missing user data' }, { status: 400 });
         }
 
-        const { id: userId, full_name, app_role, email } = user;
+        const { id: userId, full_name, app_role, email } = data;
 
         if (!email) {
             return Response.json({ error: 'User missing email' }, { status: 400 });
@@ -44,18 +44,35 @@ Deno.serve(async (req) => {
         } else if (app_role === 'caregiver') {
             const existing = await base44.asServiceRole.entities.CaregiverProfile.filter({ user_id: userId });
             if (!existing || existing.length === 0) {
-                const baseSlug = (full_name || 'caregiver')
+                const baseSlug = (data.full_name || '')
                     .toLowerCase()
                     .replace(/[^a-z0-9]+/g, '-')
                     .replace(/-+/g, '-')
                     .replace(/^-+|-+$/g, '');
-                const slug = baseSlug || `caregiver-${userId.substring(0, 8)}`;
-                await base44.asServiceRole.entities.CaregiverProfile.create({
-                    user_id: userId,
-                    slug: slug,
-                    display_name: full_name || 'New Caregiver'
-                });
-                results.profile = 'CaregiverProfile created';
+
+                const slug = `${baseSlug || 'caregiver'}-${data.id.substring(0, 8)}`;
+
+                console.log('Creating CaregiverProfile with:', { user_id: data.id, slug, display_name: data.full_name });
+
+                try {
+                    await base44.asServiceRole.entities.CaregiverProfile.create({
+                        user_id: data.id,
+                        slug: slug,
+                        display_name: data.full_name || 'New Caregiver',
+                        is_verified: false,
+                        is_published: false,
+                        completion_pct: 0
+                    });
+                    results.profile = 'CaregiverProfile created';
+                } catch (profileError) {
+                    console.error('CaregiverProfile.create failed:', {
+                        message: profileError.message,
+                        code: profileError.code,
+                        user_id: data.id,
+                        slug: slug
+                    });
+                    throw profileError;
+                }
             } else {
                 results.profile = 'CaregiverProfile already exists';
             }
