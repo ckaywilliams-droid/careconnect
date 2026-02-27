@@ -77,27 +77,6 @@ Deno.serve(async (req) => {
             console.error('EmailVerificationToken creation failed (non-fatal):', tokenError.message);
         }
 
-        // Non-blocking: send welcome email
-        try {
-            const baseUrl = Deno.env.get('BASE_URL') || 'https://yourdomain.com';
-            await base44.asServiceRole.integrations.Core.SendEmail({
-                to: normalizedEmail,
-                subject: 'Welcome! Please verify your account',
-                body: `Hello ${trimmedName},
-
-Thank you for registering! To complete your setup, please log in to your account:
-
-${baseUrl}/login
-
-After logging in, you will be guided to verify your email address.
-
-Best regards,
-The Team`
-            });
-        } catch (emailError) {
-            console.error('Welcome email failed (non-fatal):', emailError.message);
-        }
-
         return Response.json({
             message: 'Registration successful! Please check your email to verify your account.',
             email: normalizedEmail
