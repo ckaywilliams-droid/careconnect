@@ -46,8 +46,7 @@ Deno.serve(async (req) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create User entity — triggers the "User Created" automation which handles
-        // profile creation, email verification token, and sending the verification email.
+        // Create User entity
         await base44.asServiceRole.entities.User.create({
             full_name: trimmedName,
             email: normalizedEmail,
@@ -56,6 +55,29 @@ Deno.serve(async (req) => {
             role: role,
             email_verified: false
         });
+
+        // Attempt to send a welcome email (profile + verification token are created
+        // lazily after first login, since custom entity writes require an authenticated context)
+        try {
+            const baseUrl = Deno.env.get('BASE_URL') || 'https://yourdomain.com';
+            await base44.asServiceRole.integrations.Core.SendEmail({
+                to: normalizedEmail,
+                subject: 'Welcome! Please verify your account',
+                body: `Hello ${trimmedName},
+
+Thank you for registering! To complete your setup, please log in to your account:
+
+${baseUrl}/login
+
+After logging in, you will be guided to verify your email address.
+
+Best regards,
+The Team`
+            });
+        } catch (emailError) {
+            // Non-fatal — user account is created, they can still log in
+            console.error('Welcome email failed (non-fatal):', emailError.message);
+        }
 
         return Response.json({
             message: 'Registration successful! Please check your email to verify your account.',
