@@ -91,7 +91,7 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                 </div>
             </div>
 
-            {/* Location */}
+            {/* Location — City & State */}
             <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">Location</Label>
                 <Input
@@ -106,12 +106,33 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                     onChange={e => set('state', e.target.value)}
                     className="text-sm"
                 />
-                <Input
-                    placeholder="Zip code"
-                    value={filters.zip || ''}
-                    onChange={e => set('zip', e.target.value)}
-                    className="text-sm"
-                />
+            </div>
+
+            {/* F-063: Zip Code Filter */}
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                    <MapPin className="w-3.5 h-3.5" /> Zip Code
+                </Label>
+                <div className="relative">
+                    <Input
+                        placeholder="Enter zip code"
+                        value={filters.zip || ''}
+                        maxLength={10}
+                        onChange={e => set('zip', e.target.value.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10))}
+                        className="text-sm pr-7"
+                    />
+                    {filters.zip && (
+                        <button
+                            onClick={() => set('zip', '')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    )}
+                </div>
+                <p className="text-xs text-gray-400">
+                    Exact zip code match — try the caregiver's neighbourhood zip.
+                </p>
             </div>
 
             {/* Max Hourly Rate */}
