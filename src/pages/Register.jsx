@@ -29,6 +29,23 @@ export default function Register() {
   const searchParams = new URLSearchParams(location.search);
   const roleFromState = location.state?.role || searchParams.get('role');
 
+  // Detect invite links — invited users must NOT go through registration.
+  // Base44 invite flow: user already has a pending record; they just need to set a password.
+  const isInviteLink = searchParams.has('invite_token') || searchParams.has('access_token') || searchParams.get('type') === 'invite';
+
+  useEffect(() => {
+    if (isInviteLink) {
+      navigate('/login', {
+        replace: true,
+        state: {
+          inviteMessage: 'Your account is ready! Please use the "Forgot Password" option to set your password and activate your account.'
+        }
+      });
+    }
+  }, [isInviteLink, navigate]);
+
+  if (isInviteLink) return null;
+
   // F-021 Logic.1: Show role selector inline if not provided
   const [step, setStep] = useState(roleFromState && ['parent', 'caregiver'].includes(roleFromState) ? 'form' : 'role-select');
   const [selectedRole, setSelectedRole] = useState(roleFromState || null);
