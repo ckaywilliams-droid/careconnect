@@ -22,6 +22,8 @@ import { Loader2, ArrowLeft, CheckCircle2 } from 'lucide-react';
  * - Rate limiting (3 per hour)
  */
 export default function ForgotPassword() {
+  const location = useLocation();
+  const inviteMessage = location.state?.inviteMessage;
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
