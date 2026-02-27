@@ -37,7 +37,12 @@ Deno.serve(async (req) => {
         if (verified === true || verified === 'true') filter.is_verified = true;
         if (city) filter.city = city;
         if (state) filter.state = state;
-        if (zip) filter.zip_code = zip;
+
+        // F-063 Logic.1: sanitise zip — strip non-alphanumeric, truncate to 10, trim
+        if (zip) {
+            const sanitisedZip = zip.replace(/[^a-zA-Z0-9]/g, '').trim().substring(0, 10);
+            if (sanitisedZip) filter.zip_code = sanitisedZip;
+        }
         if (age_group) filter.age_groups = { $contains: age_group };
         if (service) filter.services_offered = { $contains: service };
         if (languages) filter.languages = { $contains: languages };

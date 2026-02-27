@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X, MapPin } from 'lucide-react';
 
 const AGE_GROUPS = [
     { value: 'newborn_0_1', label: 'Newborn (0–1)' },
