@@ -56,36 +56,10 @@ Deno.serve(async (req) => {
             email_verified: false
         });
 
-        // Create profile based on role
-        // Note: using base44.asServiceRole here because this runs in an unauthenticated context
-        // and asServiceRole needs a user token. Instead we rely on allow_all:true RLS on profile entities.
-        try {
-            if (role === 'parent') {
-                await base44.asServiceRole.entities.ParentProfile.create({
-                    user_id: newUser.id,
-                    display_name: trimmedName
-                });
-            } else if (role === 'caregiver') {
-                const baseSlug = trimmedName
-                    .toLowerCase()
-                    .replace(/[^a-z0-9]+/g, '-')
-                    .replace(/-+/g, '-')
-                    .replace(/^-+|-+$/g, '');
-                const slug = baseSlug || `caregiver-${newUser.id.substring(0, 8)}`;
-                
-                await base44.asServiceRole.entities.CaregiverProfile.create({
-                    user_id: newUser.id,
-                    slug: slug,
-                    display_name: trimmedName
-                });
-            }
-        } catch (profileError) {
-            console.error(`Failed to create ${role} profile:`, profileError);
-            return Response.json({
-                error: `Failed to create ${role} profile`,
-                detail: profileError.message
-            }, { status: 500 });
-        }
+        // NOTE: Profile (CaregiverProfile / ParentProfile) is created lazily on first
+        // dashboard visit after login, because asServiceRole cannot write custom entities
+        // in an unauthenticated request context. Role is stored on the User record so
+        // the dashboard knows which profile type to create.
 
         // Generate verification token (64 random hex chars)
         const tokenBytes = new Uint8Array(32);
