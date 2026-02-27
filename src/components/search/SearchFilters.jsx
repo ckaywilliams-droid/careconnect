@@ -28,7 +28,7 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
     const set = (key, value) => onChange({ ...filters, [key]: value });
 
     return (
-        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-6 sticky top-20">
+        <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-5 sticky top-20">
             {/* Header */}
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -48,8 +48,42 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                 )}
             </div>
 
+            {/* Date */}
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700">Date Needed</Label>
+                <Input
+                    type="date"
+                    value={filters.date || ''}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={e => set('date', e.target.value)}
+                    className="text-sm"
+                />
+            </div>
+
+            {/* Time Range */}
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700">Time Range</Label>
+                <div className="flex items-center gap-2">
+                    <Input
+                        type="time"
+                        value={filters.time_from || ''}
+                        onChange={e => set('time_from', e.target.value)}
+                        className="text-sm w-full"
+                        placeholder="From"
+                    />
+                    <span className="text-gray-400 shrink-0">–</span>
+                    <Input
+                        type="time"
+                        value={filters.time_to || ''}
+                        onChange={e => set('time_to', e.target.value)}
+                        className="text-sm w-full"
+                        placeholder="To"
+                    />
+                </div>
+            </div>
+
             {/* Location */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">Location</Label>
                 <Input
                     placeholder="City"
@@ -72,34 +106,23 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
             </div>
 
             {/* Hourly Rate */}
-            <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Hourly Rate ($/hr)</Label>
-                <div className="flex items-center gap-2">
-                    <Input
-                        type="number"
-                        placeholder="Min"
-                        value={filters.min_rate || ''}
-                        onChange={e => set('min_rate', e.target.value)}
-                        className="text-sm w-full"
-                        min={0}
-                    />
-                    <span className="text-gray-400">–</span>
-                    <Input
-                        type="number"
-                        placeholder="Max"
-                        value={filters.max_rate || ''}
-                        onChange={e => set('max_rate', e.target.value)}
-                        className="text-sm w-full"
-                        min={0}
-                    />
-                </div>
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700">Max Hourly Rate ($/hr)</Label>
+                <Input
+                    type="number"
+                    placeholder="e.g. 25"
+                    value={filters.max_rate || ''}
+                    onChange={e => set('max_rate', e.target.value)}
+                    className="text-sm w-full"
+                    min={0}
+                />
             </div>
 
             {/* Age Groups */}
-            <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Child's Age</Label>
+            <div className="space-y-1.5">
+                <Label className="text-sm font-medium text-gray-700">Child's Age Group</Label>
                 <Select
-                    value={filters.age_group || ''}
+                    value={filters.age_group || 'any'}
                     onValueChange={v => set('age_group', v === 'any' ? '' : v)}
                 >
                     <SelectTrigger className="text-sm">
@@ -115,10 +138,10 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
             </div>
 
             {/* Services */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">Service Type</Label>
                 <Select
-                    value={filters.service || ''}
+                    value={filters.service || 'any'}
                     onValueChange={v => set('service', v === 'any' ? '' : v)}
                 >
                     <SelectTrigger className="text-sm">
@@ -146,7 +169,7 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
             </div>
 
             {/* Sort */}
-            <div className="space-y-2">
+            <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">Sort By</Label>
                 <Select
                     value={filters.sort || 'newest'}

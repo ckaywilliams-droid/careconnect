@@ -19,6 +19,9 @@ Deno.serve(async (req) => {
             verified,
             min_rate,
             max_rate,
+            date,
+            time_from,
+            time_to,
             sort = 'newest',
             page: rawPage = 1,
         } = body;
