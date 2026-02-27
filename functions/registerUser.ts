@@ -3,10 +3,10 @@ import bcrypt from 'npm:bcryptjs';
 
 /**
  * F-021: User Registration Backend Function
- * 
- * Handles new user registration with email verification flow.
- * Creates User, Profile, and EmailVerificationToken entities.
- * Sends verification email with token link.
+ *
+ * Only creates the User record — custom entity creation (profile, verification token, email)
+ * is handled by the "User Created" entity automation → createProfileAndVerification function.
+ * This is because asServiceRole cannot write custom entities in an unauthenticated request context.
  */
 Deno.serve(async (req) => {
     try {
@@ -46,8 +46,9 @@ Deno.serve(async (req) => {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        // Create User entity
-        const newUser = await base44.asServiceRole.entities.User.create({
+        // Create User entity — triggers the "User Created" automation which handles
+        // profile creation, email verification token, and sending the verification email.
+        await base44.asServiceRole.entities.User.create({
             full_name: trimmedName,
             email: normalizedEmail,
             password_hash: hashedPassword,
@@ -56,49 +57,7 @@ Deno.serve(async (req) => {
             email_verified: false
         });
 
-        // NOTE: Profile (CaregiverProfile / ParentProfile) is created lazily on first
-        // dashboard visit after login, because asServiceRole cannot write custom entities
-        // in an unauthenticated request context. Role is stored on the User record so
-        // the dashboard knows which profile type to create.
-
-        // Generate verification token (64 random hex chars)
-        const tokenBytes = new Uint8Array(32);
-        crypto.getRandomValues(tokenBytes);
-        const verificationToken = Array.from(tokenBytes)
-            .map(b => b.toString(16).padStart(2, '0'))
-            .join('');
-
-        // Store verification token
-        const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-        await base44.asServiceRole.entities.EmailVerificationToken.create({
-            user_id: newUser.id,
-            token: verificationToken,
-            expires_at: expiresAt.toISOString()
-        });
-
-        // Get base URL for verification link
-        const baseUrl = Deno.env.get('BASE_URL') || 'https://yourdomain.com';
-        const verificationLink = `${baseUrl}/verify?token=${verificationToken}`;
-
-        // Send verification email
-        await base44.asServiceRole.integrations.Core.SendEmail({
-            to: normalizedEmail,
-            subject: 'Verify your email address',
-            body: `Hello ${trimmedName},
-
-Thank you for registering! Please verify your email address by clicking the link below:
-
-${verificationLink}
-
-This link will expire in 24 hours.
-
-If you didn't create an account, you can safely ignore this email.
-
-Best regards,
-The Team`
-        });
-
-        return Response.json({ 
+        return Response.json({
             message: 'Registration successful! Please check your email to verify your account.',
             email: normalizedEmail
         }, { status: 201 });
