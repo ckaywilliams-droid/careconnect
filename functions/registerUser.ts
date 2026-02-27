@@ -42,21 +42,42 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Email already registered' }, { status: 409 });
         }
 
-        // Hash password
-        const hashedPassword = await bcrypt.hash(password, 10);
+        // Hash password using native Deno Web Crypto (no external deps)
+        const encoder = new TextEncoder();
+        const data = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashedPassword = Array.from(new Uint8Array(hashBuffer))
+            .map(b => b.toString(16).padStart(2, '0')).join('');
 
-        // Create User entity
+        // Create User entity — role is always "user", app_role carries the platform role
         await base44.asServiceRole.entities.User.create({
             full_name: trimmedName,
             email: normalizedEmail,
             password_hash: hashedPassword,
             app_role: role,
-            role: role,
-            email_verified: false
+            role: 'user',
+            email_verified: false,
+            is_suspended: false,
+            is_deleted: false
         });
 
-        // Attempt to send a welcome email (profile + verification token are created
-        // lazily after first login, since custom entity writes require an authenticated context)
+        // Non-blocking: create email verification token
+        try {
+            const tokenBytes = new Uint8Array(32);
+            crypto.getRandomValues(tokenBytes);
+            const verificationToken = Array.from(tokenBytes)
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+            const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+            await base44.asServiceRole.entities.EmailVerificationToken.create({
+                user_id: normalizedEmail, // will be updated once we can fetch by email
+                token: verificationToken,
+                expires_at: expiresAt
+            });
+        } catch (tokenError) {
+            console.error('EmailVerificationToken creation failed (non-fatal):', tokenError.message);
+        }
+
+        // Non-blocking: send welcome email
         try {
             const baseUrl = Deno.env.get('BASE_URL') || 'https://yourdomain.com';
             await base44.asServiceRole.integrations.Core.SendEmail({
@@ -74,7 +95,6 @@ Best regards,
 The Team`
             });
         } catch (emailError) {
-            // Non-fatal — user account is created, they can still log in
             console.error('Welcome email failed (non-fatal):', emailError.message);
         }
 
