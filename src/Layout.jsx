@@ -8,7 +8,9 @@ const PUBLIC_PAGES = [
   'register', 'login', 'roleselection', 'selectrole',
   'verifyemail', 'emailverified', 'forgotpassword', 'resetpassword',
   'home', 'findcaregivers', 'publiccaregiverprofile',
-  'suspendedaccount', 'adminlogin', 'adminfirstlogin'
+  'suspendedaccount', 'adminlogin', 'adminfirstlogin',
+  'admindashboard', 'adminusers', 'adminroles', 'admindisputedashboard',
+  'moderationqueue', 'submitevidence', 'disputedetail'
 ];
 
 export default function Layout({ children, currentPageName }) {
