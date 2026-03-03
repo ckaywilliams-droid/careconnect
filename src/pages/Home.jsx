@@ -186,20 +186,11 @@ export default function Home() {
               <div className="flex flex-wrap gap-4">
                 <Button
                   size="lg"
-                  variant="outline"
-                  className="border-white text-white hover:bg-white/10 px-8 h-12"
-                  onClick={() => navigate(createPageUrl('Register'), { state: { role: 'parent' } })}
+                  className="bg-[#C36239] hover:bg-[#75290F] text-white px-8 h-12"
+                  onClick={() => navigate(createPageUrl('Register'))}
                 >
-                  Sign up as Parent
+                  Register Now
                 </Button>
-                 <Button
-                   size="lg"
-                   variant="outline"
-                   className="border-white text-white hover:bg-white/10 px-8 h-12"
-                   onClick={() => navigate(createPageUrl('Register'), { state: { role: 'caregiver' } })}
-                 >
-                   Become a Caregiver
-                 </Button>
               </div>
             )}
           </div>
