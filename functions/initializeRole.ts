@@ -20,11 +20,19 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        if (user.onboarding_complete) {
-            return Response.json({ error: 'Onboarding already complete' }, { status: 409 });
+        // Parse body — do this before any idempotency check
+        let body;
+        try {
+            body = await req.json();
+        } catch {
+            return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
         }
+        const { role } = body;
 
-        const { role } = await req.json();
+        // Idempotency: if already complete, just return success (don't block retries)
+        if (user.onboarding_complete && user.app_role) {
+            return Response.json({ success: true, role: user.app_role, already_complete: true });
+        }
 
         if (!['parent', 'caregiver'].includes(role)) {
             return Response.json({ error: 'Invalid role. Must be parent or caregiver.' }, { status: 400 });
