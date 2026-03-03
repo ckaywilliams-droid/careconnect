@@ -1,47 +1,94 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Users, Heart } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Users, Heart, Loader2, AlertCircle } from 'lucide-react';
 
 /**
- * F-021: ROLE SELECTION SCREEN (UI.1)
- * 
- * First screen in split registration flow.
- * User selects role (Parent or Caregiver) before seeing the registration form.
- * 
- * SECURITY: Role stored in navigation state, validated server-side at registration.
+ * F-021B: POST-AUTH ONBOARDING — ROLE SELECTION
+ *
+ * Shown to authenticated users who have not yet completed onboarding
+ * (app_role == null OR onboarding_complete == false).
+ *
+ * On submission: calls initializeRole which atomically:
+ *   1. Sets User.app_role
+ *   2. Creates the corresponding Profile record
+ *   3. Sets User.onboarding_complete = true
+ *
+ * On failure: user stays in registered_uninitialized state and can retry.
  */
 export default function RoleSelection() {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
 
-  const selectRole = (role) => {
-    // F-021 Logic.1: Role selection before registration form
-    // Pass role via navigation state (validated server-side)
-    navigate(createPageUrl('Register'), { state: { role } });
+  useEffect(() => {
+    base44.auth.isAuthenticated().then(setIsAuthenticated);
+  }, []);
+
+  const selectRole = async (role) => {
+    // If not yet authenticated (reached here pre-login), navigate to register with role hint
+    if (!isAuthenticated) {
+      navigate(createPageUrl('Register'), { state: { role } });
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      await base44.functions.invoke('initializeRole', { role });
+      // Onboarding complete — navigate to dashboard
+      navigate(createPageUrl('CaregiverProfile'), { replace: true });
+    } catch (err) {
+      const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  // Still checking auth state
+  if (isAuthenticated === null) {
+    return (
+      <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#C36239]" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center p-4">
       <div className="max-w-5xl w-full">
-        {/* F-028 UI.1: Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-[#0C2119] mb-3">
             Join as a...
           </h1>
           <p className="text-lg text-[#643737]">
-            Choose your role to get started
+            {isAuthenticated
+              ? "Almost there! Choose your role to complete setup."
+              : "Choose your role to get started"}
           </p>
         </div>
 
-        {/* F-028 UI.1: Two cards side by side */}
+        {error && (
+          <div className="max-w-md mx-auto mb-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 gap-8">
-          
           {/* Parent Card */}
-          <Card 
+          <Card
             className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
-            onClick={() => selectRole('parent')}
+            onClick={() => !loading && selectRole('parent')}
           >
             <CardHeader className="text-center pb-4">
               <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
@@ -53,23 +100,21 @@ export default function RoleSelection() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  selectRole('parent');
-                }}
+                disabled={loading}
+                onClick={(e) => { e.stopPropagation(); selectRole('parent'); }}
               >
-                Get started
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
               </Button>
             </CardContent>
           </Card>
 
           {/* Caregiver Card */}
-          <Card 
+          <Card
             className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
-            onClick={() => selectRole('caregiver')}
+            onClick={() => !loading && selectRole('caregiver')}
           >
             <CardHeader className="text-center pb-4">
               <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
@@ -81,30 +126,40 @@ export default function RoleSelection() {
               </CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <Button 
-                size="lg" 
+              <Button
+                size="lg"
                 className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  selectRole('caregiver');
-                }}
+                disabled={loading}
+                onClick={(e) => { e.stopPropagation(); selectRole('caregiver'); }}
               >
-                Get started
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-8 text-sm text-[#643737]">
-          Already have an account?{' '}
-          <button
-            onClick={() => navigate('/login')}
-            className="text-[#C36239] hover:text-[#75290F] font-medium underline"
-          >
-            Sign in
-          </button>
-        </div>
+        {!isAuthenticated && (
+          <div className="text-center mt-8 text-sm text-[#643737]">
+            Already have an account?{' '}
+            <button
+              onClick={() => navigate('/login')}
+              className="text-[#C36239] hover:text-[#75290F] font-medium underline"
+            >
+              Sign in
+            </button>
+          </div>
+        )}
+
+        {isAuthenticated && (
+          <div className="text-center mt-8 text-sm text-[#643737]">
+            <button
+              onClick={() => base44.auth.logout()}
+              className="text-[#9C9F95] hover:text-[#643737] underline"
+            >
+              Sign out
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

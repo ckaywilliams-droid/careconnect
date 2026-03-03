@@ -208,12 +208,13 @@ export default function Register() {
     setLoading(true);
 
     try {
-      // Use Base44 native auth register
+      // F-021B: Register WITHOUT app_role — role is assigned post-auth via initializeRole
+      // This decouples registration from profile creation.
       await base44.auth.register({
         email: formData.email.toLowerCase().trim(),
         password: formData.password,
-        full_name: formData.full_name.trim(),
-        app_role: selectedRole
+        full_name: formData.full_name.trim()
+        // app_role intentionally omitted — set during post-auth onboarding
       });
 
       // Redirect to email verification screen (F-029)
