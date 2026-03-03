@@ -35,9 +35,9 @@ export default function RoleSelection() {
   }, []);
 
   const selectRole = async (role) => {
-    // If not yet authenticated (reached here pre-login), navigate to register with role hint
+    // If not yet authenticated, send to register (no role hint needed anymore)
     if (!isAuthenticated) {
-      navigate(createPageUrl('Register'), { state: { role } });
+      navigate(createPageUrl('Register'));
       return;
     }
 
