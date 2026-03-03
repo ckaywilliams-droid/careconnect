@@ -87,7 +87,8 @@ Deno.serve(async (req) => {
             onboarding_complete: true
         });
 
-        console.log(`F-021B: User ${user.id} initialized as ${role}`);
+        // Audit.1: Log role selection
+        console.log(`F-021B AUDIT: user_id=${user.id} selected_role=${role} timestamp=${new Date().toISOString()}`);
         return Response.json({ success: true, role });
 
     } catch (error) {
