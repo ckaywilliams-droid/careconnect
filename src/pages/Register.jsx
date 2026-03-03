@@ -46,51 +46,23 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [generalError, setGeneralError] = useState('');
 
-  // If the user is already authenticated when landing on register,
-  // they came via an invite link — show the invite screen instead.
+  // If already authenticated, redirect based on onboarding status
   useEffect(() => {
-    base44.auth.isAuthenticated().then((authenticated) => {
-      if (authenticated) setAlreadyLoggedIn(true);
-    });
+    (async () => {
+      const authenticated = await base44.auth.isAuthenticated();
+      if (!authenticated) return;
+
+      const user = await base44.auth.me();
+      const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
+      if (adminRoles.includes(user.app_role)) {
+        navigate('/admin-dashboard', { replace: true });
+      } else if (!user.app_role || !user.onboarding_complete) {
+        navigate('/select-role', { replace: true });
+      } else {
+        navigate(user.app_role === 'caregiver' ? '/caregiver-profile' : '/find-caregivers', { replace: true });
+      }
+    })();
   }, []);
-
-  // Detect invited users: URL tokens OR already authenticated
-  const isInviteLink =
-    searchParams.has('invite_token') ||
-    searchParams.has('access_token') ||
-    searchParams.has('token') ||
-    searchParams.get('type') === 'invite' ||
-    alreadyLoggedIn;
-
-  if (isInviteLink) {
-    return (
-      <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white border border-[#E5E2DC] rounded-xl shadow-lg p-8 text-center space-y-6">
-          <div className="mx-auto w-16 h-16 bg-[#E5E2DC] rounded-full flex items-center justify-center">
-            <Users className="w-8 h-8 text-[#643737]" />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-[#0C2119] mb-2">You've been invited!</h2>
-            <p className="text-[#643737]">
-              Your account is already set up. Use the <strong>"Forgot Password"</strong> option on the login page to set your password and activate your account.
-            </p>
-          </div>
-          <Button
-            className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
-            onClick={() => navigate(createPageUrl('ForgotPassword'))}
-          >
-            Set my password
-          </Button>
-          <p className="text-sm text-[#9C9F95]">
-            Already set your password?{' '}
-            <button onClick={() => navigate('/login')} className="text-[#C36239] hover:underline">
-              Sign in
-            </button>
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   // Client-side validation
   const validateField = (name, value) => {
