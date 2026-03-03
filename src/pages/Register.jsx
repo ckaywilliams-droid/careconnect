@@ -30,7 +30,6 @@ export default function Register() {
   const roleFromState = location.state?.role || searchParams.get('role');
 
   // ALL hooks must be declared before any conditional returns (React rules of hooks)
-  const [alreadyLoggedIn, setAlreadyLoggedIn] = useState(false);
   const [step, setStep] = useState(roleFromState && ['parent', 'caregiver'].includes(roleFromState) ? 'form' : 'role-select');
   const [selectedRole, setSelectedRole] = useState(roleFromState || null);
   const [formData, setFormData] = useState({
