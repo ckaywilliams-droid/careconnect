@@ -55,9 +55,10 @@ export default function VerifyEmail() {
           setIsVerified(true);
           clearInterval(pollInterval);
           
-          // F-029 UI.2: Auto-redirect after 2 seconds
+          // F-021B: After email verification, redirect to /select-role
+          // The onboarding guard will then route them appropriately
           setTimeout(() => {
-            window.location.href = '/dashboard';
+            window.location.href = '/select-role';
           }, 2000);
         }
       } catch (error) {
