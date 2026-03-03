@@ -106,6 +106,38 @@ export default function RoleSelection() {
           </div>
         )}
 
+        {/* ToS acceptance — shown to authenticated users before confirming role */}
+        {isAuthenticated && (
+          <div className="max-w-md mx-auto mb-8 bg-white border border-[#E5E2DC] rounded-xl p-4 flex items-start gap-3">
+            <Checkbox
+              id="tos"
+              checked={tosAccepted}
+              onCheckedChange={setTosAccepted}
+              className="mt-0.5"
+            />
+            <Label htmlFor="tos" className="text-sm text-[#643737] font-normal leading-relaxed cursor-pointer">
+              I agree to the{' '}
+              <Link to="/legal/terms-of-service" target="_blank" className="text-[#C36239] underline hover:text-[#75290F]">
+                Terms of Service
+              </Link>{' '}and{' '}
+              <Link to="/legal/privacy-policy" target="_blank" className="text-[#C36239] underline hover:text-[#75290F]">
+                Privacy Policy
+              </Link>
+            </Label>
+          </div>
+        )}
+
+        {!tosAccepted && pendingRole && isAuthenticated && (
+          <div className="max-w-md mx-auto mb-4">
+            <Alert className="border-amber-300 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800">
+                Please accept the Terms of Service above before continuing.
+              </AlertDescription>
+            </Alert>
+          </div>
+        )}
+
         <div className="grid md:grid-cols-2 gap-8">
           {/* Parent Card */}
           <Card
