@@ -55,11 +55,11 @@ export default function RoleSelection() {
       if (response.data?.error) {
         throw new Error(response.data.error);
       }
-      // Onboarding complete — redirect to the appropriate dashboard
+      // Onboarding complete — redirect to role-specific next step
       if (role === 'caregiver') {
-        window.location.href = '/caregiver-profile';
+        window.location.href = '/create-mini-site';
       } else {
-        window.location.href = '/find-caregivers';
+        window.location.href = '/parent-details';
       }
     } catch (err) {
       const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';
