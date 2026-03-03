@@ -141,7 +141,7 @@ export default function VerifyEmail() {
           
           {/* F-029 UI.2: Message */}
           <p className="text-[#E5E2DC] text-lg mb-6">
-            Taking you to your dashboard...
+            Taking you to finish setup...
           </p>
           
           <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#E5E2DC]" />
