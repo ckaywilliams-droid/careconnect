@@ -101,7 +101,7 @@ export default function Home() {
                   My Dashboard
                 </Button>
               ) : (
-                // Unauthenticated - show Sign In and role-specific Sign Up buttons
+                // Unauthenticated - show Sign In and Register Now
                 <>
                   <Button
                     variant="ghost"
@@ -110,17 +110,10 @@ export default function Home() {
                     Sign In
                   </Button>
                   <Button
-                    variant="outline"
-                    className="hidden sm:inline-flex"
-                    onClick={() => navigate(createPageUrl('Register'), { state: { role: 'parent' } })}
-                  >
-                    Sign up as Parent
-                  </Button>
-                  <Button
                     className="bg-[#C36239] hover:bg-[#75290F] text-white"
-                    onClick={() => navigate(createPageUrl('Register'), { state: { role: 'caregiver' } })}
+                    onClick={() => navigate(createPageUrl('Register'))}
                   >
-                    Become a Caregiver
+                    Register Now
                   </Button>
                 </>
               )}
