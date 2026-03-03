@@ -47,8 +47,6 @@ export default function Layout({ children, currentPageName }) {
             navigate('/select-role', { replace: true });
             return;
           }
-        } else if (!isAdmin && pageKey === 'roleselection') {
-          navigate('/home', { replace: true });
         }
       } catch (e) {
         // Not authenticated or error — let the page handle it
