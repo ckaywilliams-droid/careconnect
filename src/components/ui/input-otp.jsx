@@ -1,7 +1,6 @@
 import * as React from "react"
 import { OTPInput, OTPInputContext } from "input-otp"
 import { Minus } from "lucide-react"
-
 import { cn } from "@/lib/utils"
 
 const InputOTP = React.forwardRef(({ className, containerClassName, ...props }, ref) => (
@@ -9,7 +8,8 @@ const InputOTP = React.forwardRef(({ className, containerClassName, ...props }, 
     ref={ref}
     containerClassName={cn("flex items-center gap-2 has-[:disabled]:opacity-50", containerClassName)}
     className={cn("disabled:cursor-not-allowed", className)}
-    {...props} />
+    {...props}
+  />
 ))
 InputOTP.displayName = "InputOTP"
 
@@ -21,7 +21,6 @@ InputOTPGroup.displayName = "InputOTPGroup"
 const InputOTPSlot = React.forwardRef(({ index, className, ...props }, ref) => {
   const inputOTPContext = React.useContext(OTPInputContext)
   const { char, hasFakeCaret, isActive } = inputOTPContext.slots[index]
-
   return (
     <div
       ref={ref}
@@ -30,7 +29,8 @@ const InputOTPSlot = React.forwardRef(({ index, className, ...props }, ref) => {
         isActive && "z-10 ring-1 ring-ring",
         className
       )}
-      {...props}>
+      {...props}
+    >
       {char}
       {hasFakeCaret && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -38,7 +38,7 @@ const InputOTPSlot = React.forwardRef(({ index, className, ...props }, ref) => {
         </div>
       )}
     </div>
-  );
+  )
 })
 InputOTPSlot.displayName = "InputOTPSlot"
 
