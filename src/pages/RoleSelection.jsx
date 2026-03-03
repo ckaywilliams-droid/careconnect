@@ -41,11 +41,23 @@ export default function RoleSelection() {
     setError('');
 
     try {
-      await base44.functions.invoke('initializeRole', { role });
-      // Onboarding complete — navigate to dashboard
-      navigate(createPageUrl('CaregiverProfile'), { replace: true });
+      const response = await base44.functions.invoke('initializeRole', { role });
+      if (response.data?.error) {
+        throw new Error(response.data.error);
+      }
+      // Onboarding complete — redirect to the appropriate dashboard
+      if (role === 'caregiver') {
+        window.location.href = '/caregiver-profile';
+      } else {
+        window.location.href = '/find-caregivers';
+      }
     } catch (err) {
       const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';
+      // Don't show "already complete" as an error — just redirect
+      if (msg.includes('already complete')) {
+        window.location.href = '/find-caregivers';
+        return;
+      }
       setError(msg);
     } finally {
       setLoading(false);
