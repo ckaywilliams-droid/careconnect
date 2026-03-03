@@ -39,9 +39,10 @@ export default function Layout({ children, currentPageName }) {
 
         // F-021B Global Route Guard:
         // If logged in AND (role == null OR onboarding_complete == false)
-        // → redirect to /select-role (RoleSelection page)
-        if (!user.app_role || !user.onboarding_complete) {
-          // Avoid redirect loop if already on RoleSelection
+        // AND not an admin role → redirect to /select-role
+        const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
+        const isAdmin = adminRoles.includes(user.app_role);
+        if (!isAdmin && (!user.app_role || !user.onboarding_complete)) {
           if (pageKey !== 'roleselection' && pageKey !== 'selectrole') {
             navigate('/select-role', { replace: true });
             return;
