@@ -156,11 +156,11 @@ export default function RoleSelection() {
             <CardContent className="text-center">
               <Button
                 size="lg"
-                className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
-                disabled={loading}
+                className="w-full bg-[#C36239] hover:bg-[#75290F] text-white disabled:opacity-50"
+                disabled={loading || (isAuthenticated && !tosAccepted)}
                 onClick={(e) => { e.stopPropagation(); selectRole('parent'); }}
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
+                {loading && pendingRole === 'parent' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
               </Button>
             </CardContent>
           </Card>
