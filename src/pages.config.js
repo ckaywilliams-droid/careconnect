@@ -57,6 +57,7 @@ import CaregiverAvailability from './pages/CaregiverAvailability';
 import CaregiverProfile from './pages/CaregiverProfile';
 import DisputeDetail from './pages/DisputeDetail';
 import EmailVerified from './pages/EmailVerified';
+import FindCaregivers from './pages/FindCaregivers';
 import ForgotPassword from './pages/ForgotPassword';
 import Home from './pages/Home';
 import ModerationQueue from './pages/ModerationQueue';
@@ -67,7 +68,7 @@ import RoleSelection from './pages/RoleSelection';
 import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
-import FindCaregivers from './pages/FindCaregivers';
+import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
@@ -81,6 +82,7 @@ export const PAGES = {
     "CaregiverProfile": CaregiverProfile,
     "DisputeDetail": DisputeDetail,
     "EmailVerified": EmailVerified,
+    "FindCaregivers": FindCaregivers,
     "ForgotPassword": ForgotPassword,
     "Home": Home,
     "ModerationQueue": ModerationQueue,
@@ -91,10 +93,10 @@ export const PAGES = {
     "SubmitEvidence": SubmitEvidence,
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
-    "FindCaregivers": FindCaregivers,
 }
 
 export const pagesConfig = {
     mainPage: "RoleSelection",
     Pages: PAGES,
+    Layout: __Layout,
 };
