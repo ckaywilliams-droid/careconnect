@@ -26,6 +26,8 @@ export default function RoleSelection() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [tosAccepted, setTosAccepted] = useState(false);
+  const [pendingRole, setPendingRole] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(null);
 
   useEffect(() => {
@@ -36,6 +38,12 @@ export default function RoleSelection() {
     // If not yet authenticated (reached here pre-login), navigate to register with role hint
     if (!isAuthenticated) {
       navigate(createPageUrl('Register'), { state: { role } });
+      return;
+    }
+
+    // Show ToS confirmation step before submitting
+    if (!tosAccepted) {
+      setPendingRole(role);
       return;
     }
 
