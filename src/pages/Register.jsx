@@ -25,13 +25,7 @@ import PasswordStrengthIndicator from '@/components/PasswordStrengthIndicator';
  */
 export default function Register() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
-  const roleFromState = location.state?.role || searchParams.get('role');
 
-  // ALL hooks must be declared before any conditional returns (React rules of hooks)
-  const [step, setStep] = useState(roleFromState && ['parent', 'caregiver'].includes(roleFromState) ? 'form' : 'role-select');
-  const [selectedRole, setSelectedRole] = useState(roleFromState || null);
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
