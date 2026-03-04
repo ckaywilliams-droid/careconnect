@@ -45,7 +45,9 @@ export default function Layout({ children, currentPageName }) {
         // AND not an admin role → redirect to /select-role
         const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
         const isAdmin = adminRoles.includes(user.app_role);
-        if (!isAdmin && (!user.app_role || !user.onboarding_complete)) {
+        // Don't redirect if user is on the email verification page
+        const isVerifyPage = pageKey === 'verifyemail' || pageKey === 'emailverified';
+        if (!isAdmin && !isVerifyPage && (!user.app_role || !user.onboarding_complete)) {
           if (pageKey !== 'roleselection' && pageKey !== 'selectrole') {
             navigate('/select-role', { replace: true });
             return;
