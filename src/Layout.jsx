@@ -13,6 +13,9 @@ const PUBLIC_PAGES = [
   'moderationqueue', 'submitevidence', 'disputedetail'
 ];
 
+// Also treat the /verify-email path as public so the OTP entry page is never intercepted
+const PUBLIC_PATHS = ['/verify-email', '/email-verified'];
+
 export default function Layout({ children, currentPageName }) {
   const navigate = useNavigate();
   const location = useLocation();
