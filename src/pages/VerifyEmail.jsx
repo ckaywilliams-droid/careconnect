@@ -24,6 +24,7 @@ export default function VerifyEmail() {
 
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
+  const [initialized, setInitialized] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendCount, setResendCount] = useState(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
