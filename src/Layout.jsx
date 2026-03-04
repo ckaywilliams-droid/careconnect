@@ -10,8 +10,7 @@ const PUBLIC_PAGES = [
   'home', 'findcaregivers', 'publiccaregiverprofile',
   'suspendedaccount', 'adminlogin', 'adminfirstlogin',
   'admindashboard', 'adminusers', 'adminroles', 'admindisputedashboard',
-  'moderationqueue', 'submitevidence', 'disputedetail',
-  'verifyotp', 'otpverify'
+  'moderationqueue', 'submitevidence', 'disputedetail'
 ];
 
 
