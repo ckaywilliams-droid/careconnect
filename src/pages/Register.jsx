@@ -122,7 +122,7 @@ export default function Register() {
         full_name: formData.full_name.trim()
       });
 
-      navigate('/verify-email', {
+      navigate('/VerifyEmail', {
         state: {
           email: formData.email.toLowerCase().trim()
         }
