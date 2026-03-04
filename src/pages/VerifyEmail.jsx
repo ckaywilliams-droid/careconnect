@@ -11,7 +11,16 @@ export default function VerifyEmail() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
-  const email = location.state?.email || searchParams.get('email');
+  const [email, setEmail] = useState(location.state?.email || searchParams.get('email') || '');
+
+  // Fallback: fetch email from current user if not passed via navigation
+  useEffect(() => {
+    if (!email) {
+      base44.auth.me().then(user => {
+        if (user?.email) setEmail(user.email);
+      }).catch(() => {});
+    }
+  }, []);
 
   const [otp, setOtp] = useState('');
   const [loading, setLoading] = useState(false);
