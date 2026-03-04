@@ -10,11 +10,11 @@ const PUBLIC_PAGES = [
   'home', 'findcaregivers', 'publiccaregiverprofile',
   'suspendedaccount', 'adminlogin', 'adminfirstlogin',
   'admindashboard', 'adminusers', 'adminroles', 'admindisputedashboard',
-  'moderationqueue', 'submitevidence', 'disputedetail'
+  'moderationqueue', 'submitevidence', 'disputedetail',
+  'verifyotp', 'otpverify'
 ];
 
-// Also treat the /verify-email path as public so the OTP entry page is never intercepted
-const PUBLIC_PATHS = ['/verify-email', '/email-verified'];
+
 
 export default function Layout({ children, currentPageName }) {
   const navigate = useNavigate();
