@@ -18,7 +18,9 @@ export default function VerifyEmail() {
     if (!email) {
       base44.auth.me().then(user => {
         if (user?.email) setEmail(user.email);
-      }).catch(() => {});
+      }).catch(() => {}).finally(() => setInitialized(true));
+    } else {
+      setInitialized(true);
     }
   }, []);
 
