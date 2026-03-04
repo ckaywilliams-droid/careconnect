@@ -122,10 +122,9 @@ export default function Register() {
         full_name: formData.full_name.trim()
       });
 
-      navigate(createPageUrl('VerifyEmail'), {
+      navigate('/verify-email', {
         state: {
-          email: formData.email.toLowerCase().trim(),
-          message: 'Registration successful! Please check your email to verify your account.'
+          email: formData.email.toLowerCase().trim()
         }
       });
     } catch (error) {
