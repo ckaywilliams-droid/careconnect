@@ -4,9 +4,9 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     
-    // Extract slug from URL
-    const url = new URL(req.url);
-    const slug = url.searchParams.get('slug');
+    // Extract slug from request body
+    const body = await req.json().catch(() => ({}));
+    const slug = body.slug;
     
     if (!slug) {
       return Response.json({ error: 'Slug required' }, { status: 400 });
