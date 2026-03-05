@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, MapPin, Star, AlertCircle, Edit2 } from 'lucide-react';
+import { CheckCircle2, MapPin, Star, AlertCircle, Edit2, Copy, Check } from 'lucide-react';
 
 export default function PublicCaregiverProfile() {
   const [searchParams] = useSearchParams();
@@ -19,6 +19,7 @@ export default function PublicCaregiverProfile() {
   const [error, setError] = useState(null);
   const [user, setUser] = useState(null);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
