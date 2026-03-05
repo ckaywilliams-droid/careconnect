@@ -101,19 +101,33 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
             <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">Time Range</Label>
                 <div className="flex items-center gap-2">
-                    <Input
-                        type="time"
+                    <select
                         value={filters.time_from || ''}
                         onChange={e => set('time_from', e.target.value)}
-                        className="text-sm w-full"
-                    />
-                    <span className="text-gray-400 shrink-0">–</span>
-                    <Input
-                        type="time"
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-gray-700"
+                    >
+                        <option value="">From</option>
+                        {Array.from({ length: 24 }, (_, h) => [
+                            { value: `${String(h).padStart(2,'0')}:00`, label: h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h-12}:00 PM` },
+                            { value: `${String(h).padStart(2,'0')}:30`, label: h === 0 ? '12:30 AM' : h < 12 ? `${h}:30 AM` : h === 12 ? '12:30 PM' : `${h-12}:30 PM` },
+                        ]).flat().map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                    <span className="text-gray-400 shrink-0 text-sm">–</span>
+                    <select
                         value={filters.time_to || ''}
                         onChange={e => set('time_to', e.target.value)}
-                        className="text-sm w-full"
-                    />
+                        className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring text-gray-700"
+                    >
+                        <option value="">To</option>
+                        {Array.from({ length: 24 }, (_, h) => [
+                            { value: `${String(h).padStart(2,'0')}:00`, label: h === 0 ? '12:00 AM' : h < 12 ? `${h}:00 AM` : h === 12 ? '12:00 PM' : `${h-12}:00 PM` },
+                            { value: `${String(h).padStart(2,'0')}:30`, label: h === 0 ? '12:30 AM' : h < 12 ? `${h}:30 AM` : h === 12 ? '12:30 PM' : `${h-12}:30 PM` },
+                        ]).flat().map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
                 </div>
             </div>
 
