@@ -286,59 +286,29 @@ export default function FindCaregivers() {
             </div>
 
             <div className="container mx-auto px-4 py-5">
-                {/* Results count bar */}
+                {/* F-071 UI.3: Results count header */}
                 <div className="mb-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                        <div className="text-sm text-gray-600">
-                            {loading ? (
-                                <Skeleton className="h-4 w-44" />
-                            ) : (
-                                <>
-                                    <span className="font-semibold text-gray-900">{totalCount.toLocaleString()}</span>{' '}
-                                    caregiver{totalCount !== 1 ? 's' : ''} available
-                                    {filters.date && (
-                                        <> on <span className="font-medium text-gray-800">{displayDate}</span></>
-                                    )}
-                                    {(filters.city || filters.zip) && (
-                                        <> in <span className="font-medium text-gray-800">{filters.city || filters.zip}</span></>
-                                    )}
-                                </>
-                            )}
-                        </div>
-                        {activeFilterCount > 0 && (
-                            <button
-                                className="text-sm text-[#C36239] hover:underline flex items-center gap-1"
-                                onClick={handleReset}
-                            >
-                                <X className="w-3 h-3" /> Clear filters
-                            </button>
+                    <div className="text-sm text-gray-500">
+                        {loading ? (
+                            <Skeleton className="h-4 w-56" />
+                        ) : (
+                            <>
+                                <span className="font-semibold text-gray-900">{totalCount.toLocaleString()}</span>{' '}
+                                caregiver{totalCount !== 1 ? 's' : ''} found
+                                {activeFilterCount > 0 && ' matching your filters'}
+                                {filters.sort === 'rate_asc' && ', sorted by lowest rate'}
+                                {filters.sort === 'rate_desc' && ', sorted by highest rate'}
+                            </>
                         )}
                     </div>
 
-                    {/* F-066/F-067 UI.2: Active filter chips */}
-                    {(filters.verified || (filters.sort && filters.sort !== 'newest')) && (
-                        <div className="flex flex-wrap gap-2">
-                            {filters.verified && (
-                                <button
-                                    onClick={() => handleFiltersChangeAndSearch({ ...filters, verified: false, _trigger: Date.now() })}
-                                    className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-300 rounded-full px-2.5 py-0.5 text-xs font-medium hover:bg-amber-200 transition-colors"
-                                >
-                                    <ShieldCheck className="w-3 h-3" />
-                                    Verified only
-                                    <X className="w-3 h-3 ml-0.5" />
-                                </button>
-                            )}
-                            {filters.sort && filters.sort !== 'newest' && (
-                                <button
-                                    onClick={() => handleFiltersChangeAndSearch({ ...filters, sort: 'newest', _trigger: Date.now() })}
-                                    className="inline-flex items-center gap-1 bg-[#C36239]/10 text-[#C36239] border border-[#C36239]/30 rounded-full px-2.5 py-0.5 text-xs font-medium hover:bg-[#C36239]/20 transition-colors"
-                                >
-                                    Sorted: {filters.sort === 'rate_asc' ? 'Lowest rate' : 'Highest rate'}
-                                    <X className="w-3 h-3 ml-0.5" />
-                                </button>
-                            )}
-                        </div>
-                    )}
+                    {/* F-071 UI.2: Full active filter chips row */}
+                    <ActiveFilterChips
+                        filters={filters}
+                        onChange={handleFiltersChangeAndSearch}
+                        onReset={handleReset}
+                        TODAY={TODAY}
+                    />
                 </div>
 
                 <div className="flex gap-5">
