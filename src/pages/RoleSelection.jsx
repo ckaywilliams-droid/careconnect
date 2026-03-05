@@ -153,7 +153,7 @@ export default function RoleSelection() {
           {/* Parent Card */}
           <Card
             className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
-            onClick={() => !loading && selectRole('parent')}
+            onClick={() => !loading && tosAccepted && selectRole('parent')}
           >
             <CardHeader className="text-center pb-4">
               <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
@@ -179,7 +179,7 @@ export default function RoleSelection() {
           {/* Caregiver Card */}
           <Card
             className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
-            onClick={() => !loading && selectRole('caregiver')}
+            onClick={() => !loading && tosAccepted && selectRole('caregiver')}
           >
             <CardHeader className="text-center pb-4">
               <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
