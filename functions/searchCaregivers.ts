@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
             zip,
             city,
             state,
-            age_group,
+            age_groups: rawAgeGroups,
             service,
             verified,
             min_rate,
@@ -72,6 +72,12 @@ Deno.serve(async (req) => {
             sort = 'newest',
             page: rawPage = 1,
         } = body;
+
+        // F-065 Abuse.1: validate age_groups against canonical enum; strip invalid values
+        const VALID_AGE_GROUPS = ['newborn_0_1', 'toddler_1_3', 'preschool_3_5', 'school_age_5_12', 'teenager_13_17'];
+        const age_groups = Array.isArray(rawAgeGroups)
+            ? rawAgeGroups.filter(v => VALID_AGE_GROUPS.includes(v))
+            : [];
 
         const page = Math.max(1, parseInt(rawPage) || 1);
 
