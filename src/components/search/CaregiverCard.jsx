@@ -31,8 +31,9 @@ export default function CaregiverCard({ caregiver, user, requestedDate }) {
         ? caregiver.services_offered.split(',').map(s => s.trim()).filter(Boolean)
         : [];
 
-    const rate = caregiver.hourly_rate_cents
-        ? `$${(caregiver.hourly_rate_cents / 100).toFixed(0)}/hr`
+    // F-070 Logic.3: hourly_rate is now a dollar string from the server (e.g. "18.50")
+    const rate = caregiver.hourly_rate != null
+        ? `$${parseFloat(caregiver.hourly_rate).toFixed(0)}/hr`
         : null;
 
     const profileUrl = caregiver.slug
