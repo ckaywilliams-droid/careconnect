@@ -117,9 +117,8 @@ export default function RoleSelection() {
           </div>
         )}
 
-        {/* ToS acceptance — shown to authenticated users before confirming role */}
-        {isAuthenticated && (
-          <div className="max-w-md mx-auto mb-8 bg-white border border-[#E5E2DC] rounded-xl p-4 flex items-start gap-3">
+        {/* ToS acceptance */}
+        <div className="max-w-md mx-auto mb-8 bg-white border border-[#E5E2DC] rounded-xl p-4 flex items-start gap-3">
             <Checkbox
               id="tos"
               checked={tosAccepted}
