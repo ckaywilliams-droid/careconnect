@@ -18,6 +18,13 @@ const PUBLIC_PAGES = [
 export default function Layout({ children, currentPageName }) {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Redirect Base44's native email link /verify-email → /VerifyEmail
+  if (location.pathname === '/verify-email') {
+    const search = location.search;
+    window.location.replace('/VerifyEmail' + search);
+    return null;
+  }
   const [checking, setChecking] = useState(true);
 
   const pageKey = (currentPageName || '').toLowerCase().replace(/[^a-z]/g, '');
