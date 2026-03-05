@@ -16,6 +16,9 @@ export default function Home() {
   const [authChecked, setAuthChecked] = useState(false);
   const [location, setLocation] = useState('');
   const [date, setDate] = useState('');
+  const [heroImageUrl, setHeroImageUrl] = useState('https://images.unsplash.com/photo-1531983412531-1f49a365ffed?w=1600');
+  const [showHeroUpload, setShowHeroUpload] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -32,6 +35,18 @@ export default function Home() {
         setUser(null);
       } finally {
         setAuthChecked(true);
+      }
+
+      // Load hero image URL from AppSettings
+      try {
+        const appSettings = await base44.entities.AppSettings.filter(
+          { key: 'hero_image_url' }
+        );
+        if (appSettings.length > 0 && appSettings[0].value) {
+          setHeroImageUrl(appSettings[0].value);
+        }
+      } catch {
+        // Fall back to default
       }
 
       // Load featured caregivers (verified, published, limit 4)
@@ -63,6 +78,34 @@ export default function Home() {
     navigate(url);
   };
 
+  const handleHeroImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      
+      // Update AppSettings record
+      const appSettings = await base44.entities.AppSettings.filter(
+        { key: 'hero_image_url' }
+      );
+      if (appSettings.length > 0) {
+        await base44.entities.AppSettings.update(appSettings[0].id, {
+          value: file_url,
+          updated_by: user.id,
+          updated_at: new Date().toISOString()
+        });
+        setHeroImageUrl(file_url);
+        setShowHeroUpload(false);
+      }
+    } catch (err) {
+      console.error('Error uploading hero image:', err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Sticky Navigation Header */}
@@ -92,8 +135,8 @@ export default function Home() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const dashboardPage = user.app_role === 'parent' ? 'ParentDashboard' : 
-                                         user.app_role === 'caregiver' ? 'CaregiverDashboard' : 
+                    const dashboardPage = user.app_role === 'parent' ? 'FindCaregivers' :
+                                         user.app_role === 'caregiver' ? 'CaregiverProfile' :
                                          'AdminDashboard';
                     navigate(createPageUrl(dashboardPage));
                   }}
@@ -126,9 +169,32 @@ export default function Home() {
       <div 
         className="relative h-[600px] bg-cover bg-center"
         style={{
-          backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1531983412531-1f49a365ffed?w=1600')"
+          backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('${heroImageUrl}')`
         }}
       >
+        {user?.app_role === 'super_admin' && (
+          <button
+            onClick={() => setShowHeroUpload(!showHeroUpload)}
+            className="absolute top-4 right-4 bg-white hover:bg-gray-100 text-[#C36239] px-4 py-2 rounded-lg shadow-lg font-medium text-sm"
+          >
+            Edit Hero Image
+          </button>
+        )}
+        
+        {showHeroUpload && user?.app_role === 'super_admin' && (
+          <div className="absolute top-16 right-4 bg-white rounded-lg shadow-xl p-4 w-80 z-50">
+            <h3 className="font-bold text-gray-900 mb-3">Upload Hero Image</h3>
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleHeroImageUpload}
+              disabled={uploading}
+              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+            />
+            {uploading && <p className="text-sm text-gray-600 mt-2">Uploading...</p>}
+          </div>
+        )}
+      </div>
         <div className="container mx-auto px-4 h-full flex items-center">
           <div className="max-w-3xl text-white">
             {/* Badge */}
@@ -220,11 +286,19 @@ export default function Home() {
               onClick={() => navigate(createPageUrl('PublicCaregiverProfile') + '?slug=' + caregiver.slug)}
             >
               <div className="relative">
-                <img
-                  src={caregiver.profile_photo_url || 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400'}
-                  alt={caregiver.display_name}
-                  className="w-full h-64 object-cover"
-                />
+                {caregiver.profile_photo_url ? (
+                  <img
+                    src={caregiver.profile_photo_url}
+                    alt={caregiver.display_name}
+                    className="w-full h-64 object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-64 bg-[#C36239] flex items-center justify-center">
+                    <span className="text-6xl font-bold text-white">
+                      {caregiver.display_name?.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
                 {caregiver.is_verified && (
                   <Badge className="absolute top-3 right-3 bg-green-600 text-white">
                     ✓ Verified
@@ -242,10 +316,10 @@ export default function Home() {
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                     <span className="text-sm font-medium">{caregiver.average_rating || 5.0}</span>
-                  </div>
-                  <span className="font-bold text-gray-900">
-                    ${(caregiver.hourly_rate_cents / 100).toFixed(0)}/hr
-                  </span>
+                    </div>
+                    <span className="font-bold text-gray-900">
+                    {caregiver.hourly_rate_cents ? '$' + (caregiver.hourly_rate_cents / 100).toFixed(0) + '/hr' : 'Rate on request'}
+                    </span>
                 </div>
               </CardContent>
             </Card>
@@ -408,8 +482,8 @@ export default function Home() {
                   </Link>
                 </li>
                 <li>
-                  <Link to={createPageUrl('MyBookings')} className="text-[#9C9F95] hover:text-white">
-                    My Bookings
+                  <Link to={createPageUrl('FindCaregivers')} className="text-[#9C9F95] hover:text-white">
+                    Find Caregivers
                   </Link>
                 </li>
               </ul>
@@ -419,14 +493,9 @@ export default function Home() {
             <div>
               <h4 className="font-bold mb-3">For Caregivers</h4>
               <ul className="space-y-2 text-sm">
-                <li>
-                  <Link to={createPageUrl('CaregiverDashboard')} className="text-[#9C9F95] hover:text-white">
-                    Dashboard
-                  </Link>
-                </li>
-                <li>
+                 <li>
                   <Link to={createPageUrl('CaregiverProfile')} className="text-[#9C9F95] hover:text-white">
-                    Create Profile
+                    My Profile
                   </Link>
                 </li>
               </ul>
