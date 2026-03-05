@@ -25,6 +25,13 @@ Deno.serve(async (req) => {
 
     const profile = profiles[0];
 
+    // F-068 Access.3: Check suspension — return 404 indistinguishable from a missing profile
+    // Never return 403 or any status that reveals the profile exists
+    const userRecords = await base44.asServiceRole.entities.User.filter({ id: profile.user_id }, null, 1);
+    if (userRecords.length === 0 || userRecords[0].is_suspended) {
+        return Response.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
     // Generate signed URLs for images (60-min expiry)
     let profilePhotoUrl = null;
     let headerImageUrl = null;
