@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Search, Calendar, CheckCircle, Shield, Award, Users, Star, MapPin } from 'lucide-react';
+import { Search, Calendar, CheckCircle, Shield, Award, Users, Star, MapPin, Pencil } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -82,27 +83,62 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      toast.error('Only JPG and PNG images are allowed.');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size cannot exceed 5MB.');
+      return;
+    }
+
     setUploading(true);
     try {
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       
-      // Update AppSettings record
-      const appSettings = await base44.entities.AppSettings.filter(
-        { key: 'hero_image_url' }
-      );
+      const appSettings = await base44.entities.AppSettings.filter({ key: 'hero_image_url' });
       if (appSettings.length > 0) {
-        await base44.entities.AppSettings.update(appSettings[0].id, {
+        await base44.asServiceRole.entities.AppSettings.update(appSettings[0].id, {
           value: file_url,
           updated_by: user.id,
           updated_at: new Date().toISOString()
         });
-        setHeroImageUrl(file_url);
-        setShowHeroUpload(false);
+      } else {
+        await base44.asServiceRole.entities.AppSettings.create({
+          key: 'hero_image_url',
+          value: file_url,
+          updated_by: user.id,
+          updated_at: new Date().toISOString()
+        });
       }
+      setHeroImageUrl(file_url);
+      setShowHeroUpload(false);
+      toast.success('Hero image updated successfully!');
     } catch (err) {
       console.error('Error uploading hero image:', err);
+      toast.error('Failed to upload hero image.');
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleRemoveHeroImage = async () => {
+    try {
+      const appSettings = await base44.entities.AppSettings.filter({ key: 'hero_image_url' });
+      if (appSettings.length > 0) {
+        await base44.asServiceRole.entities.AppSettings.update(appSettings[0].id, {
+          value: '',
+          updated_by: user.id,
+          updated_at: new Date().toISOString()
+        });
+      }
+      setHeroImageUrl('https://images.unsplash.com/photo-1531983412531-1f49a365ffed?w=1600');
+      setShowHeroUpload(false);
+      toast.success('Custom hero image removed.');
+    } catch (err) {
+      console.error('Error removing hero image:', err);
+      toast.error('Failed to remove custom hero image.');
     }
   };
 
@@ -137,7 +173,7 @@ export default function Home() {
                   onClick={() => {
                     const dashboardPage = user.app_role === 'parent' ? 'FindCaregivers' :
                                          user.app_role === 'caregiver' ? 'CaregiverProfile' :
-                                         'AdminDashboard';
+                                         user.app_role === 'super_admin' ? 'AdminDashboard' : 'Home';
                     navigate(createPageUrl(dashboardPage));
                   }}
                 >
@@ -173,12 +209,14 @@ export default function Home() {
         }}
       >
         {user?.app_role === 'super_admin' && (
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setShowHeroUpload(!showHeroUpload)}
-            className="absolute top-4 right-4 bg-white hover:bg-gray-100 text-[#C36239] px-4 py-2 rounded-lg shadow-lg font-medium text-sm"
+            className="absolute top-4 right-4 bg-white hover:bg-gray-100 text-[#C36239] px-3 py-1.5 rounded-lg shadow-lg font-medium text-xs flex items-center gap-1"
           >
-            Edit Hero Image
-          </button>
+            <Pencil className="w-3 h-3" /> Edit Hero Image
+          </Button>
         )}
         
         {showHeroUpload && user?.app_role === 'super_admin' && (
@@ -186,12 +224,23 @@ export default function Home() {
             <h3 className="font-bold text-gray-900 mb-3">Upload Hero Image</h3>
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg, image/png"
               onChange={handleHeroImageUpload}
               disabled={uploading}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full p-2 border border-gray-300 rounded-lg text-sm mb-2"
             />
             {uploading && <p className="text-sm text-gray-600 mt-2">Uploading...</p>}
+            {heroImageUrl !== 'https://images.unsplash.com/photo-1531983412531-1f49a365ffed?w=1600' && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleRemoveHeroImage}
+                className="w-full mt-2"
+                disabled={uploading}
+              >
+                Remove Custom Image
+              </Button>
+            )}
           </div>
         )}
 
@@ -318,7 +367,7 @@ export default function Home() {
                     <span className="text-sm font-medium">{caregiver.average_rating || 5.0}</span>
                     </div>
                     <span className="font-bold text-gray-900">
-                    {caregiver.hourly_rate_cents ? '$' + (caregiver.hourly_rate_cents / 100).toFixed(0) + '/hr' : 'Rate on request'}
+                    {(caregiver.hourly_rate_cents && caregiver.hourly_rate_cents > 0) ? '$' + (caregiver.hourly_rate_cents / 100).toFixed(0) + '/hr' : 'Rate on request'}
                     </span>
                 </div>
               </CardContent>
@@ -476,11 +525,6 @@ export default function Home() {
             <div>
               <h4 className="font-bold mb-3">For Families</h4>
               <ul className="space-y-2 text-sm">
-                <li>
-                  <Link to={createPageUrl('FindCaregivers')} className="text-[#9C9F95] hover:text-white">
-                    Find Caregivers
-                  </Link>
-                </li>
                 <li>
                   <Link to={createPageUrl('FindCaregivers')} className="text-[#9C9F95] hover:text-white">
                     Find Caregivers
