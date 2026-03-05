@@ -93,25 +93,33 @@ Deno.serve(async (req) => {
       slot_start_time: { $gte: now.toISOString(), $lte: sevenDaysFromNow.toISOString() }
     });
 
+    // F-070 Access.1/Logic.1: Allowlist DTO — only safe public fields included.
+    // hourly_rate as dollar string (Logic.3). avg_rating null when absent (Errors.2).
+    // Excluded: user_id, email, phone, address, zip_code, completion_pct, is_suspended,
+    //           is_published, is_deleted, created_date, updated_date, profile_photo raw URI.
     return Response.json({
       profile: {
         id: profile.id,
         slug: profile.slug,
         display_name: profile.display_name,
-        bio: profile.bio,
+        bio: profile.bio || null,
         profile_photo_url: profilePhotoUrl,
         header_image_url: headerImageUrl,
-        hourly_rate_cents: profile.hourly_rate_cents,
-        services_offered: profile.services_offered,
-        age_groups: profile.age_groups,
-        is_verified: profile.is_verified,
-        average_rating: profile.average_rating,
-        total_reviews: profile.total_reviews,
-        total_bookings_completed: profile.total_bookings_completed,
-        languages: profile.languages,
-        experience_years: profile.experience_years,
-        city: profile.city,
-        state: profile.state
+        // Logic.3: cents → dollar string; never expose raw cents
+        hourly_rate: profile.hourly_rate_cents != null
+          ? (profile.hourly_rate_cents / 100).toFixed(2)
+          : null,
+        services_offered: profile.services_offered || null,
+        age_groups: profile.age_groups || null,
+        languages: profile.languages || null,
+        is_verified: profile.is_verified || false,
+        // Errors.2: null when no reviews — never 0
+        average_rating: (profile.average_rating && profile.average_rating > 0) ? profile.average_rating : null,
+        total_reviews: profile.total_reviews || 0,
+        total_bookings_completed: profile.total_bookings_completed || 0,
+        experience_years: profile.experience_years || null,
+        city: profile.city || null,
+        state: profile.state || null,
       },
       certifications: certifications.map(c => ({
         id: c.id,
