@@ -112,6 +112,16 @@ Deno.serve(async (req) => {
         // Fetch profiles
         let profiles = await base44.asServiceRole.entities.CaregiverProfile.filter(filter, sortField, 1000);
 
+        // F-065 Logic.1/Data.3: Age group overlap filter (OR within group) — post-fetch JS
+        // Applied before suspension check for efficiency
+        if (age_groups.length > 0) {
+            profiles = profiles.filter(c => {
+                if (!c.age_groups) return false;
+                const caregiverGroups = c.age_groups.split(',').map(v => v.trim());
+                return age_groups.some(selected => caregiverGroups.includes(selected));
+            });
+        }
+
         // ── Data.3: Suspension exclusion — mandatory, hard-coded, cannot be bypassed ──
         // Fetch all suspended user IDs and exclude their profiles from results.
         const suspendedUsers = await base44.asServiceRole.entities.User.filter(
