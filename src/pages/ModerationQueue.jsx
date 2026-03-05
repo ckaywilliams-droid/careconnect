@@ -45,7 +45,7 @@ export default function ModerationQueue() {
 
         // F-040 Access.1: Admin access required
         const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
-        if (!adminRoles.includes(currentUser.role)) {
+        if (!adminRoles.includes(currentUser.app_role)) {
           setError('Access denied. Admin access required for moderation queue.');
           setTimeout(() => window.location.href = '/', 2000);
         }
