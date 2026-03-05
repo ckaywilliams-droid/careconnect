@@ -9,6 +9,16 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        console.log('User object fields:', JSON.stringify({
+          id: user.id,
+          full_name: user.full_name,
+          name: user.name,
+          display_name: user.display_name,
+          email: user.email,
+          first_name: user.first_name,
+          last_name: user.last_name
+        }));
+
         // (2) Reject if already onboarded
         if (user.onboarding_complete) {
             return Response.json({ error: 'Role already selected' }, { status: 409 });
