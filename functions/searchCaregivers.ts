@@ -2,9 +2,58 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.18';
 
 const PAGE_SIZE = 20;
 
+// In-memory rate limit & scraping detection store (resets on cold start — acceptable for MVP)
+const ipRequestLog = new Map(); // ip -> { count, windowStart }
+const ipPageLog = new Map();    // ip -> { count, windowStart }
+
+function getRateLimitBucket(map, ip, windowMs) {
+    const now = Date.now();
+    const bucket = map.get(ip) || { count: 0, windowStart: now };
+    if (now - bucket.windowStart > windowMs) {
+        bucket.count = 0;
+        bucket.windowStart = now;
+    }
+    bucket.count++;
+    map.set(ip, bucket);
+    return bucket;
+}
+
 Deno.serve(async (req) => {
+    const reqStart = Date.now();
     try {
         const base44 = createClientFromRequest(req);
+        const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+
+        // ── Abuse.1: Rate limiting ──────────────────────────────────────────
+        let authedUser = null;
+        try { authedUser = await base44.auth.me(); } catch { /* unauthenticated */ }
+
+        const rateLimit = authedUser ? 120 : 60;
+        const rateBucket = getRateLimitBucket(ipRequestLog, ip, 60_000); // 1-minute window
+        if (rateBucket.count > rateLimit) {
+            return Response.json(
+                { error: 'Too many requests. Please wait before searching again.' },
+                { status: 429 }
+            );
+        }
+
+        // ── Abuse.2: Scraping detection ─────────────────────────────────────
+        const scrapeBucket = getRateLimitBucket(ipPageLog, ip, 3_600_000); // 1-hour window
+        if (scrapeBucket.count > 500) {
+            // Alert admin (fire-and-forget)
+            base44.asServiceRole.entities.AbuseAlert.create({
+                alert_type: 'scraping_detected',
+                source_ip: ip,
+                description: `Scraping detected: IP ${ip} made ${scrapeBucket.count} paginated search requests within 1 hour.`,
+                severity: 'high',
+                triggered_at: new Date().toISOString(),
+            }).catch(() => {});
+            return Response.json(
+                { error: 'Too many requests. Please wait before searching again.' },
+                { status: 429 }
+            );
+        }
+
         const body = await req.json().catch(() => ({}));
 
         const {
@@ -26,7 +75,7 @@ Deno.serve(async (req) => {
 
         const page = Math.max(1, parseInt(rawPage) || 1);
 
-        // Mandatory base conditions (Data.3): is_published=true, profile_status=active
+        // Mandatory base conditions (Data.3): is_published=true, profile_status=active, is_deleted=false
         const filter = {
             is_published: true,
             profile_status: 'active',
