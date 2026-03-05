@@ -352,16 +352,26 @@ export default function FindCaregivers() {
                         )}
 
                         {loading ? (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
                                 {Array.from({ length: 6 }).map((_, i) => (
-                                    <div key={i} className="bg-white rounded-xl overflow-hidden shadow-sm">
-                                        <Skeleton className="h-48 w-full" />
-                                        <div className="p-4 space-y-2">
-                                            <Skeleton className="h-4 w-2/3" />
-                                            <Skeleton className="h-3 w-1/2" />
-                                            <Skeleton className="h-3 w-full" />
-                                            <Skeleton className="h-8 w-full mt-2" />
+                                    <div key={i} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-3" style={{ minHeight: 280 }}>
+                                        {/* Photo + name row */}
+                                        <div className="flex items-start gap-3">
+                                            <Skeleton className="w-[80px] h-[80px] rounded-full shrink-0" />
+                                            <div className="flex-1 pt-1 space-y-2">
+                                                <Skeleton className="h-4 w-3/4" />
+                                                <Skeleton className="h-3 w-1/2" />
+                                                <Skeleton className="h-6 w-20 rounded-full mt-1" />
+                                            </div>
                                         </div>
+                                        <Skeleton className="h-3 w-full" />
+                                        <Skeleton className="h-3 w-2/3" />
+                                        <div className="flex gap-1">
+                                            <Skeleton className="h-5 w-16 rounded-full" />
+                                            <Skeleton className="h-5 w-16 rounded-full" />
+                                        </div>
+                                        <div className="flex-1" />
+                                        <Skeleton className="h-11 w-full rounded-md" />
                                     </div>
                                 ))}
                             </div>
