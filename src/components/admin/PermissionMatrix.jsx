@@ -260,24 +260,21 @@ export function hasPermission(user, action) {
  * Check if user is an admin (any admin role)
  */
 export function isAdmin(user) {
-  const role = user?.app_role || user?.role;
-  return ['support_admin', 'trust_admin', 'super_admin'].includes(role);
+  return ['support_admin', 'trust_admin', 'super_admin'].includes(user?.app_role);
 }
 
 /**
  * Check if user is super admin
  */
 export function isSuperAdmin(user) {
-  const role = user?.app_role || user?.role;
-  return role === 'super_admin';
+  return user?.app_role === 'super_admin';
 }
 
 /**
  * Check if user is trust admin or higher
  */
 export function isTrustAdmin(user) {
-  const role = user?.app_role || user?.role;
-  return role === 'trust_admin' || role === 'super_admin';
+  return user?.app_role === 'trust_admin' || user?.app_role === 'super_admin';
 }
 
 export { PERMISSION_MATRIX };
