@@ -105,6 +105,16 @@ Deno.serve(async (req) => {
         // Fetch profiles
         let profiles = await base44.asServiceRole.entities.CaregiverProfile.filter(filter, sortField, 1000);
 
+        // ── Data.3: Suspension exclusion — mandatory, hard-coded, cannot be bypassed ──
+        // Fetch all suspended user IDs and exclude their profiles from results.
+        const suspendedUsers = await base44.asServiceRole.entities.User.filter(
+            { is_suspended: true },
+            null,
+            5000
+        );
+        const suspendedIds = new Set(suspendedUsers.map(u => u.id));
+        profiles = profiles.filter(p => !suspendedIds.has(p.user_id));
+
         // JS-level rate filtering
         if (min_rate !== undefined && min_rate !== '') {
             const minCents = parseInt(min_rate) * 100;
