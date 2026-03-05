@@ -19,6 +19,12 @@ export default function Layout({ children, currentPageName }) {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Base44 hardcodes /verify-email in its email links — redirect to our page
+  if (location.pathname === '/verify-email') {
+    window.location.replace('/VerifyEmail' + location.search);
+    return null;
+  }
+
   const [checking, setChecking] = useState(true);
 
   const pageKey = (currentPageName || '').toLowerCase().replace(/[^a-z]/g, '');
