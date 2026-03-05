@@ -83,15 +83,31 @@ Deno.serve(async (req) => {
       is_deleted: false
     });
 
-    // Fetch availability (next 7 days)
+    // Fetch availability (next 7 days) using correct AvailabilitySlot field names
     const now = new Date();
+    const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
     const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    
-    const availabilitySlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
-      caregiver_profile_id: profile.id,
-      is_available: true,
-      slot_start_time: { $gte: now.toISOString(), $lte: sevenDaysFromNow.toISOString() }
-    });
+    const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    let availabilitySlots = [];
+    try {
+      const rawSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
+        caregiver_profile_id: profile.id,
+        status: 'open',
+        is_blocked: false,
+        slot_date: { $gte: todayStr, $lte: sevenDaysStr }
+      });
+
+      // Map to frontend-expected shape: combine slot_date + start_time/end_time into ISO strings
+      availabilitySlots = (rawSlots || []).map(slot => ({
+        id: slot.id,
+        slot_start_time: new Date(`${slot.slot_date}T${slot.start_time}:00`).toISOString(),
+        slot_end_time: new Date(`${slot.slot_date}T${slot.end_time}:00`).toISOString(),
+      }));
+    } catch (e) {
+      console.error('Failed to fetch availability slots:', e.message);
+      availabilitySlots = [];
+    }
 
     // F-070 Access.1/Logic.1: Allowlist DTO — only safe public fields included.
     // hourly_rate as dollar string (Logic.3). avg_rating null when absent (Errors.2).
