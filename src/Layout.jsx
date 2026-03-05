@@ -25,6 +25,12 @@ export default function Layout({ children, currentPageName }) {
     return null;
   }
 
+  // Redirect /select-role → /RoleSelection
+  if (location.pathname === '/select-role') {
+    window.location.replace('/RoleSelection' + location.search);
+    return null;
+  }
+
   const [checking, setChecking] = useState(true);
 
   const pageKey = (currentPageName || '').toLowerCase().replace(/[^a-z]/g, '');
