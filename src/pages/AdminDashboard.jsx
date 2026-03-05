@@ -73,7 +73,7 @@ export default function AdminDashboard() {
     { id: 'audit', label: 'Audit Log', icon: Flag, roles: ['super_admin'] }
   ];
 
-  const filteredNavItems = user ? navItems.filter(item => item.roles.includes(user.role)) : [];
+  const filteredNavItems = user ? navItems.filter(item => item.roles.includes(user.app_role)) : [];
 
   const renderSection = () => {
     switch (activeSection) {
