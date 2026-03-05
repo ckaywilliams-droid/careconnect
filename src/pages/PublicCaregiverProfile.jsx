@@ -424,6 +424,27 @@ export default function PublicCaregiverProfile() {
             )}
           </CardContent>
         </Card>
+
+        {/* Copy Profile Link Button */}
+        <div className="mb-8 p-4 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC]">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const baseUrl = window.location.origin;
+              const profileUrl = `${baseUrl}/publiccaregiverprofile/${profile.slug}`;
+              navigator.clipboard.writeText(profileUrl);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+            className="w-full"
+          >
+            {copied ? (
+              <><Check className="w-4 h-4 mr-2 text-green-600" /> Copied!</>
+            ) : (
+              <><Copy className="w-4 h-4 mr-2" /> Copy Profile Link</>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Sticky Booking CTA */}
