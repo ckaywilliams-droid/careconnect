@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 Deno.serve(async (req) => {
   try {
@@ -60,22 +60,6 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Log to PIIAccessLog (Audit.2)
-    try {
-      await base44.asServiceRole.entities.PIIAccessLog.create({
-        accessor_user_id: 'public-visitor',
-        accessor_role: 'public',
-        field_accessed: 'profile_photo',
-        target_entity_type: 'CaregiverProfile',
-        target_entity_id: profile.id,
-        access_timestamp: new Date().toISOString(),
-        access_context: 'public_profile_view',
-        ip_address: req.headers.get('x-forwarded-for') || 'unknown'
-      });
-    } catch (e) {
-      console.error('Failed to log PIIAccessLog:', e.message);
-    }
-
     // Fetch certifications (non-suppressed only)
     const certifications = await base44.asServiceRole.entities.Certification.filter({
       caregiver_profile_id: profile.id,
@@ -91,19 +75,21 @@ Deno.serve(async (req) => {
 
     let availabilitySlots = [];
     try {
+      // Fetch all open, unblocked slots for this caregiver and filter date range in JS
       const rawSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
         caregiver_profile_id: profile.id,
         status: 'open',
-        is_blocked: false,
-        slot_date: { $gte: todayStr, $lte: sevenDaysStr }
+        is_blocked: false
       });
 
-      // Map to frontend-expected shape: combine slot_date + start_time/end_time into ISO strings
-      availabilitySlots = (rawSlots || []).map(slot => ({
-        id: slot.id,
-        slot_start_time: new Date(`${slot.slot_date}T${slot.start_time}:00`).toISOString(),
-        slot_end_time: new Date(`${slot.slot_date}T${slot.end_time}:00`).toISOString(),
-      }));
+      // Filter to next 7 days using string comparison on slot_date
+      availabilitySlots = (rawSlots || [])
+        .filter(slot => slot.slot_date >= todayStr && slot.slot_date <= sevenDaysStr)
+        .map(slot => ({
+          id: slot.id,
+          slot_start_time: new Date(`${slot.slot_date}T${slot.start_time}:00`).toISOString(),
+          slot_end_time: new Date(`${slot.slot_date}T${slot.end_time}:00`).toISOString(),
+        }));
     } catch (e) {
       console.error('Failed to fetch availability slots:', e.message);
       availabilitySlots = [];
