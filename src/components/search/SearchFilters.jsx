@@ -8,11 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SlidersHorizontal, X, MapPin, Baby } from 'lucide-react';
 
 const AGE_GROUPS = [
-    { value: 'newborn_0_1', label: 'Newborn (0–1)' },
-    { value: 'toddler_1_3', label: 'Toddler (1–3)' },
-    { value: 'preschool_3_5', label: 'Preschool (3–5)' },
-    { value: 'school_age_5_12', label: 'School Age (5–12)' },
-    { value: 'teenager_13_17', label: 'Teenager (13–17)' },
+    { value: 'newborn_0_1', label: 'Newborn (0–1 yr)' },
+    { value: 'toddler_1_3', label: 'Toddler (1–3 yr)' },
+    { value: 'preschool_3_5', label: 'Preschool (3–5 yr)' },
+    { value: 'school_age_5_12', label: 'School age (5–12 yr)' },
+    { value: 'teenager_13_17', label: 'Teen (13–17 yr)' },
 ];
 
 const SERVICES = [
