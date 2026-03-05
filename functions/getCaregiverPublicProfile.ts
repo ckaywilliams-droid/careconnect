@@ -7,6 +7,7 @@ Deno.serve(async (req) => {
     // Extract slug from request body
     const body = await req.json().catch(() => ({}));
     const slug = body.slug;
+    console.log('getCaregiverPublicProfile called with slug:', slug);
     
     if (!slug) {
       return Response.json({ error: 'Slug required' }, { status: 400 });
