@@ -116,7 +116,8 @@ export default function FindCaregivers() {
                 date: filtersToSearch.date || undefined,
                 time_from: filtersToSearch.time_from || undefined,
                 time_to: filtersToSearch.time_to || undefined,
-                age_group: filtersToSearch.age_group || undefined,
+                age_groups: (Array.isArray(filtersToSearch.age_groups) && filtersToSearch.age_groups.length > 0)
+                    ? filtersToSearch.age_groups : undefined,
                 service: filtersToSearch.service || undefined,
                 languages: filtersToSearch.languages || undefined,
                 verified: filtersToSearch.verified || undefined,
