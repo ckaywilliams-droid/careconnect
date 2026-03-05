@@ -318,7 +318,7 @@ export default function FindCaregivers() {
                     {filters.verified && (
                         <div className="flex flex-wrap gap-2">
                             <button
-                                onClick={() => handleFiltersChangeAndSearch({ ...filters, verified: false })}
+                                onClick={() => handleFiltersChangeAndSearch({ ...filters, verified: false, _trigger: Date.now() })}
                                 className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-300 rounded-full px-2.5 py-0.5 text-xs font-medium hover:bg-amber-200 transition-colors"
                             >
                                 <ShieldCheck className="w-3 h-3" />
