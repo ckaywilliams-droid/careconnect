@@ -31,8 +31,8 @@ export default function PublicCaregiverProfile() {
         setUser(currentUser);
 
         // Fetch caregiver profile
-        const response = await base44.functions.invoke('getCaregiverPublicProfile', {
-          slug: slug
+        const response = await base44.functions.invoke('getCaregiverPublicProfile', {}, {
+          params: { slug }
         });
 
         if (response.status === 404) {
