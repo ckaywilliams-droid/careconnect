@@ -243,7 +243,7 @@ export default function PermissionMatrix() {
  * @returns {boolean} - Whether user has permission
  */
 export function hasPermission(user, action) {
-  const role = user?.app_role || user?.role;
+  const role = user?.app_role;
   if (!role) return false;
   
   if (user.is_suspended || (user.locked_until && new Date(user.locked_until) > new Date())) {
