@@ -112,6 +112,10 @@ export default function FindCaregivers() {
     const runSearch = useCallback(async (filtersToSearch, page) => {
         setLoading(true);
         setError(null);
+        // Cancel any in-flight secondary query
+        if (secondaryAbortRef.current) {
+            secondaryAbortRef.current = null;
+        }
         try {
             const payload = {
                 city: filtersToSearch.city || undefined,
@@ -136,6 +140,54 @@ export default function FindCaregivers() {
             setTotalCount(data.total_count || 0);
             setTotalPages(data.total_pages || 1);
             setCurrentPage(data.current_page || 1);
+
+            // F-073: determine empty state variant when zero results
+            if ((data.total_count || 0) === 0) {
+                const hasLocation = !!(filtersToSearch.zip || filtersToSearch.city || filtersToSearch.state);
+                const hasDate = !!(filtersToSearch.date && filtersToSearch.date !== TODAY);
+                const hasVerified = !!filtersToSearch.verified;
+                const activeCount = countActiveFilters(filtersToSearch);
+
+                if (activeCount === 0) {
+                    setEmptyVariant('no_platform');
+                } else if (hasVerified && activeCount <= 2) {
+                    setEmptyVariant('no_verified');
+                } else if (hasLocation && hasDate) {
+                    // F-073 Logic.1/2: secondary location-only query to distinguish no_area vs no_date
+                    const queryId = Date.now();
+                    secondaryAbortRef.current = queryId;
+                    setEmptyVariant('no_match'); // fallback while secondary runs
+                    const timeoutId = setTimeout(() => {
+                        // Edge.1: if secondary takes >2s, fallback already shown
+                        if (secondaryAbortRef.current === queryId) {
+                            secondaryAbortRef.current = null;
+                        }
+                    }, 2000);
+                    base44.functions.invoke('searchCaregivers', {
+                        city: filtersToSearch.city || undefined,
+                        state: filtersToSearch.state || undefined,
+                        zip: filtersToSearch.zip || undefined,
+                        sort: 'newest',
+                        page: 1,
+                    }).then(r => {
+                        clearTimeout(timeoutId);
+                        if (secondaryAbortRef.current !== queryId) return; // Edge.2: stale
+                        secondaryAbortRef.current = null;
+                        const count = r?.data?.total_count || 0;
+                        setEmptyVariant(count > 0 ? 'no_date' : 'no_area');
+                    }).catch(() => {
+                        clearTimeout(timeoutId);
+                        secondaryAbortRef.current = null;
+                        // Edge.1: secondary failed — keep no_match
+                    });
+                } else if (hasLocation) {
+                    setEmptyVariant('no_area');
+                } else if (hasDate && activeCount === 1) {
+                    setEmptyVariant('no_match');
+                } else {
+                    setEmptyVariant('no_match');
+                }
+            }
         } catch (err) {
             setError('Something went wrong loading results. Please try again.');
         } finally {
