@@ -194,6 +194,73 @@ export default function Home() {
             {uploading && <p className="text-sm text-gray-600 mt-2">Uploading...</p>}
           </div>
         )}
+
+        <div className="container mx-auto px-4 h-full flex items-center">
+          <div className="max-w-3xl text-white">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
+              <Shield className="w-4 h-4" />
+              <span className="text-sm font-medium">Vetted & Background-Checked Caregivers</span>
+            </div>
+
+            {/* Heading */}
+            <h1 className="text-5xl md:text-6xl font-bold mb-6">
+              Trusted care, <span className="text-orange-500">simplified</span>
+            </h1>
+
+            {/* Subheading */}
+            <p className="text-xl mb-8 text-gray-100">
+              Discover premier babysitters and nannies in your area. Browse profiles, 
+              check availability, and book with confidence.
+            </p>
+
+            {/* Search Bar */}
+            <div className="bg-white rounded-lg shadow-xl p-4 mb-8">
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="flex-1 flex items-center gap-2 px-4 py-2 border rounded-lg bg-white">
+                  <MapPin className="w-5 h-5 text-gray-400" />
+                  <Input
+                    type="text"
+                    placeholder="Enter city or zip code"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    className="border-0 p-0 focus-visible:ring-0 text-gray-900"
+                  />
+                </div>
+                <div className="flex-1 flex items-center gap-2 px-4 py-2 border rounded-lg bg-white">
+                  <Calendar className="w-5 h-5 text-gray-400" />
+                  <Input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="border-0 p-0 focus-visible:ring-0 text-gray-900"
+                  />
+                </div>
+                <Button
+                  size="lg"
+                  className="bg-[#C36239] hover:bg-[#75290F] text-white px-8"
+                  onClick={handleSearch}
+                >
+                  <Search className="w-5 h-5 mr-2" />
+                  Search
+                </Button>
+              </div>
+            </div>
+
+            {/* Secondary CTAs */}
+            {!user && (
+              <div className="flex flex-wrap gap-4">
+                <Button
+                  size="lg"
+                  className="bg-[#C36239] hover:bg-[#75290F] text-white px-8 h-12"
+                  onClick={() => navigate(createPageUrl('Register'))}
+                >
+                  Register Now
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
         <div className="container mx-auto px-4 h-full flex items-center">
           <div className="max-w-3xl text-white">
