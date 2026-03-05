@@ -135,9 +135,8 @@ export default function RoleSelection() {
               </Link>
             </Label>
           </div>
-        )}
 
-        {!tosAccepted && pendingRole && isAuthenticated && (
+        {!tosAccepted && pendingRole && (
           <div className="max-w-md mx-auto mb-4">
             <Alert className="border-amber-300 bg-amber-50">
               <AlertCircle className="h-4 w-4 text-amber-600" />
