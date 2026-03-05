@@ -32,7 +32,7 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
         }
 
-        const { role } = body;
+        const { role, display_name } = body;
 
         // (3) Validate role
         if (!['parent', 'caregiver'].includes(role)) {
@@ -49,8 +49,8 @@ Deno.serve(async (req) => {
 
         try {
             if (role === 'caregiver') {
-                // (5) Generate slug from full_name
-                const baseName = (user.full_name || 'caregiver')
+                // (5) Generate slug from display_name (from registration form) or full_name fallback
+                const baseName = (display_name || user.full_name || 'caregiver')
                     .toLowerCase()
                     .replace(/[^a-z0-9]+/g, '-')
                     .replace(/-+/g, '-')
@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
                 profile = await base44.asServiceRole.entities.CaregiverProfile.create({
                     user_id: user.id,
                     slug,
-                    display_name: user.full_name || 'New Caregiver',
+                    display_name: display_name || user.full_name || 'New Caregiver',
                     is_verified: false,
                     is_published: false,
                     completion_pct: 0
@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
                 // (6) Create ParentProfile
                 profile = await base44.asServiceRole.entities.ParentProfile.create({
                     user_id: user.id,
-                    display_name: user.full_name || 'New Parent'
+                    display_name: display_name || user.full_name || 'New Parent'
                 });
             }
         } catch (profileError) {
