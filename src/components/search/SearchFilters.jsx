@@ -273,23 +273,31 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                 </p>
             </div>
 
-            {/* Sort */}
+            {/* F-067: Sort By */}
             <div className="space-y-1.5">
                 <Label className="text-sm font-medium text-gray-700">Sort By</Label>
-                <Select
-                    value={filters.sort || 'newest'}
-                    onValueChange={v => set('sort', v)}
-                >
-                    <SelectTrigger className="text-sm">
-                        <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="newest">Newest First</SelectItem>
-                        <SelectItem value="rate_asc">Rate: Low to High</SelectItem>
-                        <SelectItem value="rate_desc">Rate: High to Low</SelectItem>
-                        <SelectItem value="rating">Top Rated</SelectItem>
-                    </SelectContent>
-                </Select>
+                <div className="flex flex-col gap-1">
+                    {[
+                        { value: 'newest', label: 'Newest (default)' },
+                        { value: 'rate_asc', label: 'Lowest rate' },
+                        { value: 'rate_desc', label: 'Highest rate' },
+                    ].map(opt => {
+                        const active = (filters.sort || 'newest') === opt.value;
+                        return (
+                            <button
+                                key={opt.value}
+                                onClick={() => onChange({ ...filters, sort: opt.value, _trigger: Date.now() })}
+                                className={`text-left text-sm px-3 py-1.5 rounded-lg border transition-colors ${
+                                    active
+                                        ? 'bg-[#C36239] text-white border-[#C36239] font-medium'
+                                        : 'bg-white text-gray-700 border-gray-200 hover:border-[#C36239] hover:text-[#C36239]'
+                                }`}
+                            >
+                                {opt.label}
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
 
             <Button
