@@ -76,7 +76,7 @@ export default function AdminUsers() {
         setUser(currentUser);
 
         const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
-        if (!adminRoles.includes(currentUser.role)) {
+        if (!adminRoles.includes(currentUser.app_role)) {
           setError('Access denied. Admin access required.');
           setTimeout(() => navigate('/'), 2000);
         }
