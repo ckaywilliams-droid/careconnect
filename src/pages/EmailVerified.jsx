@@ -25,7 +25,7 @@ export default function EmailVerified() {
   useEffect(() => {
     if (success === 'true') {
       const timer = setTimeout(() => {
-        navigate('/dashboard');
+        navigate('/RoleSelection');
       }, 3000);
 
       return () => clearTimeout(timer);
@@ -59,7 +59,7 @@ export default function EmailVerified() {
 
           {/* F-024 UI.3: Dashboard button */}
           <Button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/RoleSelection')}
             className="w-full max-w-xs mx-auto"
             size="lg"
           >

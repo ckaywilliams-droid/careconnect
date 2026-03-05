@@ -57,7 +57,7 @@ export default function AdminCreateAccount() {
         // F-031 Access.1: Super admin only
         if (!isSuperAdmin(currentUser)) {
           setError('Access denied. Only super administrators can create admin accounts.');
-          setTimeout(() => navigate('/admin'), 2000);
+          setTimeout(() => navigate('/AdminDashboard'), 2000);
         }
       } catch (error) {
         console.error('Failed to fetch user:', error);
@@ -147,7 +147,7 @@ export default function AdminCreateAccount() {
 
       // Navigate back after success
       setTimeout(() => {
-        navigate('/admin/users');
+        navigate('/AdminUsers');
       }, 3000);
 
     } catch (error) {
@@ -195,7 +195,7 @@ export default function AdminCreateAccount() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate('/admin/users')}
+              onClick={() => navigate('/AdminUsers')}
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back

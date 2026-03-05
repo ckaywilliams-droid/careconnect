@@ -120,7 +120,7 @@ export default function ResetPassword() {
       });
 
       // Success - redirect to login with message
-      navigate('/login?message=password_reset_success');
+      base44.auth.redirectToLogin();
 
     } catch (error) {
       console.error('Password reset failed:', error);

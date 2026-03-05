@@ -158,7 +158,7 @@ export default function AdminFirstLogin() {
       
       // Navigate to admin panel after success
       setTimeout(() => {
-        navigate('/admin');
+        navigate('/AdminDashboard');
       }, 2000);
 
     } catch (error) {

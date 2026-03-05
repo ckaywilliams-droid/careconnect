@@ -82,7 +82,7 @@ export default function AdminRoles() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/admin')}
+                onClick={() => navigate('/AdminDashboard')}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back to Admin

@@ -114,7 +114,7 @@ export default function ForgotPassword() {
             <Button
               variant="outline"
               className="w-full"
-              onClick={() => window.location.href = '/login'}
+              onClick={() => base44.auth.redirectToLogin()}
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to sign in
