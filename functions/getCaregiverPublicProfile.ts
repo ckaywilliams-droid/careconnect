@@ -146,12 +146,7 @@ Deno.serve(async (req) => {
         expiry_date: c.expiry_date,
         verification_status: c.verification_status
       })),
-      availabilitySlots: availabilitySlots.map(slot => ({
-        id: slot.id,
-        slot_start_time: slot.slot_start_time,
-        slot_end_time: slot.slot_end_time,
-        is_available: slot.is_available
-      }))
+      availabilitySlots: availabilitySlots
     });
   } catch (error) {
     console.error('Error fetching caregiver profile:', error);
