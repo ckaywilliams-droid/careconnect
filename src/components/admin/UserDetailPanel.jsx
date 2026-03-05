@@ -46,23 +46,16 @@ export default function UserDetailPanel({ open, onOpenChange, userId, currentAdm
   const [showRevokeVerifyModal, setShowRevokeVerifyModal] = useState(false);
 
   // Fetch user details
-  const { data: userData, isLoading: userLoading } = useQuery({
-    queryKey: ['user-detail', userId],
-    queryFn: async () => {
-      const users = await base44.entities.User.filter({ id: userId });
-      const user = users[0];
-
-      // If caregiver, fetch profile
-      let profile = null;
-      if (user.role === 'caregiver') {
-        const profiles = await base44.entities.CaregiverProfile.filter({ user_id: userId });
-        profile = profiles[0];
-      }
-
-      return { user, profile };
-    },
-    enabled: !!userId && open,
-  });
+   const { data: userData, isLoading: userLoading } = useQuery({
+     queryKey: ['user-detail', userId],
+     queryFn: async () => {
+       console.log('Fetching user detail for userId:', userId);
+       const response = await base44.functions.invoke('getUserDetail', { userId });
+       console.log('getUserDetail response:', response.data);
+       return response.data;
+     },
+     enabled: !!userId && open,
+   });
 
   // Fetch admin actions on this user
   const { data: adminActions = [] } = useQuery({
