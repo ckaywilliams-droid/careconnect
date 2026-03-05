@@ -33,35 +33,9 @@ Deno.serve(async (req) => {
         return Response.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    // Generate signed URLs for images (60-min expiry)
-    let profilePhotoUrl = null;
-    let headerImageUrl = null;
-
-    if (profile.profile_photo_url) {
-      console.log('profile_photo_url raw value:', profile.profile_photo_url);
-      console.log('Attempting signed URL generation...');
-      try {
-        const photoResult = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
-          file_uri: profile.profile_photo_url,
-          expires_in: 3600
-        });
-        profilePhotoUrl = photoResult.signed_url;
-      } catch (e) {
-        console.error('Failed to generate signed URL for profile photo:', e.message);
-      }
-    }
-
-    if (profile.header_image_url) {
-      try {
-        const headerResult = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
-          file_uri: profile.header_image_url,
-          expires_in: 3600
-        });
-        headerImageUrl = headerResult.signed_url;
-      } catch (e) {
-        console.error('Failed to generate signed URL for header image:', e.message);
-      }
-    }
+    // Handle image URLs — already full URLs, no signing needed
+    let profilePhotoUrl = profile.profile_photo_url || null;
+    let headerImageUrl = profile.header_image_url || null;
 
     // Fetch certifications (non-suppressed only)
     const certifications = await base44.asServiceRole.entities.Certification.filter({
