@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useState } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -75,12 +76,12 @@ export default function UserDetailPanel({ open, onOpenChange, userId, currentAdm
   const profile = userData?.profile;
 
   // F-039 Access.3: Full email visible to trust_admin+
-  const canViewFullEmail = ['trust_admin', 'super_admin'].includes(currentAdmin.role);
+  const canViewFullEmail = ['trust_admin', 'super_admin'].includes(currentAdmin.app_role);
 
   // F-039 Access.2: Action availability
-  const canSuspend = ['support_admin', 'trust_admin', 'super_admin'].includes(currentAdmin.role);
-  const canLock = ['super_admin'].includes(currentAdmin.role);
-  const canVerify = ['trust_admin', 'super_admin'].includes(currentAdmin.role);
+  const canSuspend = ['support_admin', 'trust_admin', 'super_admin'].includes(currentAdmin.app_role);
+  const canLock = ['super_admin'].includes(currentAdmin.app_role);
+  const canVerify = ['trust_admin', 'super_admin'].includes(currentAdmin.app_role);
 
   const isOwnAccount = userId === currentAdmin.id;
 
@@ -126,7 +127,7 @@ export default function UserDetailPanel({ open, onOpenChange, userId, currentAdm
                   <div>
                     <h3 className="text-lg font-semibold">{user.full_name || 'Unknown'}</h3>
                     <Badge className="capitalize">
-                      {user.role.replace('_', ' ')}
+                      {user.app_role?.replace('_', ' ') || user.role?.replace('_', ' ') || 'User'}
                     </Badge>
                   </div>
                 </div>
@@ -168,14 +169,14 @@ export default function UserDetailPanel({ open, onOpenChange, userId, currentAdm
                   </Badge>
                 )}
                 {user.email_verified && (
-                  <Badge className="bg-green-100 text-green-800">Email Verified</Badge>
-                )}
-                {user.role === 'caregiver' && profile?.is_verified && (
-                  <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" />
-                    Background Verified
-                  </Badge>
-                )}
+                   <Badge className="bg-green-100 text-green-800">Email Verified</Badge>
+                 )}
+                 {user.app_role === 'caregiver' && profile?.is_verified && (
+                   <Badge className="bg-blue-100 text-blue-800 flex items-center gap-1">
+                     <CheckCircle2 className="w-3 h-3" />
+                     Background Verified
+                   </Badge>
+                 )}
               </div>
 
               <Separator />
@@ -242,7 +243,7 @@ export default function UserDetailPanel({ open, onOpenChange, userId, currentAdm
                   )}
 
                   {/* Verify/Revoke (caregiver only, trust_admin+) */}
-                  {canVerify && user.role === 'caregiver' && profile && (
+                  {canVerify && user.app_role === 'caregiver' && profile && (
                     profile.is_verified ? (
                       <Button
                         variant="outline"
