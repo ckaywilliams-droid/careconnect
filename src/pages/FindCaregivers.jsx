@@ -11,6 +11,7 @@ import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, X, MapPin, Calend
 import SearchFilters from '@/components/search/SearchFilters';
 import CaregiverCard from '@/components/search/CaregiverCard';
 import ActiveFilterChips from '@/components/search/ActiveFilterChips';
+import EmptyState from '@/components/search/EmptyState';
 
 const TODAY = new Date().toISOString().split('T')[0];
 
