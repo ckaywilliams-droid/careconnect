@@ -38,6 +38,8 @@ Deno.serve(async (req) => {
     let headerImageUrl = null;
 
     if (profile.profile_photo_url) {
+      console.log('profile_photo_url raw value:', profile.profile_photo_url);
+      console.log('Attempting signed URL generation...');
       try {
         const photoResult = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
           file_uri: profile.profile_photo_url,
