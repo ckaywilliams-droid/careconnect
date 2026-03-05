@@ -31,9 +31,7 @@ export default function PublicCaregiverProfile() {
         setUser(currentUser);
 
         // Fetch caregiver profile
-        const response = await base44.functions.invoke('getCaregiverPublicProfile', {}, {
-          params: { slug }
-        });
+        const response = await base44.functions.invoke('getCaregiverPublicProfile', { slug });
 
         if (response.status === 404) {
           setError('Caregiver not found');
