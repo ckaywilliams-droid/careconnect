@@ -59,14 +59,14 @@ export default function AdminGuard({ requiredRole, children }) {
 
         // F-030 Access.1: Check role hierarchy (additive downward)
         if (requiredRole) {
-          const userRoleLevel = roleHierarchy[currentUser.role] || 0;
+          const userRoleLevel = roleHierarchy[currentUser.app_role] || 0;
           const requiredRoleLevel = roleHierarchy[requiredRole] || 0;
 
           if (userRoleLevel < requiredRoleLevel) {
             // F-030 Abuse.1: Log privilege escalation attempt
             console.warn('Privilege escalation attempt:', {
               user_id: currentUser.id,
-              user_role: currentUser.role,
+              user_role: currentUser.app_role,
               required_role: requiredRole,
             });
             // TODO: Log to AdminActionLog when backend function exists
