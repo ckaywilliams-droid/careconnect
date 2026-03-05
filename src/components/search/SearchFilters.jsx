@@ -38,6 +38,14 @@ const LANGUAGES = [
 export default function SearchFilters({ filters, onChange, onReset, activeCount }) {
     const set = (key, value) => onChange({ ...filters, [key]: value });
 
+    const selectedAgeGroups = Array.isArray(filters.age_groups) ? filters.age_groups : [];
+    const toggleAgeGroup = (value) => {
+        const next = selectedAgeGroups.includes(value)
+            ? selectedAgeGroups.filter(v => v !== value)
+            : [...selectedAgeGroups, value];
+        set('age_groups', next);
+    };
+
     return (
         <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-5 sticky top-20">
             {/* Header */}
