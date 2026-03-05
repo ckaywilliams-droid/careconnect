@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Upload, AlertTriangle, Save, Loader2, Copy, Check } from 'lucide-react';
+import { Upload, AlertTriangle, Save, Loader2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import TagInput from './TagInput';
 import FieldSaveIndicator from './FieldSaveIndicator';
@@ -17,7 +17,6 @@ export default function ProfileEditForm({ profile, onProfileUpdate }) {
   const [unsavedChanges, setUnsavedChanges] = useState({});
   const [fieldStatus, setFieldStatus] = useState({});
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (profile) {
@@ -148,47 +147,8 @@ export default function ProfileEditForm({ profile, onProfileUpdate }) {
   const bioLength = formData.bio?.length || 0;
   const bioColor = bioLength >= 500 ? 'text-red-600' : bioLength >= 490 ? 'text-amber-600' : 'text-slate-500';
 
-  const handleCopyLink = () => {
-    const baseUrl = window.location.origin;
-    const profileUrl = `${baseUrl}/publiccaregiverprofile/${profile.slug}`;
-    navigator.clipboard.writeText(profileUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="space-y-6">
-      {/* Public Profile URL */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Public Profile</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-slate-600 mb-3">Your public profile URL:</p>
-          <div className="flex items-center gap-2">
-            <Input
-              type="text"
-              readOnly
-              value={`${window.location.origin}/publiccaregiverprofile/${profile.slug}`}
-              className="bg-slate-50 flex-1"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={handleCopyLink}
-              title="Copy link"
-              className="flex-shrink-0"
-            >
-              {copied ? (
-                <Check className="w-4 h-4 text-green-600" />
-              ) : (
-                <Copy className="w-4 h-4" />
-              )}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Profile Photo */}
       <Card>
         <CardHeader>

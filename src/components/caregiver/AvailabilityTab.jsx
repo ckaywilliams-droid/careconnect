@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import { Button } from '@/components/ui/button';
+import { Copy, Check } from 'lucide-react';
 import AvailabilityCalendar from './AvailabilityCalendar';
 
 /**
@@ -9,6 +11,7 @@ import AvailabilityCalendar from './AvailabilityCalendar';
  */
 export default function AvailabilityTab({ user, profile }) {
   const [slots, setSlots] = useState([]);
+  const [copied, setCopied] = useState(false);
   const queryClient = useQueryClient();
 
   // F-056 Triggers.1: Fetch slots for current month
@@ -51,14 +54,36 @@ export default function AvailabilityTab({ user, profile }) {
     await refetch();
   };
 
+  const handleCopyLink = () => {
+    const baseUrl = window.location.origin;
+    const profileUrl = `${baseUrl}/publiccaregiverprofile/${profile.slug}`;
+    navigator.clipboard.writeText(profileUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="h-full">
+    <div className="space-y-6">
       <AvailabilityCalendar
         slots={slots}
         onRefresh={handleRefresh}
         isLoading={isLoading}
         caregiverProfileId={profile?.id}
       />
+      <div className="mt-6 pt-6 border-t border-gray-200">
+        <p className="text-sm text-gray-600 mb-3">Share your profile:</p>
+        <Button
+          variant="outline"
+          onClick={handleCopyLink}
+          className="w-full"
+        >
+          {copied ? (
+            <><Check className="w-4 h-4 mr-2 text-green-600" /> Copied!</>
+          ) : (
+            <><Copy className="w-4 h-4 mr-2" /> Copy Profile Link</>
+          )}
+        </Button>
+      </div>
     </div>
   );
 }
