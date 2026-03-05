@@ -431,38 +431,20 @@ export default function FindCaregivers() {
                                 ))}
                             </div>
                         ) : results.length === 0 ? (
-                            /* Empty state — F-073 */
-                            <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
-                                <div className="text-5xl mb-4">🔍</div>
-                                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                                    No caregivers available
-                                    {displayDate && <> on {displayDate}</>}
-                                    {(filters.city || filters.zip) && (
-                                        <> in {filters.city || filters.zip}</>
-                                    )}
-                                </h3>
-                                <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">
-                                    {filters.verified
-                                        ? 'No background-verified caregivers found in your area. Try removing the verified filter to see all caregivers.'
-                                        : filters.zip && !filters.date
-                                        ? `No caregivers found in zip code ${filters.zip}. Try a nearby zip code or remove the location filter.`
-                                        : filters.date && !filters.zip
-                                        ? `No caregivers are available on ${displayDate}. Try a different date or browse all caregivers without a date filter.`
-                                        : filters.date && filters.zip
-                                        ? `No caregivers are available on ${displayDate} in zip code ${filters.zip}. Try adjusting your filters.`
-                                        : 'Try a different date, expand your search area, or remove some filters to see more results.'
-                                    }
-                                </p>
-                                <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleReset}
-                                        className="border-[#C36239] text-[#C36239] hover:bg-[#C36239] hover:text-white"
-                                    >
-                                        Clear all filters
-                                    </Button>
-                                </div>
-                            </div>
+                            <EmptyState
+                                variant={emptyVariant}
+                                filters={filters}
+                                TODAY={TODAY}
+                                onClearAll={handleReset}
+                                onClearFilter={(key) => {
+                                    const cleared = key === 'verified'
+                                        ? { ...filters, verified: false }
+                                        : key === 'date'
+                                        ? { ...filters, date: TODAY }
+                                        : { ...filters, [key]: '' };
+                                    handleFiltersChangeAndSearch({ ...cleared, _trigger: Date.now() });
+                                }}
+                            />
                         ) : (
                             <>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
