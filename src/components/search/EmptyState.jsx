@@ -140,13 +140,13 @@ export default function EmptyState({ variant, filters, onClearFilter, onClearAll
         <div className="flex flex-col items-center text-center py-16 px-6 bg-white rounded-2xl border border-dashed border-gray-200">
             <Illustration icon={SlidersHorizontal} />
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                No caregivers match all your filters
+                No caregivers match your filters
             </h3>
             <p className="text-sm text-gray-500 mb-6 max-w-xs">
                 Try removing one filter at a time — starting with the date filter often helps.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                {filters.date && filters.date !== TODAY && (
+                {filters.date && (
                     <Button
                         variant="outline"
                         className="sm:w-auto w-full border-[#C36239] text-[#C36239] hover:bg-[#C36239] hover:text-white"
