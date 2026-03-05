@@ -11,7 +11,6 @@ import { CheckCircle2, MapPin, Star, AlertCircle, Edit2 } from 'lucide-react';
 export default function PublicCaregiverProfile() {
   const [searchParams] = useSearchParams();
   const slug = searchParams.get('slug');
-  console.log('Slug from URL:', slug);
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [certifications, setCertifications] = useState([]);
