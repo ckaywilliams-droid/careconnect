@@ -302,11 +302,7 @@ export default function AdminUsers() {
                       return (
                         <TableRow 
                           key={tableUser.id}
-                          className="cursor-pointer hover:bg-gray-50"
-                          onClick={() => {
-                            setSelectedUser(tableUser);
-                            setShowUserDetail(true);
-                          }}
+                          className="hover:bg-gray-50"
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
