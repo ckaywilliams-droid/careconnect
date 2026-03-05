@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
-import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, X, MapPin, Calendar } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, X, MapPin, Calendar, ShieldCheck } from 'lucide-react';
 import SearchFilters from '@/components/search/SearchFilters';
 import CaregiverCard from '@/components/search/CaregiverCard';
 
