@@ -249,7 +249,7 @@ Deno.serve(async (req) => {
             payload: JSON.stringify({
                 type: 'search_request',
                 timestamp: new Date().toISOString(),
-                filters: { zip, city, state, age_group, service, verified, min_rate, max_rate, date, time_from, time_to, languages, sort },
+                filters: { zip, city, state, age_groups, service, verified, min_rate, max_rate, date, time_from, time_to, languages, sort },
                 page: clampedPage,
                 result_count: total_count,
                 response_time_ms: responseTimeMs,
