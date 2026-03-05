@@ -395,7 +395,9 @@ export default function FindCaregivers() {
                                     )}
                                 </h3>
                                 <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">
-                                    {filters.zip && !filters.date
+                                    {filters.verified
+                                        ? 'No background-verified caregivers found in your area. Try removing the verified filter to see all caregivers.'
+                                        : filters.zip && !filters.date
                                         ? `No caregivers found in zip code ${filters.zip}. Try a nearby zip code or remove the location filter.`
                                         : filters.date && !filters.zip
                                         ? `No caregivers are available on ${displayDate}. Try a different date or browse all caregivers without a date filter.`
