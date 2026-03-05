@@ -243,42 +243,41 @@ export default function PermissionMatrix() {
  * @returns {boolean} - Whether user has permission
  */
 export function hasPermission(user, action) {
-  if (!user || !user.role) return false;
+  const role = user?.app_role || user?.role;
+  if (!role) return false;
   
-  // F-030 Logic.1: Check gates
-  // Gate 1: Is user authenticated? (assumed if user object exists)
-  // Gate 2: Is user suspended or locked?
   if (user.is_suspended || (user.locked_until && new Date(user.locked_until) > new Date())) {
     return false;
   }
   
-  // Gate 3: Does role permit this action?
   const permissions = PERMISSION_MATRIX[action];
   if (!permissions) return false;
   
-  return permissions[user.role] === true;
+  return permissions[role] === true;
 }
 
 /**
  * Check if user is an admin (any admin role)
  */
 export function isAdmin(user) {
-  if (!user || !user.role) return false;
-  return ['support_admin', 'trust_admin', 'super_admin'].includes(user.role);
+  const role = user?.app_role || user?.role;
+  return ['support_admin', 'trust_admin', 'super_admin'].includes(role);
 }
 
 /**
  * Check if user is super admin
  */
 export function isSuperAdmin(user) {
-  return user?.role === 'super_admin';
+  const role = user?.app_role || user?.role;
+  return role === 'super_admin';
 }
 
 /**
  * Check if user is trust admin or higher
  */
 export function isTrustAdmin(user) {
-  return user?.role === 'trust_admin' || user?.role === 'super_admin';
+  const role = user?.app_role || user?.role;
+  return role === 'trust_admin' || role === 'super_admin';
 }
 
 export { PERMISSION_MATRIX };
