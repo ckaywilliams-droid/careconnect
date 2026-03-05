@@ -57,15 +57,15 @@ export default function RoleSelection() {
       }
       // Onboarding complete — redirect to role-specific next step
       if (role === 'caregiver') {
-        window.location.href = '/create-mini-site';
+        navigate('/CaregiverProfile');
       } else {
-        window.location.href = '/parent-details';
+        navigate('/FindCaregivers');
       }
     } catch (err) {
       const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';
       // Don't show "already complete" as an error — just redirect
       if (msg.includes('already complete')) {
-        window.location.href = '/find-caregivers';
+        navigate('/FindCaregivers');
         return;
       }
       setError(msg);
@@ -196,7 +196,7 @@ export default function RoleSelection() {
           <div className="text-center mt-8 text-sm text-[#643737]">
             Already have an account?{' '}
             <button
-              onClick={() => navigate('/login')}
+              onClick={() => base44.auth.redirectToLogin()}
               className="text-[#C36239] hover:text-[#75290F] font-medium underline"
             >
               Sign in
