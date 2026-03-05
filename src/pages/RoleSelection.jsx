@@ -25,28 +25,47 @@ import { Users, Heart, Loader2, AlertCircle } from 'lucide-react';
 export default function RoleSelection() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [loadingRole, setLoadingRole] = useState(null);
   const [error, setError] = useState('');
   const [tosAccepted, setTosAccepted] = useState(false);
   const [pendingRole, setPendingRole] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [initialized, setInitialized] = useState(false);
+
+  const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
 
   useEffect(() => {
-    base44.auth.isAuthenticated().then(setIsAuthenticated);
+    (async () => {
+      try {
+        const user = await base44.auth.me();
+        if (!user) {
+          base44.auth.redirectToLogin();
+          return;
+        }
+        // Already onboarded — redirect to appropriate page
+        if (user.onboarding_complete && user.app_role) {
+          if (adminRoles.includes(user.app_role)) {
+            navigate('/AdminDashboard', { replace: true });
+          } else if (user.app_role === 'caregiver') {
+            navigate('/CaregiverProfile', { replace: true });
+          } else {
+            navigate('/FindCaregivers', { replace: true });
+          }
+          return;
+        }
+        setInitialized(true);
+      } catch {
+        base44.auth.redirectToLogin();
+      }
+    })();
   }, []);
 
   const selectRole = async (role) => {
-    // If not yet authenticated, send to register (no role hint needed anymore)
-    if (!isAuthenticated) {
-      navigate(createPageUrl('Register'));
-      return;
-    }
-
-    // Show ToS confirmation step before submitting
     if (!tosAccepted) {
       setPendingRole(role);
       return;
     }
 
+    setLoadingRole(role);
     setLoading(true);
     setError('');
 
@@ -55,27 +74,21 @@ export default function RoleSelection() {
       if (response.data?.error) {
         throw new Error(response.data.error);
       }
-      // Onboarding complete — redirect to role-specific next step
-      if (role === 'caregiver') {
-        navigate('/CaregiverProfile');
-      } else {
-        navigate('/FindCaregivers');
-      }
-    } catch (err) {
-      const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';
-      // Don't show "already complete" as an error — just redirect
-      if (msg.includes('already complete')) {
-        navigate('/FindCaregivers');
+      if (response.data?.already_complete) {
+        navigate(role === 'caregiver' ? '/CaregiverProfile' : '/FindCaregivers', { replace: true });
         return;
       }
+      navigate(role === 'caregiver' ? '/CaregiverProfile' : '/FindCaregivers', { replace: true });
+    } catch (err) {
+      const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';
       setError(msg);
     } finally {
       setLoading(false);
+      setLoadingRole(null);
     }
   };
 
-  // Still checking auth state
-  if (isAuthenticated === null) {
+  if (!initialized) {
     return (
       <div className="min-h-screen bg-[#FEFEFE] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-[#C36239]" />
