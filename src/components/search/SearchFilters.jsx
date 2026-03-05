@@ -249,16 +249,28 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                 </Select>
             </div>
 
-            {/* Verified Only */}
-            <div className="flex items-center gap-2">
-                <Checkbox
-                    id="verified"
-                    checked={!!filters.verified}
-                    onCheckedChange={v => set('verified', v)}
-                />
-                <Label htmlFor="verified" className="text-sm font-medium text-gray-700 cursor-pointer">
-                    Verified caregivers only
-                </Label>
+            {/* F-066: Verified Badge Filter */}
+            <div className={`rounded-lg border p-3 transition-colors ${filters.verified ? 'border-amber-300 bg-amber-50' : 'border-gray-200 bg-gray-50'}`}>
+                <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <ShieldCheck className={`w-4 h-4 shrink-0 ${filters.verified ? 'text-amber-600' : 'text-gray-400'}`} />
+                        <Label
+                            htmlFor="verified-toggle"
+                            className={`text-sm font-medium cursor-pointer select-none ${filters.verified ? 'text-amber-800' : 'text-gray-700'}`}
+                        >
+                            Background verified only
+                        </Label>
+                    </div>
+                    <Switch
+                        id="verified-toggle"
+                        checked={!!filters.verified}
+                        onCheckedChange={v => set('verified', v)}
+                        className={filters.verified ? 'data-[state=checked]:bg-amber-500' : ''}
+                    />
+                </div>
+                <p className="text-xs text-gray-500 mt-1.5 leading-snug">
+                    Shows only caregivers whose identity and background have been verified by our team.
+                </p>
             </div>
 
             {/* Sort */}
