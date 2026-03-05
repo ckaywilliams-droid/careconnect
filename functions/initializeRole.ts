@@ -1,16 +1,5 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.18';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
-/**
- * F-021B: Atomic Role Initialization Transaction
- *
- * Step 1: Validate user is authenticated and NOT yet onboarded
- * Step 2: Update User.app_role
- * Step 3: Create the corresponding Profile record
- * Step 4: Set User.onboarding_complete = true
- *
- * If any step fails, we leave the user in registered_uninitialized state
- * (role not set, onboarding_complete = false) — safe to retry.
- */
 Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
 
@@ -20,76 +9,83 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Parse body — do this before any idempotency check
+        // (2) Reject if already onboarded
+        if (user.onboarding_complete) {
+            return Response.json({ error: 'Role already selected' }, { status: 409 });
+        }
+
+        // Parse body
         let body;
         try {
             body = await req.json();
         } catch {
             return Response.json({ error: 'Invalid JSON body' }, { status: 400 });
         }
+
         const { role } = body;
 
-        // Idempotency: if already complete, just return success (don't block retries)
-        if (user.onboarding_complete && user.app_role) {
-            return Response.json({ success: true, role: user.app_role, already_complete: true });
-        }
-
+        // (3) Validate role
         if (!['parent', 'caregiver'].includes(role)) {
             return Response.json({ error: 'Invalid role. Must be parent or caregiver.' }, { status: 400 });
         }
 
-        // Step 1: Set the role on the User record
+        // (4) Update User record: set app_role and onboarding_complete
         await base44.asServiceRole.entities.User.update(user.id, {
-            app_role: role
-        });
-
-        // Step 2: Create the corresponding Profile record
-        try {
-            if (role === 'parent') {
-                // Guard against duplicate (idempotent)
-                const existing = await base44.asServiceRole.entities.ParentProfile.filter({ user_id: user.id });
-                if (!existing || existing.length === 0) {
-                    await base44.asServiceRole.entities.ParentProfile.create({
-                        user_id: user.id,
-                        display_name: user.full_name || 'New Parent'
-                    });
-                }
-            } else if (role === 'caregiver') {
-                const existing = await base44.asServiceRole.entities.CaregiverProfile.filter({ user_id: user.id });
-                if (!existing || existing.length === 0) {
-                    const baseSlug = (user.full_name || 'caregiver')
-                        .toLowerCase()
-                        .replace(/[^a-z0-9]+/g, '-')
-                        .replace(/-+/g, '-')
-                        .replace(/^-+|-+$/g, '');
-                    const slug = `${baseSlug || 'caregiver'}-${user.id.substring(0, 8)}`;
-                    await base44.asServiceRole.entities.CaregiverProfile.create({
-                        user_id: user.id,
-                        slug,
-                        display_name: user.full_name || 'New Caregiver',
-                        is_verified: false,
-                        is_published: false,
-                        completion_pct: 0
-                    });
-                }
-            }
-        } catch (profileError) {
-            // Roll back: clear the role we just set so user stays uninitialized
-            await base44.asServiceRole.entities.User.update(user.id, {
-                app_role: null
-            }).catch(() => {}); // best-effort rollback
-            console.error('Profile creation failed, rolled back role:', profileError.message);
-            return Response.json({ error: 'Profile creation failed. Please try again.' }, { status: 500 });
-        }
-
-        // Step 3: Mark onboarding complete — user now gains dashboard access
-        await base44.asServiceRole.entities.User.update(user.id, {
+            app_role: role,
             onboarding_complete: true
         });
 
-        // Audit.1: Log role selection
-        console.log(`F-021B AUDIT: user_id=${user.id} selected_role=${role} timestamp=${new Date().toISOString()}`);
-        return Response.json({ success: true, role });
+        let profile = null;
+
+        try {
+            if (role === 'caregiver') {
+                // (5) Generate slug from full_name
+                const baseName = (user.full_name || 'caregiver')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/-+/g, '-')
+                    .replace(/^-+|-+$/g, '')
+                    .substring(0, 60) || 'caregiver';
+
+                // Check for slug collisions
+                let slug = baseName;
+                let suffix = 2;
+                while (true) {
+                    const existing = await base44.asServiceRole.entities.CaregiverProfile.filter({ slug });
+                    if (!existing || existing.length === 0) break;
+                    slug = `${baseName}-${suffix}`;
+                    suffix++;
+                }
+
+                profile = await base44.asServiceRole.entities.CaregiverProfile.create({
+                    user_id: user.id,
+                    slug,
+                    display_name: user.full_name || 'New Caregiver',
+                    is_verified: false,
+                    is_published: false,
+                    completion_pct: 0
+                });
+
+            } else if (role === 'parent') {
+                // (6) Create ParentProfile
+                profile = await base44.asServiceRole.entities.ParentProfile.create({
+                    user_id: user.id,
+                    display_name: user.full_name || 'New Parent'
+                });
+            }
+        } catch (profileError) {
+            // (7) Roll back: clear app_role and onboarding_complete
+            await base44.asServiceRole.entities.User.update(user.id, {
+                app_role: null,
+                onboarding_complete: false
+            }).catch(() => {});
+
+            console.error('Profile creation failed, rolled back user changes:', profileError.message);
+            return Response.json({ error: 'Profile creation failed. Please try again.' }, { status: 500 });
+        }
+
+        console.log(`initializeRole AUDIT: user_id=${user.id} role=${role} timestamp=${new Date().toISOString()}`);
+        return Response.json({ success: true, role, profile });
 
     } catch (error) {
         console.error('initializeRole error:', error);
