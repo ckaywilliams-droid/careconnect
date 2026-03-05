@@ -103,14 +103,34 @@ Deno.serve(async (req) => {
         if (service) filter.services_offered = { $contains: service };
         if (languages) filter.languages = { $contains: languages };
 
-        // Sort
+        // F-067 Logic.1/Errors.1: Sort — rate sorts get secondary sort by created_date desc for stable pagination
+        const VALID_SORTS = ['newest', 'rate_asc', 'rate_desc', 'rating'];
+        const appliedSort = VALID_SORTS.includes(sort) ? sort : 'newest';
+
         let sortField = '-created_date';
-        if (sort === 'rate_asc') sortField = 'hourly_rate_cents';
-        else if (sort === 'rate_desc') sortField = '-hourly_rate_cents';
-        else if (sort === 'rating') sortField = '-average_rating';
+        if (appliedSort === 'rate_asc') sortField = 'hourly_rate_cents';
+        else if (appliedSort === 'rate_desc') sortField = '-hourly_rate_cents';
+        else if (appliedSort === 'rating') sortField = '-average_rating';
 
         // Fetch profiles
         let profiles = await base44.asServiceRole.entities.CaregiverProfile.filter(filter, sortField, 1000);
+
+        // F-067 Errors.1: Stable secondary sort for rate sorts — break ties by created_date desc
+        if (appliedSort === 'rate_asc') {
+            profiles.sort((a, b) => {
+                const ra = a.hourly_rate_cents ?? Infinity;
+                const rb = b.hourly_rate_cents ?? Infinity;
+                if (ra !== rb) return ra - rb;
+                return new Date(b.created_date) - new Date(a.created_date);
+            });
+        } else if (appliedSort === 'rate_desc') {
+            profiles.sort((a, b) => {
+                const ra = a.hourly_rate_cents ?? -Infinity;
+                const rb = b.hourly_rate_cents ?? -Infinity;
+                if (ra !== rb) return rb - ra;
+                return new Date(b.created_date) - new Date(a.created_date);
+            });
+        }
 
         // F-065 Logic.1/Data.3: Age group overlap filter (OR within group) — post-fetch JS
         // Applied before suspension check for efficiency
