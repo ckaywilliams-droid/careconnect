@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     }
 
     const authorizedRoles = ['support_admin', 'trust_admin', 'super_admin'];
-    if (!authorizedRoles.includes(admin.role)) {
+    if (!authorizedRoles.includes(admin.app_role)) {
       return Response.json({ 
         error: 'Forbidden: Admin access required' 
       }, { status: 403 });
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
 
     // If caregiver, fetch profile
     let profile = null;
-    if (user.role === 'caregiver') {
+    if (user.app_role === 'caregiver') {
       const profiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ 
         user_id: userId 
       });
