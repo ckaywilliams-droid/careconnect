@@ -286,30 +286,46 @@ export default function FindCaregivers() {
 
             <div className="container mx-auto px-4 py-5">
                 {/* Results count bar */}
-                <div className="flex items-center justify-between mb-4">
-                    <div className="text-sm text-gray-600">
-                        {loading ? (
-                            <Skeleton className="h-4 w-44" />
-                        ) : (
-                            <>
-                                <span className="font-semibold text-gray-900">{totalCount.toLocaleString()}</span>{' '}
-                                caregiver{totalCount !== 1 ? 's' : ''} available
-                                {filters.date && (
-                                    <> on <span className="font-medium text-gray-800">{displayDate}</span></>
-                                )}
-                                {(filters.city || filters.zip) && (
-                                    <> in <span className="font-medium text-gray-800">{filters.city || filters.zip}</span></>
-                                )}
-                            </>
+                <div className="mb-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <div className="text-sm text-gray-600">
+                            {loading ? (
+                                <Skeleton className="h-4 w-44" />
+                            ) : (
+                                <>
+                                    <span className="font-semibold text-gray-900">{totalCount.toLocaleString()}</span>{' '}
+                                    caregiver{totalCount !== 1 ? 's' : ''} available
+                                    {filters.date && (
+                                        <> on <span className="font-medium text-gray-800">{displayDate}</span></>
+                                    )}
+                                    {(filters.city || filters.zip) && (
+                                        <> in <span className="font-medium text-gray-800">{filters.city || filters.zip}</span></>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                        {activeFilterCount > 0 && (
+                            <button
+                                className="text-sm text-[#C36239] hover:underline flex items-center gap-1"
+                                onClick={handleReset}
+                            >
+                                <X className="w-3 h-3" /> Clear filters
+                            </button>
                         )}
                     </div>
-                    {activeFilterCount > 0 && (
-                        <button
-                            className="text-sm text-[#C36239] hover:underline flex items-center gap-1"
-                            onClick={handleReset}
-                        >
-                            <X className="w-3 h-3" /> Clear filters
-                        </button>
+
+                    {/* F-066 UI.2: Active filter chips */}
+                    {filters.verified && (
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                onClick={() => handleFiltersChangeAndSearch({ ...filters, verified: false })}
+                                className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-300 rounded-full px-2.5 py-0.5 text-xs font-medium hover:bg-amber-200 transition-colors"
+                            >
+                                <ShieldCheck className="w-3 h-3" />
+                                Verified only
+                                <X className="w-3 h-3 ml-0.5" />
+                            </button>
+                        </div>
                     )}
                 </div>
 
