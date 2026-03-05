@@ -170,13 +170,14 @@ export default function ProfileEditForm({ profile, onProfileUpdate }) {
               type="text"
               readOnly
               value={`${window.location.origin}/publiccaregiverprofile/${profile.slug}`}
-              className="bg-slate-50"
+              className="bg-slate-50 flex-1"
             />
             <Button
               variant="outline"
               size="icon"
               onClick={handleCopyLink}
               title="Copy link"
+              className="flex-shrink-0"
             >
               {copied ? (
                 <Check className="w-4 h-4 text-green-600" />
