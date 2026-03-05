@@ -225,24 +225,29 @@ Deno.serve(async (req) => {
             }
         }));
 
-        // Sanitise output — never expose sensitive fields (Data.2)
+        // F-070 Access.1/Logic.1: Allowlist DTO — only explicitly listed fields sent to client.
+        // hourly_rate serialised as dollar string (Logic.3). avg_rating null when absent (Errors.2).
+        // Internal fields (created_date, user_id, completion_pct, is_suspended, etc.) are excluded.
         const results = pageResults.map(c => ({
             id: c.id,
             slug: c.slug,
             display_name: c.display_name,
             profile_photo_url: signedPhotoUrls[c.id] || null,
-            hourly_rate_cents: c.hourly_rate_cents || null,
+            // Logic.3: cents → dollar string; never expose raw cents
+            hourly_rate: c.hourly_rate_cents != null
+                ? (c.hourly_rate_cents / 100).toFixed(2)
+                : null,
             services_offered: c.services_offered || null,
             age_groups: c.age_groups || null,
             languages: c.languages || null,
             is_verified: c.is_verified || false,
-            average_rating: c.average_rating || null,
+            // Errors.2: null when no reviews — never 0
+            average_rating: (c.average_rating && c.average_rating > 0) ? c.average_rating : null,
             total_reviews: c.total_reviews || 0,
             city: c.city || null,
             state: c.state || null,
             bio: c.bio ? c.bio.substring(0, 200) : null,
             experience_years: c.experience_years || null,
-            created_date: c.created_date,
             // Available slots for requested date (for display on card)
             available_slots: validatedDate
                 ? (slotsByCaregiver[c.id] || []).map(s => ({ start_time: s.start_time, end_time: s.end_time }))
