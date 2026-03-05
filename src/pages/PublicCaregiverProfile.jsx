@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
@@ -9,7 +9,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, MapPin, Star, AlertCircle, Edit2 } from 'lucide-react';
 
 export default function PublicCaregiverProfile() {
-  const { slug } = useParams();
+  const [searchParams] = useSearchParams();
+  const slug = searchParams.get('slug');
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [certifications, setCertifications] = useState([]);
