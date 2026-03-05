@@ -214,7 +214,11 @@ export default function Home() {
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           {featuredCaregivers.map((caregiver) => (
-            <Card key={caregiver.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card
+              key={caregiver.id}
+              className="overflow-hidden hover:shadow-lg transition-shadow duration-200 cursor-pointer"
+              onClick={() => navigate(createPageUrl('PublicCaregiverProfile') + '?slug=' + caregiver.slug)}
+            >
               <div className="relative">
                 <img
                   src={caregiver.profile_photo_url || 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400'}
@@ -229,9 +233,11 @@ export default function Home() {
               </div>
               <CardContent className="p-4">
                 <h3 className="font-semibold text-lg mb-1">{caregiver.display_name}</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  📍 {caregiver.city}, {caregiver.state}
-                </p>
+                {(caregiver.city || caregiver.state) && (
+                  <p className="text-sm text-gray-600 mb-3">
+                    📍 {[caregiver.city, caregiver.state].filter(Boolean).join(', ')}
+                  </p>
+                )}
                 <div className="flex justify-between items-center">
                   <div className="flex items-center gap-1">
                     <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
