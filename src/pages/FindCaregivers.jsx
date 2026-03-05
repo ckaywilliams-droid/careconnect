@@ -20,7 +20,7 @@ const EMPTY_FILTERS = {
     date: TODAY,
     time_from: '',
     time_to: '',
-    age_group: '',
+    age_groups: [],
     service: '',
     languages: '',
     verified: false,
