@@ -171,12 +171,29 @@ Deno.serve(async (req) => {
         const start = (clampedPage - 1) * PAGE_SIZE;
         const pageResults = profiles.slice(start, start + PAGE_SIZE);
 
+        // ── Triggers.2: Generate signed URLs for profile photos (60-min expiry) ──
+        const signedPhotoUrls = {};
+        await Promise.all(pageResults.map(async (c) => {
+            if (c.profile_photo_url) {
+                try {
+                    const result = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
+                        file_uri: c.profile_photo_url,
+                        expires_in: 3600,
+                    });
+                    signedPhotoUrls[c.id] = result.signed_url;
+                } catch {
+                    // If signing fails (e.g. already a public URL), use as-is
+                    signedPhotoUrls[c.id] = c.profile_photo_url;
+                }
+            }
+        }));
+
         // Sanitise output — never expose sensitive fields (Data.2)
         const results = pageResults.map(c => ({
             id: c.id,
             slug: c.slug,
             display_name: c.display_name,
-            profile_photo_url: c.profile_photo_url || null,
+            profile_photo_url: signedPhotoUrls[c.id] || null,
             hourly_rate_cents: c.hourly_rate_cents || null,
             services_offered: c.services_offered || null,
             age_groups: c.age_groups || null,
