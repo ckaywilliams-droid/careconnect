@@ -98,7 +98,8 @@ Deno.serve(async (req) => {
             const sanitisedZip = zip.replace(/[^a-zA-Z0-9]/g, '').trim().substring(0, 10);
             if (sanitisedZip) filter.zip_code = sanitisedZip;
         }
-        if (age_group) filter.age_groups = { $contains: age_group };
+        // F-065 Logic.3: omit filter if no valid age groups selected
+        // Post-fetch JS overlap filter applied below (Base44 doesn't support $overlap natively)
         if (service) filter.services_offered = { $contains: service };
         if (languages) filter.languages = { $contains: languages };
 
