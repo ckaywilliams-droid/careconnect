@@ -29,6 +29,8 @@ const EMPTY_FILTERS = {
     sort: 'newest',
 };
 
+const VALID_AGE_GROUPS = new Set(['newborn_0_1', 'toddler_1_3', 'preschool_3_5', 'school_age_5_12', 'teenager_13_17']);
+
 function filtersToParams(filters) {
     const p = new URLSearchParams();
     if (filters.city) p.set('city', filters.city);
@@ -37,8 +39,10 @@ function filtersToParams(filters) {
     if (filters.date && filters.date !== TODAY) p.set('date', filters.date);
     if (filters.time_from) p.set('time_from', filters.time_from);
     if (filters.time_to) p.set('time_to', filters.time_to);
-    if (filters.age_group) p.set('age_group', filters.age_group);
+    if (Array.isArray(filters.age_groups) && filters.age_groups.length > 0)
+        filters.age_groups.forEach(v => p.append('age', v));
     if (filters.service) p.set('service', filters.service);
+    if (filters.languages) p.set('languages', filters.languages);
     if (filters.verified) p.set('verified', 'true');
     if (filters.min_rate) p.set('min_rate', filters.min_rate);
     if (filters.max_rate) p.set('max_rate', filters.max_rate);
@@ -47,6 +51,7 @@ function filtersToParams(filters) {
 }
 
 function paramsToFilters(searchParams) {
+    const rawAgeGroups = searchParams.getAll('age').filter(v => VALID_AGE_GROUPS.has(v));
     return {
         city: searchParams.get('city') || '',
         state: searchParams.get('state') || '',
@@ -54,7 +59,7 @@ function paramsToFilters(searchParams) {
         date: searchParams.get('date') || TODAY,
         time_from: searchParams.get('time_from') || '',
         time_to: searchParams.get('time_to') || '',
-        age_group: searchParams.get('age_group') || '',
+        age_groups: rawAgeGroups,
         service: searchParams.get('service') || '',
         languages: searchParams.get('languages') || '',
         verified: searchParams.get('verified') === 'true',
@@ -72,7 +77,7 @@ function countActiveFilters(filters) {
     if (filters.date && filters.date !== TODAY) count++;
     if (filters.time_from) count++;
     if (filters.time_to) count++;
-    if (filters.age_group) count++;
+    if (Array.isArray(filters.age_groups) && filters.age_groups.length > 0) count++;
     if (filters.service) count++;
     if (filters.languages) count++;
     if (filters.verified) count++;
