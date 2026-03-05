@@ -212,13 +212,35 @@ Deno.serve(async (req) => {
                 : [],
         }));
 
-        return Response.json({
+        const responsePayload = {
             results,
             total_count,
             current_page: clampedPage,
             total_pages,
             has_next_page: clampedPage < total_pages,
-        });
+        };
+
+        // ── Audit.1: Aggregate search logging (no user-identifying data) ──
+        const responseTimeMs = Date.now() - reqStart;
+        base44.asServiceRole.entities.AdminActionLog.create({
+            admin_user_id: 'SYSTEM',
+            admin_role: 'system',
+            action_type: 'other',
+            target_entity_type: 'CaregiverProfile',
+            target_entity_id: 'search',
+            reason: 'Aggregate search log — automated system entry',
+            payload: JSON.stringify({
+                type: 'search_request',
+                timestamp: new Date().toISOString(),
+                filters: { zip, city, state, age_group, service, verified, min_rate, max_rate, date, time_from, time_to, languages, sort },
+                page: clampedPage,
+                result_count: total_count,
+                response_time_ms: responseTimeMs,
+            }),
+            action_timestamp: new Date().toISOString(),
+        }).catch(() => {}); // fire-and-forget — never block response
+
+        return Response.json(responsePayload);
 
     } catch (error) {
         console.error('searchCaregivers error:', error);
