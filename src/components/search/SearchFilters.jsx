@@ -192,23 +192,41 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                 </Select>
             </div>
 
-            {/* Age Groups */}
+            {/* Age Groups — F-065 multi-select checkboxes */}
             <div className="space-y-1.5">
-                <Label className="text-sm font-medium text-gray-700">Child's Age Group</Label>
-                <Select
-                    value={filters.age_group || 'any'}
-                    onValueChange={v => set('age_group', v === 'any' ? '' : v)}
-                >
-                    <SelectTrigger className="text-sm">
-                        <SelectValue placeholder="Any age group" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="any">Any age group</SelectItem>
-                        {AGE_GROUPS.map(a => (
-                            <SelectItem key={a.value} value={a.value}>{a.label}</SelectItem>
-                        ))}
-                    </SelectContent>
-                </Select>
+                <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        Age groups
+                        {selectedAgeGroups.length >= 2 && (
+                            <Badge className="bg-[#C36239] text-white text-xs ml-1">{selectedAgeGroups.length}</Badge>
+                        )}
+                    </Label>
+                    {selectedAgeGroups.length > 0 && (
+                        <button
+                            onClick={() => set('age_groups', [])}
+                            className="text-xs text-[#C36239] hover:underline"
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
+                <div className="space-y-2">
+                    {AGE_GROUPS.map(a => (
+                        <div key={a.value} className="flex items-center gap-2">
+                            <Checkbox
+                                id={`age-${a.value}`}
+                                checked={selectedAgeGroups.includes(a.value)}
+                                onCheckedChange={() => toggleAgeGroup(a.value)}
+                            />
+                            <label
+                                htmlFor={`age-${a.value}`}
+                                className="text-sm text-gray-700 cursor-pointer select-none"
+                            >
+                                {a.label}
+                            </label>
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Services */}
