@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Users, Heart, Loader2, AlertCircle } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 /**
  * F-021B: POST-AUTH ONBOARDING — ROLE SELECTION
@@ -30,6 +31,7 @@ export default function RoleSelection() {
   const [tosAccepted, setTosAccepted] = useState(false);
   const [pendingRole, setPendingRole] = useState(null);
   const [initialized, setInitialized] = useState(false);
+  const [displayName, setDisplayName] = useState('');
 
   const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
 
@@ -70,7 +72,7 @@ export default function RoleSelection() {
     setError('');
 
     try {
-      const response = await base44.functions.invoke('initializeRole', { role });
+      const response = await base44.functions.invoke('initializeRole', { role, display_name: displayName });
       if (response.data?.error) {
         throw new Error(response.data.error);
       }
@@ -106,6 +108,20 @@ export default function RoleSelection() {
           <p className="text-lg text-[#643737]">
             Almost there! Choose your role to complete setup.
           </p>
+        </div>
+
+        {/* Name Input */}
+        <div className="max-w-md mx-auto mb-8">
+          <label className="block text-sm font-medium text-[#0C2119] mb-2">
+            Full Name
+          </label>
+          <Input
+            type="text"
+            placeholder="Enter your full name"
+            value={displayName}
+            onChange={(e) => setDisplayName(e.target.value)}
+            className="border-[#E5E2DC] text-[#0C2119]"
+          />
         </div>
 
         {error && (
@@ -151,7 +167,7 @@ export default function RoleSelection() {
           {/* Parent Card */}
           <Card
             className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
-            onClick={() => !loading && tosAccepted && selectRole('parent')}
+            onClick={() => !loading && tosAccepted && displayName && selectRole('parent')}
           >
             <CardHeader className="text-center pb-4">
               <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
@@ -166,7 +182,7 @@ export default function RoleSelection() {
               <Button
                 size="lg"
                 className="w-full bg-[#C36239] hover:bg-[#75290F] text-white disabled:opacity-50"
-                disabled={loading || !tosAccepted}
+                disabled={loading || !tosAccepted || !displayName}
                 onClick={(e) => { e.stopPropagation(); selectRole('parent'); }}
               >
                 {loadingRole === 'parent' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
@@ -177,7 +193,7 @@ export default function RoleSelection() {
           {/* Caregiver Card */}
           <Card
             className="cursor-pointer hover:shadow-2xl transition-all duration-300 border-2 hover:border-[#C36239] bg-white"
-            onClick={() => !loading && tosAccepted && selectRole('caregiver')}
+            onClick={() => !loading && tosAccepted && displayName && selectRole('caregiver')}
           >
             <CardHeader className="text-center pb-4">
               <div className="mx-auto mb-4 w-20 h-20 rounded-full bg-[#E5E2DC] flex items-center justify-center">
@@ -192,7 +208,7 @@ export default function RoleSelection() {
               <Button
                 size="lg"
                 className="w-full bg-[#C36239] hover:bg-[#75290F] text-white disabled:opacity-50"
-                disabled={loading || !tosAccepted}
+                disabled={loading || !tosAccepted || !displayName}
                 onClick={(e) => { e.stopPropagation(); selectRole('caregiver'); }}
               >
                 {loadingRole === 'caregiver' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
