@@ -314,17 +314,28 @@ export default function FindCaregivers() {
                         )}
                     </div>
 
-                    {/* F-066 UI.2: Active filter chips */}
-                    {filters.verified && (
+                    {/* F-066/F-067 UI.2: Active filter chips */}
+                    {(filters.verified || (filters.sort && filters.sort !== 'newest')) && (
                         <div className="flex flex-wrap gap-2">
-                            <button
-                                onClick={() => handleFiltersChangeAndSearch({ ...filters, verified: false, _trigger: Date.now() })}
-                                className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-300 rounded-full px-2.5 py-0.5 text-xs font-medium hover:bg-amber-200 transition-colors"
-                            >
-                                <ShieldCheck className="w-3 h-3" />
-                                Verified only
-                                <X className="w-3 h-3 ml-0.5" />
-                            </button>
+                            {filters.verified && (
+                                <button
+                                    onClick={() => handleFiltersChangeAndSearch({ ...filters, verified: false, _trigger: Date.now() })}
+                                    className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 border border-amber-300 rounded-full px-2.5 py-0.5 text-xs font-medium hover:bg-amber-200 transition-colors"
+                                >
+                                    <ShieldCheck className="w-3 h-3" />
+                                    Verified only
+                                    <X className="w-3 h-3 ml-0.5" />
+                                </button>
+                            )}
+                            {filters.sort && filters.sort !== 'newest' && (
+                                <button
+                                    onClick={() => handleFiltersChangeAndSearch({ ...filters, sort: 'newest', _trigger: Date.now() })}
+                                    className="inline-flex items-center gap-1 bg-[#C36239]/10 text-[#C36239] border border-[#C36239]/30 rounded-full px-2.5 py-0.5 text-xs font-medium hover:bg-[#C36239]/20 transition-colors"
+                                >
+                                    Sorted: {filters.sort === 'rate_asc' ? 'Lowest rate' : 'Highest rate'}
+                                    <X className="w-3 h-3 ml-0.5" />
+                                </button>
+                            )}
                         </div>
                     )}
                 </div>
