@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Star, MapPin, CheckCircle, Clock } from 'lucide-react';
 import { createPageUrl } from '@/utils';
@@ -15,14 +14,7 @@ const SERVICE_LABELS = {
     special_needs_care: 'Special Needs',
 };
 
-const SERVICE_COLORS = {
-    babysitting: 'bg-blue-100 text-blue-700',
-    nanny_care: 'bg-violet-100 text-violet-700',
-    overnight_care: 'bg-indigo-100 text-indigo-700',
-    school_pickup: 'bg-sky-100 text-sky-700',
-    homework_help: 'bg-cyan-100 text-cyan-700',
-    special_needs_care: 'bg-purple-100 text-purple-700',
-};
+const SERVICE_COLORS = 'bg-blue-50 text-blue-700 border-blue-200';
 
 const AGE_LABELS = {
     newborn_0_1: 'Newborn',
@@ -36,36 +28,34 @@ function formatTime(t) {
     if (!t) return '';
     const [h, m] = t.split(':');
     const hour = parseInt(h);
-    const ampm = hour >= 12 ? 'pm' : 'am';
-    return `${hour % 12 || 12}:${m}${ampm}`;
+    return `${hour % 12 || 12}:${m}${hour >= 12 ? 'pm' : 'am'}`;
 }
 
-// F-072 Errors.3: omit .00, keep cents if not whole
+// F-072 Errors.3: omit .00 for whole dollars, keep cents otherwise
 function formatRate(hourly_rate) {
     if (hourly_rate == null) return null;
     const num = parseFloat(hourly_rate);
+    if (isNaN(num)) return null;
     return num % 1 === 0 ? `$${num.toFixed(0)}/hr` : `$${num.toFixed(2)}/hr`;
 }
 
-// F-072 Logic.1: first initial fallback avatar
-function InitialAvatar({ name }) {
-    const initial = name ? name.charAt(0).toUpperCase() : '?';
-    return (
-        <div className="w-20 h-20 rounded-full bg-gray-200 flex items-center justify-center text-2xl font-semibold text-gray-500 shrink-0 border-2 border-white shadow-sm">
-            {initial}
-        </div>
-    );
-}
-
-function PhotoAvatar({ url, name }) {
+// F-072 Logic.1 / Errors.1: initial circle fallback, no broken image
+function Avatar({ url, name }) {
     const [errored, setErrored] = useState(false);
-    if (!url || errored) return <InitialAvatar name={name} />;
+    const initial = name ? name.charAt(0).toUpperCase() : '?';
+    if (!url || errored) {
+        return (
+            <div className="w-[80px] h-[80px] rounded-full bg-gray-200 flex items-center justify-center text-2xl font-semibold text-gray-500 shrink-0">
+                {initial}
+            </div>
+        );
+    }
     return (
         <img
             src={url}
             alt={name}
             onError={() => setErrored(true)}
-            className="w-20 h-20 rounded-full object-cover shrink-0 border-2 border-white shadow-sm"
+            className="w-[80px] h-[80px] rounded-full object-cover shrink-0"
         />
     );
 }
@@ -82,24 +72,18 @@ export default function CaregiverCard({ caregiver, user, requestedDate }) {
         : [];
 
     const rate = formatRate(caregiver.hourly_rate);
+    const slots = caregiver.available_slots || [];
 
     const profileUrl = caregiver.slug
         ? `${createPageUrl('PublicCaregiverProfile')}?slug=${caregiver.slug}`
         : '#';
 
-    const slots = caregiver.available_slots || [];
-
-    // F-072 Logic.2: CTA logic
     const isCaregiver = user?.app_role === 'caregiver';
     const isParent = user?.app_role === 'parent';
-    const isUnverifiedParent = isParent && !user?.email_verified;
+    const isUnverifiedParent = isParent && user?.email_verified === false;
 
-    const handleCardClick = (e) => {
-        // Let the Link handle navigation — only intercept if needed
-    };
-
-    const handleCtaClick = (e) => {
-        e.preventDefault();
+    const goToProfile = () => navigate(profileUrl);
+    const goToProfileBook = (e) => {
         e.stopPropagation();
         if (!user) {
             base44.auth.redirectToLogin(window.location.href);
@@ -109,45 +93,51 @@ export default function CaregiverCard({ caregiver, user, requestedDate }) {
     };
 
     return (
-        <div className="group relative flex flex-col bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer min-h-[280px]">
-            {/* Entire card is a link */}
-            <Link to={profileUrl} className="absolute inset-0 z-0" aria-label={`View ${caregiver.display_name}'s profile`} />
+        // Edge.1: h-full on the card + grid items-stretch on parent = equal row heights
+        <div
+            onClick={goToProfile}
+            className="group relative flex flex-col h-full bg-white border border-gray-200 rounded-xl overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+            style={{ minHeight: 280 }}
+        >
+            <div className="flex flex-col flex-1 p-4 gap-2.5">
 
-            <div className="relative z-10 flex flex-col flex-1 p-4 gap-3">
-
-                {/* Row 1: Photo + Name + Badge + Rate */}
+                {/* ── Row 1: Photo + identity ── */}
                 <div className="flex items-start gap-3">
-                    <PhotoAvatar url={caregiver.profile_photo_url} name={caregiver.display_name} />
+                    <Avatar url={caregiver.profile_photo_url} name={caregiver.display_name} />
 
-                    <div className="flex-1 min-w-0 pt-0.5">
-                        {/* Name + verified badge */}
-                        <div className="flex items-start gap-1.5 flex-wrap">
-                            <h3 className="font-semibold text-gray-900 text-base leading-snug line-clamp-2 break-words">
+                    <div className="flex-1 min-w-0 pt-1">
+                        {/* Name + verified badge on same line — F-072 Logic.1 */}
+                        <div className="flex items-start gap-1">
+                            {/* F-072 Errors.2: max 2 lines */}
+                            <h3 className="font-semibold text-gray-900 text-[15px] leading-snug line-clamp-2 break-words">
                                 {caregiver.display_name}
                             </h3>
                             {caregiver.is_verified && (
-                                <CheckCircle className="w-4 h-4 text-green-500 shrink-0 mt-0.5" title="Background Verified" />
+                                <CheckCircle
+                                    className="w-4 h-4 text-green-500 shrink-0 mt-0.5"
+                                    aria-label="Background Verified"
+                                />
                             )}
                         </div>
 
                         {/* Location */}
                         {(caregiver.city || caregiver.state) && (
-                            <p className="text-xs text-gray-400 flex items-center gap-0.5 mt-0.5">
+                            <p className="flex items-center gap-0.5 text-xs text-gray-400 mt-0.5">
                                 <MapPin className="w-3 h-3 shrink-0" />
                                 {[caregiver.city, caregiver.state].filter(Boolean).join(', ')}
                             </p>
                         )}
 
-                        {/* Rate pill */}
+                        {/* Rate pill — F-072 Logic.1 */}
                         {rate && (
-                            <span className="inline-block mt-1.5 bg-[#C36239]/10 text-[#C36239] text-sm font-bold px-2.5 py-0.5 rounded-full">
+                            <span className="inline-block mt-2 bg-[#C36239]/10 text-[#C36239] text-sm font-bold px-2.5 py-0.5 rounded-full border border-[#C36239]/20">
                                 {rate}
                             </span>
                         )}
                     </div>
 
-                    {/* Rating / New badge — top-right */}
-                    <div className="shrink-0 pt-0.5">
+                    {/* Rating / New — F-072 Triggers.1 */}
+                    <div className="shrink-0 pt-1">
                         {caregiver.average_rating != null ? (
                             <div className="flex items-center gap-1 bg-yellow-50 border border-yellow-200 rounded-full px-2 py-0.5">
                                 <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />
@@ -159,27 +149,29 @@ export default function CaregiverCard({ caregiver, user, requestedDate }) {
                                 )}
                             </div>
                         ) : (
-                            <span className="text-xs bg-sky-100 text-sky-700 border border-sky-200 rounded-full px-2 py-0.5 font-medium">
+                            <span className="inline-block bg-sky-100 text-sky-700 border border-sky-200 text-xs font-medium rounded-full px-2 py-0.5">
                                 New
                             </span>
                         )}
                     </div>
                 </div>
 
-                {/* Row 2: Bio snippet */}
+                {/* ── Row 2: Bio snippet ── */}
                 {caregiver.bio && (
-                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">{caregiver.bio}</p>
+                    <p className="text-xs text-gray-500 line-clamp-2 leading-relaxed">
+                        {caregiver.bio}
+                    </p>
                 )}
 
-                {/* Row 3: Experience */}
+                {/* ── Row 3: Experience ── */}
                 {caregiver.experience_years > 0 && (
                     <div className="flex items-center gap-1 text-xs text-gray-400">
-                        <Clock className="w-3 h-3" />
-                        {caregiver.experience_years} yr{caregiver.experience_years !== 1 ? 's' : ''} experience
+                        <Clock className="w-3 h-3 shrink-0" />
+                        {caregiver.experience_years} yr{caregiver.experience_years !== 1 ? 's' : ''} exp
                     </div>
                 )}
 
-                {/* Row 4: Age group chips */}
+                {/* ── Row 4: Age group chips — F-072 Logic.1 ── */}
                 {ageGroups.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                         {ageGroups.slice(0, 3).map(a => (
@@ -188,77 +180,75 @@ export default function CaregiverCard({ caregiver, user, requestedDate }) {
                             </span>
                         ))}
                         {ageGroups.length > 3 && (
-                            <span className="text-xs text-gray-400 px-1 py-0.5">+{ageGroups.length - 3} more</span>
+                            <span className="text-xs text-gray-400 self-center">+{ageGroups.length - 3}</span>
                         )}
                     </div>
                 )}
 
-                {/* Row 5: Service chips */}
+                {/* ── Row 5: Service chips — F-072 Logic.1 ── */}
                 {services.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                         {services.slice(0, 3).map(s => (
-                            <span key={s} className={`text-xs rounded-full px-2 py-0.5 border ${SERVICE_COLORS[s] || 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                            <span key={s} className={`text-xs rounded-full px-2 py-0.5 border ${SERVICE_COLORS}`}>
                                 {SERVICE_LABELS[s] || s}
                             </span>
                         ))}
                         {services.length > 3 && (
-                            <span className="text-xs text-gray-400 px-1 py-0.5">+{services.length - 3} more</span>
+                            <span className="text-xs text-gray-400 self-center">+{services.length - 3}</span>
                         )}
                     </div>
                 )}
 
-                {/* Row 6: Available slots (when date filter active) */}
+                {/* ── Row 6: Available slots (only when date filter active) ── */}
                 {requestedDate && slots.length > 0 && (
-                    <div>
-                        <p className="text-xs font-medium text-gray-500 mb-1">Available:</p>
-                        <div className="flex flex-wrap gap-1">
-                            {slots.slice(0, 3).map((s, i) => (
-                                <span key={i} className="text-xs bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5">
-                                    {formatTime(s.start_time)}–{formatTime(s.end_time)}
-                                </span>
-                            ))}
-                            {slots.length > 3 && (
-                                <span className="text-xs text-gray-400">+{slots.length - 3} more</span>
-                            )}
-                        </div>
+                    <div className="flex flex-wrap gap-1">
+                        {slots.slice(0, 3).map((s, i) => (
+                            <span key={i} className="text-xs bg-green-50 text-green-700 border border-green-200 rounded px-1.5 py-0.5">
+                                {formatTime(s.start_time)}–{formatTime(s.end_time)}
+                            </span>
+                        ))}
+                        {slots.length > 3 && (
+                            <span className="text-xs text-gray-400 self-center">+{slots.length - 3}</span>
+                        )}
                     </div>
                 )}
 
-                {/* Spacer to push CTA to bottom */}
+                {/* ── Spacer pushes CTA to bottom — F-072 Edge.1 ── */}
                 <div className="flex-1" />
 
-                {/* CTA Button — F-072 Logic.2 */}
+                {/* ── CTA button — F-072 Logic.2 ── */}
                 {!isCaregiver && (
-                    <div className="relative z-20">
+                    <div>
                         {!user ? (
                             <Button
                                 variant="outline"
                                 className="w-full h-11 border-[#C36239] text-[#C36239] hover:bg-[#C36239] hover:text-white text-sm font-medium"
-                                onClick={handleCtaClick}
+                                onClick={goToProfileBook}
                             >
                                 Sign in to book
                             </Button>
                         ) : isUnverifiedParent ? (
                             <Button
                                 disabled
-                                className="w-full h-11 text-sm font-medium opacity-60 cursor-not-allowed"
                                 variant="outline"
+                                className="w-full h-11 text-sm font-medium opacity-50 cursor-not-allowed"
+                                onClick={e => e.stopPropagation()}
                             >
                                 Verify email to book
                             </Button>
                         ) : isParent ? (
                             <Button
                                 className="w-full h-11 bg-[#C36239] hover:bg-[#75290F] text-white text-sm font-medium"
-                                onClick={handleCtaClick}
+                                onClick={goToProfileBook}
                             >
                                 Request Booking
                             </Button>
                         ) : (
-                            // Other auth roles (e.g. admin) — just view
+                            // Admin or other authenticated roles
                             <Button
                                 variant="outline"
                                 className="w-full h-11 text-sm font-medium"
-                                onClick={handleCtaClick}
+                                onClick={goToProfile}
                             >
                                 View Profile
                             </Button>
