@@ -104,9 +104,7 @@ export default function RoleSelection() {
             Join as a...
           </h1>
           <p className="text-lg text-[#643737]">
-            {isAuthenticated
-              ? "Almost there! Choose your role to complete setup."
-              : "Choose your role to get started"}
+            Almost there! Choose your role to complete setup.
           </p>
         </div>
 
@@ -170,10 +168,10 @@ export default function RoleSelection() {
               <Button
                 size="lg"
                 className="w-full bg-[#C36239] hover:bg-[#75290F] text-white disabled:opacity-50"
-                disabled={loading || (isAuthenticated && !tosAccepted)}
+                disabled={loading || !tosAccepted}
                 onClick={(e) => { e.stopPropagation(); selectRole('parent'); }}
               >
-                {loading && pendingRole === 'parent' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
+                {loadingRole === 'parent' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
               </Button>
             </CardContent>
           </Card>
@@ -196,37 +194,23 @@ export default function RoleSelection() {
               <Button
                 size="lg"
                 className="w-full bg-[#C36239] hover:bg-[#75290F] text-white disabled:opacity-50"
-                disabled={loading || (isAuthenticated && !tosAccepted)}
+                disabled={loading || !tosAccepted}
                 onClick={(e) => { e.stopPropagation(); selectRole('caregiver'); }}
               >
-                {loading && pendingRole === 'caregiver' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
+                {loadingRole === 'caregiver' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Get started'}
               </Button>
             </CardContent>
           </Card>
         </div>
 
-        {!isAuthenticated && (
-          <div className="text-center mt-8 text-sm text-[#643737]">
-            Already have an account?{' '}
-            <button
-              onClick={() => base44.auth.redirectToLogin()}
-              className="text-[#C36239] hover:text-[#75290F] font-medium underline"
-            >
-              Sign in
-            </button>
-          </div>
-        )}
-
-        {isAuthenticated && (
-          <div className="text-center mt-8 text-sm text-[#643737]">
-            <button
-              onClick={() => base44.auth.logout()}
-              className="text-[#9C9F95] hover:text-[#643737] underline"
-            >
-              Sign out
-            </button>
-          </div>
-        )}
+        <div className="text-center mt-8 text-sm text-[#643737]">
+          <button
+            onClick={() => base44.auth.logout()}
+            className="text-[#9C9F95] hover:text-[#643737] underline"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
   );
