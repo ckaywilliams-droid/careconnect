@@ -34,8 +34,10 @@ export default function CaregiverProfile() {
         const currentUser = await base44.auth.me();
         setUser(currentUser);
 
-        // Access Control: Restrict to caregivers only
-        if (currentUser.app_role !== 'caregiver') {
+        // Access Control: Restrict to caregivers (admins can view in read-only mode)
+        const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
+        const isAdmin = adminRoles.includes(currentUser.app_role);
+        if (currentUser.app_role !== 'caregiver' && !isAdmin) {
           setError('Access denied. This page is for caregivers only.');
           setTimeout(() => navigate('/'), 2000);
           return;
