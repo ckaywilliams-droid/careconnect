@@ -12,7 +12,7 @@ import {
   Search, 
   ChevronLeft, 
   ChevronRight, 
-  MoreVertical,
+  Eye,
   AlertTriangle,
   Loader2,
   Shield,
@@ -139,12 +139,22 @@ export default function AdminUsers() {
   };
 
   const getStatusBadge = (user) => {
+    // Admin roles always show Active (they bypass onboarding)
+    const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
+    const isAdmin = adminRoles.includes(user.role);
+    
     if (user.is_locked) {
       return <Badge variant="destructive" className="flex items-center gap-1"><Lock className="w-3 h-3" />Locked</Badge>;
     }
     if (user.is_suspended) {
       return <Badge variant="destructive">Suspended</Badge>;
     }
+    
+    // For non-admin roles, show Pending if onboarding not complete
+    if (!isAdmin && user.onboarding_complete === false) {
+      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+    }
+    
     return <Badge className="bg-green-100 text-green-800">Active</Badge>;
   };
 
@@ -346,8 +356,9 @@ export default function AdminUsers() {
                                   setSelectedUser(tableUser);
                                   setShowUserDetail(true);
                                 }}
+                                title="View user details"
                               >
-                                <MoreVertical className="w-4 h-4" />
+                                <Eye className="w-4 h-4" />
                               </Button>
                             )}
                           </TableCell>
