@@ -103,7 +103,7 @@ export default function FindCaregivers() {
     const [error, setError] = useState(null);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [emptyVariant, setEmptyVariant] = useState('no_match');
-    const secondaryAbortRef = React.useRef(null);
+    const secondaryAbortRef = useRef(null);
 
     useEffect(() => {
         base44.auth.me().then(setUser).catch(() => setUser(null));
