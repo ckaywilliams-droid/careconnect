@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, X, MapPin, Calendar, ShieldCheck } from 'lucide-react';
 import SearchFilters from '@/components/search/SearchFilters';
 import CaregiverCard from '@/components/search/CaregiverCard';
+import ActiveFilterChips from '@/components/search/ActiveFilterChips';
 
 const TODAY = new Date().toISOString().split('T')[0];
 
