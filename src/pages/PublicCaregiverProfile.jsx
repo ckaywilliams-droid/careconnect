@@ -184,9 +184,10 @@ export default function PublicCaregiverProfile() {
         <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
           <div className="relative">
             <img
-              src={profile.profile_photo_url || 'https://via.placeholder.com/140?text=No+Photo'}
+              src={profile.profile_photo_url || null}
               alt={profile.display_name}
               className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white shadow-lg object-cover"
+              onError={(e) => e.target.style.display='none'}
             />
             {profile.is_verified && (
               <div className="absolute bottom-2 right-2 bg-white rounded-full p-1 shadow-md">
