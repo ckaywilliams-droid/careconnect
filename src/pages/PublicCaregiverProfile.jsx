@@ -51,7 +51,6 @@ export default function PublicCaregiverProfile() {
 
         if (!response?.data?.profile) {
           setError('Caregiver not found');
-          setLoading(false);
           return;
         }
 
@@ -115,7 +114,7 @@ export default function PublicCaregiverProfile() {
         <Card className="max-w-md w-full border-2 border-[#E5E2DC]">
           <CardHeader className="text-center">
             <AlertCircle className="w-12 h-12 text-[#C36239] mx-auto mb-3" />
-            <CardTitle className="text-2xl text-[#0C2119]">Caregiver Not Found</CardTitle>
+            <CardTitle className="text-2xl text-[#0C2119]">{error === 'Caregiver not found' ? 'Caregiver Not Found' : 'Error Loading Profile'}</CardTitle>
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-[#643737]">{error}</p>
