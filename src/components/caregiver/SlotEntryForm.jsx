@@ -135,6 +135,7 @@ export default function SlotEntryForm({
 
     createMutation.mutate({
       caregiver_profile_id: caregiverProfileId,
+      caregiver_user_id: base44.auth.me().then(u => u.id),
       slot_date: formData.slot_date,
       start_time: formData.start_time,
       end_time: formData.end_time,
