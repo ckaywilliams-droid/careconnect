@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Shield, AlertTriangle, Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import ProfileTab from '@/components/caregiver/ProfileTab';
@@ -29,6 +30,25 @@ export default function CaregiverProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('profile');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyProfileLink = () => {
+    if (profile && profile.slug) {
+      const publicProfileUrl = `${window.location.origin}/PublicCaregiverProfile?slug=${profile.slug}`;
+      navigator.clipboard.writeText(publicProfileUrl)
+        .then(() => {
+          setCopied(true);
+          toast.success('Your public booking link has been copied!');
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((err) => {
+          console.error('Failed to copy profile link:', err);
+          toast.error('Failed to copy link. Please try again.');
+        });
+    } else {
+      toast.error('Profile information not available to generate link.');
+    }
+  };
   const [copied, setCopied] = useState(false);
 
   const handleCopyProfileLink = () => {
@@ -132,6 +152,20 @@ export default function CaregiverProfile() {
                     ✓ Verified
                   </div>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyProfileLink}
+                  disabled={!profile.slug}
+                  className="flex items-center gap-1"
+                >
+                  {copied ? (
+                    <Check className="w-3 h-3 text-green-600" />
+                  ) : (
+                    <Copy className="w-3 h-3" />
+                  )}
+                  {copied ? "Copied!" : "Copy Booking Link"}
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
