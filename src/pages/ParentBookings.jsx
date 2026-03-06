@@ -16,6 +16,7 @@ import {
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { createPageUrl } from '@/utils';
+import LeaveReviewModal from '@/components/LeaveReviewModal';
 
 const STATUS_CONFIG = {
   pending:                              { label: 'Pending Response',      color: 'bg-yellow-100 text-yellow-800' },
