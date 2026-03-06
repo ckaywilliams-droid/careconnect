@@ -128,6 +128,13 @@ function BookingCard({ booking, cgProfiles, onAction }) {
             <Flag className="w-4 h-4 mr-1" /> Report No-Show
           </Button>
         )}
+        {/* Leave a review for completed bookings */}
+        {booking.status === 'completed' && !booking._reviewed && (
+          <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-white"
+            onClick={() => onAction('leave_review', booking)}>
+            <Star className="w-4 h-4 mr-1" /> Leave Review
+          </Button>
+        )}
         {/* View caregiver profile */}
         {cgProfile?.slug && (
           <Button size="sm" variant="ghost" asChild>
