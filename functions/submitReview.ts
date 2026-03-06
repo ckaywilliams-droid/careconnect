@@ -57,18 +57,17 @@ Deno.serve(async (req) => {
       is_suppressed: false,
     });
 
-    // Recalculate caregiver average_rating and total_reviews
-    const allReviews = await base44.entities.Review.filter({
+    // Recalculate caregiver average_rating and total_reviews using service role for full visibility
+    const allReviews = await base44.asServiceRole.entities.Review.filter({
       caregiver_profile_id: booking.caregiver_profile_id,
-      is_suppressed: false,
     });
-
-    const total = allReviews.length;
+    const visibleReviews = allReviews.filter(r => !r.is_suppressed);
+    const total = visibleReviews.length;
     const avg = total > 0
-      ? allReviews.reduce((sum, r) => sum + r.rating, 0) / total
+      ? visibleReviews.reduce((sum, r) => sum + r.rating, 0) / total
       : 0;
 
-    await base44.entities.CaregiverProfile.update(booking.caregiver_profile_id, {
+    await base44.asServiceRole.entities.CaregiverProfile.update(booking.caregiver_profile_id, {
       average_rating: Math.round(avg * 10) / 10,
       total_reviews: total,
     });
