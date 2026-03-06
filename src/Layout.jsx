@@ -11,7 +11,7 @@ const PUBLIC_PAGES = [
   'suspendedaccount', 'adminlogin', 'adminfirstlogin',
   'admindashboard', 'adminusers', 'adminroles', 'admindisputedashboard',
   'moderationqueue', 'submitevidence', 'disputedetail',
-  'parentbookings'
+  'parentbookings', 'parentonboarding'
 ];
 
 
@@ -60,9 +60,16 @@ export default function Layout({ children, currentPageName }) {
         const isAdmin = adminRoles.includes(user.app_role);
         // Don't redirect if user is on the email verification page
         const isVerifyPage = pageKey === 'verifyemail' || pageKey === 'emailverified';
-        if (!isAdmin && !isVerifyPage && (!user.app_role || !user.onboarding_complete)) {
+        if (!isAdmin && !isVerifyPage && !user.app_role) {
           if (pageKey !== 'roleselection' && pageKey !== 'selectrole') {
             navigate('/select-role', { replace: true });
+            return;
+          }
+        }
+        // F-099 Logic.2: Parent with incomplete onboarding → redirect to onboarding page
+        if (!isAdmin && !isVerifyPage && user.app_role === 'parent' && !user.onboarding_complete) {
+          if (pageKey !== 'parentonboarding' && pageKey !== 'roleselection' && pageKey !== 'selectrole') {
+            navigate('/ParentOnboarding', { replace: true });
             return;
           }
         }
