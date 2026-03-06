@@ -331,20 +331,9 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
               />
             </div>
 
-            {/* CAPTCHA */}
+            {/* reCAPTCHA */}
             <div className="space-y-2">
-              <Label htmlFor="captcha">
-                Security check: What is {captchaQuestion.a} + {captchaQuestion.b}?
-              </Label>
-              <input
-                id="captcha"
-                type="number"
-                value={captchaValue}
-                onChange={e => setCaptchaValue(e.target.value)}
-                className="w-32 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C36239]"
-                placeholder="Answer"
-                autoComplete="off"
-              />
+              <div ref={recaptchaRef} />
             </div>
 
             {/* Submit */}
