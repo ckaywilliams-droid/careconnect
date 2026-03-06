@@ -23,6 +23,8 @@ export default function PublicCaregiverProfile() {
   const [user, setUser] = useState(null);
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showBookingModal, setShowBookingModal] = useState(false);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
