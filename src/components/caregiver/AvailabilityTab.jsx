@@ -27,7 +27,8 @@ export default function AvailabilityTab({ user, profile }) {
     setSlots(fetchedSlots);
   }, [fetchedSlots]);
 
-  // F-056 Triggers.2: Handle optimistic updates
+  // TODO: Test realtime subscription after service role changes.
+  // If slots don't update after save, replace this with a manual refetch() in onSuccess.
   useEffect(() => {
     const unsubscribe = base44.entities.AvailabilitySlot.subscribe((event) => {
       if (event.data?.caregiver_profile_id === profile?.id) {
