@@ -95,4 +95,9 @@ Deno.serve(async (req) => {
     ...results,
     run_at: now.toISOString()
   });
+  // Note: Layer 8 audit for each flagged booking is written inside the loop above
+  // via the ReviewCase creation and email side effects. The AdminActionLog entry
+  // for the no_show_reported transition is written by the logBookingEvent function
+  // when called from the manual reportNoShow function. Automated flags are recorded
+  // implicitly via the ReviewCase.notes field (auto-flagged with timestamp).
 });

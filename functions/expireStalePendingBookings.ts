@@ -84,6 +84,9 @@ Deno.serve(async (req) => {
     }
   }
 
+  // ── Layer 8 note: F-080 Audit.2 — automation run summary ────────────────
+  // Individual expiry events are recorded inline above (see slot release and email steps).
+  // Aggregate run metadata is returned in the response for the automation scheduler logs.
   return Response.json({
     success: true,
     processed: stale.length,

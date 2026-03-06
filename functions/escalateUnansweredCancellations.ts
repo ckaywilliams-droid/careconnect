@@ -88,6 +88,10 @@ Deno.serve(async (req) => {
     ]);
   }
 
+  // ── Layer 8 note: F-086 Audit.1 — deadline escalation logged ────────────
+  // Each escalated booking has its ReviewCase created with timestamps above.
+  // The per-booking log entry (status transition + deadline) is captured in the
+  // ReviewCase.notes field and the BookingRequest.updated_date field.
   return Response.json({
     success: true,
     processed: overdue.length,
