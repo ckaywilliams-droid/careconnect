@@ -61,6 +61,7 @@ import FindCaregivers from './pages/FindCaregivers';
 import ForgotPassword from './pages/ForgotPassword';
 import Home from './pages/Home';
 import ModerationQueue from './pages/ModerationQueue';
+import ParentBookings from './pages/ParentBookings';
 import PublicCaregiverProfile from './pages/PublicCaregiverProfile';
 import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
@@ -68,7 +69,6 @@ import RoleSelection from './pages/RoleSelection';
 import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
-import ParentBookings from './pages/ParentBookings';
 import __Layout from './Layout.jsx';
 
 
@@ -87,6 +87,7 @@ export const PAGES = {
     "ForgotPassword": ForgotPassword,
     "Home": Home,
     "ModerationQueue": ModerationQueue,
+    "ParentBookings": ParentBookings,
     "PublicCaregiverProfile": PublicCaregiverProfile,
     "Register": Register,
     "ResetPassword": ResetPassword,
@@ -94,7 +95,6 @@ export const PAGES = {
     "SubmitEvidence": SubmitEvidence,
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
-    "ParentBookings": ParentBookings,
 }
 
 export const pagesConfig = {
