@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
 
   const previousStatus = booking.status;
 
-  // (4) Compare-and-swap: UPDATE WHERE status NOT IN terminal states
+  // (4) Compare-and-swap update
   await base44.asServiceRole.entities.BookingRequest.update(booking_request_id, {
     status: 'resolved',
     cancellation_reason: trimmedReason,
@@ -68,8 +68,8 @@ Deno.serve(async (req) => {
         locked_by_booking_id: null,
         version_number: (slot.version_number || 0) + 1
       }).catch(async (err) => {
-        // F-092 Errors.2: Slot release failed — alert admin
-        await base44.asServiceRole.entities.AdminAlert.create({
+        // Fix: use AbuseAlert (not AdminAlert — entity does not exist)
+        await base44.asServiceRole.entities.AbuseAlert.create({
           alert_type: 'slot_release_failed',
           severity: 'critical',
           booking_id: booking_request_id,
@@ -96,7 +96,9 @@ Deno.serve(async (req) => {
 
   const [parentUsers, caregiverUsers] = await Promise.all([
     base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id }),
-    base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id })
+    booking.caregiver_user_id
+      ? base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id })
+      : Promise.resolve([])
   ]);
 
   await Promise.allSettled([
