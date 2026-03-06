@@ -270,6 +270,27 @@ ${baseUrl}/ParentBookings
     })
   ]);
 
+  // ── Layer 8: Audit log — F-074 Audit.1 (initial pending state) ──────────
+  await base44.functions.invoke('logBookingEvent', {
+    event_type: 'booking_status_transition',
+    booking_id: newBooking.id,
+    actor_user_id: user.id,
+    actor_role: 'parent',
+    old_status: null,
+    new_status: 'pending',
+    slot_id: slot.id,
+    slot_version_before: currentVersionNumber,
+    slot_version_after: currentVersionNumber + 1,
+    caregiver_profile_id: caregiverProfile.id,
+    parent_user_id: user.id,
+    caregiver_user_id: caregiverProfile.user_id,
+    meta: {
+      action: 'booking_created',
+      num_children: numChildrenInt,
+      hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0
+    }
+  }).catch(() => {});
+
   return Response.json({
     success: true,
     booking_request_id: newBooking.id,
