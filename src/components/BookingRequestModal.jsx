@@ -101,6 +101,14 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
   const [recaptchaToken, setRecaptchaToken] = useState('');
   const recaptchaRef = useRef(null);
 
+  // Update selected date when preselectedSlot changes
+  useEffect(() => {
+    if (preselectedSlot?.slot_date) {
+      setSelectedDate(preselectedSlot.slot_date);
+      setSelectedSlotId(preselectedSlot.id || '');
+    }
+  }, [preselectedSlot]);
+
   // Load reCAPTCHA script once
   useEffect(() => {
     if (document.getElementById('recaptcha-script')) return;
