@@ -10,6 +10,7 @@ import { CheckCircle2, MapPin, Star, AlertCircle, Edit2, Copy, Check } from 'luc
 import ReviewsSection from '@/components/ReviewsSection';
 import BookingRequestModal from '@/components/BookingRequestModal';
 import ReportUserModal from '@/components/messaging/ReportUserModal';
+import PublicCaregiverAvailability from '@/components/caregiver/PublicCaregiverAvailability';
 import { format, parseISO } from 'date-fns';
 
 export default function PublicCaregiverProfile() {
@@ -25,6 +26,7 @@ export default function PublicCaregiverProfile() {
   const [isOwnProfile, setIsOwnProfile] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
+  const [preselectedSlot, setPreselectedSlot] = useState(null);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportBanner, setReportBanner] = useState(false);
@@ -411,33 +413,19 @@ export default function PublicCaregiverProfile() {
           </div>
         )}
 
-        {/* F-058 Logic.3: Availability - parents see only open slots, no status labels */}
+        {/* Availability Calendar */}
         <Card className="mb-8 border-[#E5E2DC]">
           <CardHeader>
-            <CardTitle className="text-[#0C2119]">Available times</CardTitle>
+            <CardTitle className="text-[#0C2119]">Availability Calendar</CardTitle>
           </CardHeader>
           <CardContent>
-            {availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked).length > 0 ? (
-              <div className="space-y-2">
-                {availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked).slice(0, 7).map((slot) => (
-                  <div
-                    key={slot.id}
-                    className="flex items-center justify-between p-3 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC]"
-                  >
-                    <span className="font-medium text-[#0C2119]">
-                      {format(parseISO(slot.slot_date), 'EEE, MMM d')}
-                    </span>
-                    <span className="text-[#643737]">
-                      {slot.start_time} \u2013 {slot.end_time}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-center text-[#643737]">
-                No available times \u2014 contact to enquire.
-              </p>
-            )}
+            <PublicCaregiverAvailability
+              openSlots={availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked)}
+              onSelectSlotForBooking={(date) => {
+                setPreselectedSlot({ slot_date: format(date, 'yyyy-MM-dd') });
+                setShowBookingModal(true);
+              }}
+            />
           </CardContent>
         </Card>
 
@@ -449,7 +437,8 @@ export default function PublicCaregiverProfile() {
           <BookingRequestModal
             profile={profile}
             availabilitySlots={availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked)}
-            onClose={() => setShowBookingModal(false)}
+            preselectedSlot={preselectedSlot}
+            onClose={() => { setShowBookingModal(false); setPreselectedSlot(null); }}
           />
         )}
 
