@@ -150,7 +150,7 @@ export default function SlotEntryForm({
     }
   };
 
-  const canDelete = !isEditMode || initialSlot.status !== 'soft_locked';
+  const canDelete = !isEditMode || !['soft_locked', 'booked'].includes(initialSlot.status);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
