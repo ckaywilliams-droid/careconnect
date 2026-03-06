@@ -81,7 +81,36 @@ Deno.serve(async (req) => {
     ruling: 'pending'
   });
 
-  // Layer 4 (admin alert + party notifications) added in next layer
+  // ── Layer 4: Email both parties + admin notification ──────────────────────
+  const baseUrlNS = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+  const [cgUsersNS, parentUsersNS, cgProfilesNS] = await Promise.all([
+    base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id }),
+    base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id }),
+    base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id })
+  ]);
+  const cgUserNS = cgUsersNS[0];
+  const parentUserNS = parentUsersNS[0];
+  const cgProfNS = cgProfilesNS[0];
+  const dateStrNS = new Date(booking.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const reporterLabel = isParent ? 'the parent' : 'the caregiver';
+  const otherUser = isParent ? cgUserNS : parentUserNS;
+  const otherLabel = isParent ? cgProfNS?.display_name || 'Caregiver' : 'Parent';
+
+  await Promise.allSettled([
+    // Confirm receipt to the reporter
+    base44.asServiceRole.integrations.Core.SendEmail({
+      to: user.email,
+      subject: 'No-Show Report Received',
+      body: `Hi,\n\nWe've received your no-show report for the booking on ${dateStrNS}. Our team will review and follow up within 24-48 hours.\n\n– CareNest`
+    }),
+    // Notify the other party
+    otherUser && base44.asServiceRole.integrations.Core.SendEmail({
+      to: otherUser.email,
+      subject: 'No-Show Report Filed — Admin Review',
+      body: `Hi ${otherLabel},\n\nA no-show report has been filed by ${reporterLabel} for the booking on ${dateStrNS}. Our team will review and may reach out to both parties.\n\n${baseUrlNS}\n\n– CareNest`
+    })
+  ]);
+
   return Response.json({
     success: true,
     booking_request_id,

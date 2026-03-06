@@ -55,7 +55,20 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
     }
     // Slot stays booked — no change
-    // Layer 4 (notify caregiver of denial) added in next layer
+    // ── Layer 4: Email caregiver — request denied ────────────────────────────
+    const baseUrlDeny = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+    const cgUserArr = await base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id });
+    const cgUser = cgUserArr[0];
+    const cgProfArr = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+    const cgProf = cgProfArr[0];
+    if (cgUser) {
+      const dateStr = new Date(booking.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+      await base44.asServiceRole.integrations.Core.SendEmail({
+        to: cgUser.email,
+        subject: 'Cancellation Request Denied',
+        body: `Hi ${cgProf?.display_name || ''},\n\nThe parent has denied your cancellation request for the booking on ${dateStr}. The booking remains confirmed.\n\nIf you have an emergency, please contact support.\n\n${baseUrlDeny}/CaregiverProfile\n\n– CareNest`
+      }).catch(() => {});
+    }
     return Response.json({ success: true, booking_request_id, action: 'denied', status: 'accepted' }, { status: 200 });
   }
 
@@ -106,7 +119,31 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'A concurrency conflict occurred during slot release. The booking has been escalated to admin review.', escalated_to_under_review: true }, { status: 500 });
   }
 
-  // Layer 4 (notifications to both parties) added in next layer
+  // ── Layer 4: Email both parties — caregiver cancellation approved ──────────
+  const baseUrlApprove = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+  const [cgUserArrA, parentUserArrA, cgProfArrA] = await Promise.all([
+    base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id }),
+    base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id }),
+    base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id })
+  ]);
+  const cgUserA = cgUserArrA[0];
+  const parentUserA = parentUserArrA[0];
+  const cgProfA = cgProfArrA[0];
+  const dateStrA = new Date(booking.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  await Promise.allSettled([
+    cgUserA && base44.asServiceRole.integrations.Core.SendEmail({
+      to: cgUserA.email,
+      subject: 'Cancellation Approved',
+      body: `Hi ${cgProfA?.display_name || ''},\n\nThe parent has approved your cancellation request for ${dateStrA}. The booking has been cancelled and the slot released.\n\n– CareNest`
+    }),
+    parentUserA && base44.asServiceRole.integrations.Core.SendEmail({
+      to: parentUserA.email,
+      subject: 'Booking Cancelled by Caregiver',
+      body: `Hi,\n\n${cgProfA?.display_name || 'Your caregiver'} has cancelled your booking for ${dateStrA}. The time slot has been released.\n\nFind another caregiver:\n${baseUrlApprove}/FindCaregivers\n\n– CareNest`
+    })
+  ]);
+
   return Response.json({
     success: true,
     booking_request_id,

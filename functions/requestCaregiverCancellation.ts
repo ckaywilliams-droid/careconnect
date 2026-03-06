@@ -86,8 +86,39 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
   }
 
+  // ── Layer 4: Transactional email — notify parent, action required ─────────
+  const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+  const parentUserArr = await base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id });
+  const parentUserObj = parentUserArr[0];
+  const cgProfileArr2 = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+  const cgProfileObj2 = cgProfileArr2[0];
+
+  if (parentUserObj) {
+    const dateStr = new Date(booking.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const body = `
+Hi,
+
+${cgProfileObj2?.display_name || 'Your caregiver'} has requested to cancel your upcoming booking.
+
+Date: ${dateStr}
+Reason: ${cancellation_reason.trim()}
+
+You have until ${deadline.toLocaleString('en-US')} to approve or deny this request. If you take no action, the booking will be escalated for admin review.
+
+Please respond here:
+${baseUrl}/ParentBookings
+
+– CareNest
+    `.trim();
+
+    await base44.asServiceRole.integrations.Core.SendEmail({
+      to: parentUserObj.email,
+      subject: 'Caregiver Cancellation Request — Response Required',
+      body
+    }).catch(() => {});
+  }
+
   // Slot remains booked — no slot change at this stage (F-085 Data.1)
-  // Layer 4 (email to parent + admin alert) added in next layer
   return Response.json({
     success: true,
     booking_request_id,

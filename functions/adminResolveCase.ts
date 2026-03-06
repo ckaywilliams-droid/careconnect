@@ -133,7 +133,32 @@ Deno.serve(async (req) => {
     action_timestamp: now
   });
 
-  // Layer 4 (resolution emails to both parties) added in next layer
+  // ── Layer 4: Resolution emails to both parties ───────────────────────────
+  const baseUrlAR = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+  const [cgUsersAR, parentUsersAR, cgProfilesAR] = await Promise.all([
+    base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id }),
+    base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id }),
+    base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id })
+  ]);
+  const cgUserAR = cgUsersAR[0];
+  const parentUserAR = parentUsersAR[0];
+  const cgProfAR = cgProfilesAR[0];
+  const dateStrAR = new Date(booking.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const rulingLabel = { caregiver_at_fault: 'caregiver at fault', parent_at_fault: 'parent at fault', mutual: 'mutual', dismissed: 'dismissed' }[ruling] || ruling;
+
+  await Promise.allSettled([
+    cgUserAR && base44.asServiceRole.integrations.Core.SendEmail({
+      to: cgUserAR.email,
+      subject: 'Admin Review Resolved',
+      body: `Hi ${cgProfAR?.display_name || ''},\n\nThe admin review for your booking on ${dateStrAR} has been resolved.\n\nOutcome: ${rulingLabel}\n${profileHoldTriggered ? '\nYour profile has been placed on hold. Please contact support.' : ''}\n\n${baseUrlAR}/CaregiverProfile\n\n– CareNest`
+    }),
+    parentUserAR && base44.asServiceRole.integrations.Core.SendEmail({
+      to: parentUserAR.email,
+      subject: 'Admin Review Resolved',
+      body: `Hi,\n\nThe admin review for your booking on ${dateStrAR} has been resolved.\n\nOutcome: ${rulingLabel}\n\n${baseUrlAR}/ParentBookings\n\n– CareNest`
+    })
+  ]);
+
   return Response.json({
     success: true,
     review_case_id,

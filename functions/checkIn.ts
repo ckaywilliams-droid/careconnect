@@ -106,6 +106,31 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
     }
 
+    // ── Layer 4: Email both parties — session started ─────────────────────
+    const baseUrlCI = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+    const [cgUsersCI, parentUsersCI, cgProfilesCI] = await Promise.all([
+      base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id }),
+      base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id }),
+      base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id })
+    ]);
+    const cgUserCI = cgUsersCI[0];
+    const parentUserCI = parentUsersCI[0];
+    const cgProfCI = cgProfilesCI[0];
+    const checkInMsg = `Your session has started (checked in at ${now.toLocaleTimeString('en-US')}). When complete, please confirm check-out in the app:\n${baseUrlCI}/ParentBookings`;
+
+    await Promise.allSettled([
+      cgUserCI && base44.asServiceRole.integrations.Core.SendEmail({
+        to: cgUserCI.email,
+        subject: 'Session Started — Check-In Confirmed',
+        body: `Hi ${cgProfCI?.display_name || ''},\n\nBoth parties have confirmed check-in. Your session is now in progress.\n\n${checkInMsg}\n\n– CareNest`
+      }),
+      parentUserCI && base44.asServiceRole.integrations.Core.SendEmail({
+        to: parentUserCI.email,
+        subject: 'Session Started — Check-In Confirmed',
+        body: `Hi,\n\n${cgProfCI?.display_name || 'Your caregiver'} has checked in and your session is now in progress.\n\n${checkInMsg}\n\n– CareNest`
+      })
+    ]);
+
     return Response.json({
       success: true,
       step: 'both_confirmed',

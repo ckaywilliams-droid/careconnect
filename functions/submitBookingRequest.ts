@@ -221,7 +221,55 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Failed to create booking request. The time slot has been released. Please try again.' }, { status: 500 });
   }
 
-  // Step 6: Return success — Layer 4 (email notification) added in next layer
+  // ── Layer 4: Transactional emails ────────────────────────────────────────
+  // Email to caregiver: new pending booking request
+  const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+  const caregiverEmailBody = `
+Hi ${caregiverProfile.display_name},
+
+You have a new booking request!
+
+Date: ${slot.slot_date}
+Time: ${slot.start_time} – ${slot.end_time}
+Children: ${numChildrenInt}
+${special_requests ? `Special requests: ${special_requests.replace(/<[^>]*>/g, '').slice(0, 500)}` : ''}
+
+Please log in to accept or decline within 24 hours.
+
+${baseUrl}/CaregiverProfile
+
+– CareNest
+  `.trim();
+
+  // Email to parent: request submitted confirmation
+  const parentEmailBody = `
+Hi,
+
+Your booking request has been submitted to ${caregiverProfile.display_name}!
+
+Date: ${slot.slot_date}
+Time: ${slot.start_time} – ${slot.end_time}
+
+You'll be notified once the caregiver responds (within 24 hours).
+
+${baseUrl}/ParentBookings
+
+– CareNest
+  `.trim();
+
+  await Promise.allSettled([
+    base44.asServiceRole.integrations.Core.SendEmail({
+      to: caregiverUser.email,
+      subject: 'New Booking Request — Action Required',
+      body: caregiverEmailBody
+    }),
+    base44.asServiceRole.integrations.Core.SendEmail({
+      to: user.email,
+      subject: 'Booking Request Submitted',
+      body: parentEmailBody
+    })
+  ]);
+
   return Response.json({
     success: true,
     booking_request_id: newBooking.id,

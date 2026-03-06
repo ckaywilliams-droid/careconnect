@@ -85,7 +85,35 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
     }
 
-    // Layer 4 (completion emails, payout timer post-MVP) added in next layer
+    // ── Layer 4: Completion emails ────────────────────────────────────────
+    const baseUrlCO = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+    const [cgUsersCO, parentUsersCO, cgProfilesCO] = await Promise.all([
+      base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id }),
+      base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id }),
+      base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id })
+    ]);
+    const cgUserCO = cgUsersCO[0];
+    const parentUserCO = parentUsersCO[0];
+    const cgProfCO = cgProfilesCO[0];
+
+    const durationMs = new Date(booking.check_in_time) ? (now - new Date(booking.check_in_time)) : 0;
+    const durationHrs = durationMs > 0 ? (durationMs / 3600000).toFixed(1) : 'N/A';
+    const totalCents = durationMs > 0 ? Math.round((durationMs / 3600000) * (booking.hourly_rate_snapshot || 0)) : 0;
+    const totalDisplay = totalCents > 0 ? `$${(totalCents / 100).toFixed(2)}` : 'N/A';
+
+    await Promise.allSettled([
+      cgUserCO && base44.asServiceRole.integrations.Core.SendEmail({
+        to: cgUserCO.email,
+        subject: 'Session Complete — Thank You!',
+        body: `Hi ${cgProfCO?.display_name || ''},\n\nYour session has been completed and confirmed by the parent.\n\nDuration: ${durationHrs} hours\nTotal: ${totalDisplay}\n\nThank you for using CareNest!\n${baseUrlCO}/CaregiverProfile\n\n– CareNest`
+      }),
+      parentUserCO && base44.asServiceRole.integrations.Core.SendEmail({
+        to: parentUserCO.email,
+        subject: 'Session Complete — Thank You!',
+        body: `Hi,\n\nYour session with ${cgProfCO?.display_name || 'your caregiver'} is complete.\n\nDuration: ${durationHrs} hours\nTotal: ${totalDisplay}\n\nWe'd love your feedback! Visit your bookings to leave a review.\n${baseUrlCO}/ParentBookings\n\n– CareNest`
+      })
+    ]);
+
     return Response.json({
       success: true,
       step: 'both_confirmed',

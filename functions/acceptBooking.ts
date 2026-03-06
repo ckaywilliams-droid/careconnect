@@ -111,7 +111,69 @@ Deno.serve(async (req) => {
     }, { status: 200 });
   }
 
-  // Layer 4 (email to parent + caregiver) added in next layer
+  // ── Layer 4: Transactional emails ────────────────────────────────────────
+  const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+
+  // Fetch parent user email
+  const parentUsers = await base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id });
+  const parentUser = parentUsers[0];
+
+  // Fetch caregiver user email
+  const caregiverUsers = await base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id });
+  const caregiverUser2 = caregiverUsers[0];
+
+  // Fetch caregiver profile for display name
+  const cgProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+  const cgProfile = cgProfiles[0];
+
+  const start = new Date(booking.start_time);
+  const dateStr = start.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const timeStr = `${booking.start_time?.slice(11,16) || ''} – ${booking.end_time?.slice(11,16) || ''}`;
+
+  const parentEmailBody = `
+Hi,
+
+Great news — ${cgProfile?.display_name || 'Your caregiver'} has accepted your booking request!
+
+Date: ${dateStr}
+Time: ${timeStr}
+Children: ${booking.num_children}
+
+Your session is now confirmed. You can view your booking details here:
+${baseUrl}/ParentBookings
+
+– CareNest
+  `.trim();
+
+  const caregiverEmailBody = `
+Hi ${cgProfile?.display_name || ''},
+
+You have confirmed a booking.
+
+Date: ${dateStr}
+Time: ${timeStr}
+Children: ${booking.num_children}
+${booking.special_requests ? `Special requests: ${booking.special_requests}` : ''}
+
+View your upcoming bookings:
+${baseUrl}/CaregiverProfile
+
+– CareNest
+  `.trim();
+
+  await Promise.allSettled([
+    parentUser && base44.asServiceRole.integrations.Core.SendEmail({
+      to: parentUser.email,
+      subject: 'Booking Confirmed! 🎉',
+      body: parentEmailBody
+    }),
+    caregiverUser2 && base44.asServiceRole.integrations.Core.SendEmail({
+      to: caregiverUser2.email,
+      subject: 'Booking Confirmed',
+      body: caregiverEmailBody
+    })
+  ]);
+
   return Response.json({
     success: true,
     booking_request_id,

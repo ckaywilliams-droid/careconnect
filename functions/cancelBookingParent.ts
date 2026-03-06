@@ -111,7 +111,38 @@ Deno.serve(async (req) => {
     }, { status: 500 });
   }
 
-  // Layer 4 (notifications) added in next layer
+  // ── Layer 4: Transactional email — notify caregiver of cancellation ──────
+  const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+  const caregiverUserArr = await base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id });
+  const caregiverUserObj = caregiverUserArr[0];
+  const cgProfileArr = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+  const cgProfileObj = cgProfileArr[0];
+
+  if (caregiverUserObj) {
+    const dateStr = new Date(booking.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    const body = `
+Hi ${cgProfileObj?.display_name || ''},
+
+A booking has been cancelled by the parent.
+
+Date: ${dateStr}
+Time: ${booking.start_time?.slice(11,16) || ''} – ${booking.end_time?.slice(11,16) || ''}
+${cancellation_reason ? `Reason: ${cancellation_reason}` : ''}
+
+The time slot has been released and is now available again for new bookings.
+
+${baseUrl}/CaregiverProfile
+
+– CareNest
+    `.trim();
+
+    await base44.asServiceRole.integrations.Core.SendEmail({
+      to: caregiverUserObj.email,
+      subject: 'Booking Cancelled by Parent',
+      body
+    }).catch(() => {});
+  }
+
   return Response.json({
     success: true,
     booking_request_id,
