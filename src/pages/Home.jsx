@@ -22,8 +22,20 @@ export default function Home() {
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
+    // Redirect incomplete parent onboarding to ParentOnboarding
+    (async () => {
+      try {
+        const currentUser = await base44.auth.me();
+        if (currentUser?.app_role === 'parent' && !currentUser?.onboarding_complete) {
+          navigate(createPageUrl('ParentOnboarding'), { replace: true });
+          return;
+        }
+      } catch {
+        // Not authenticated, continue
+      }
+    })();
     loadData();
-  }, []);
+  }, [navigate]);
 
   const loadData = async () => {
     try {
