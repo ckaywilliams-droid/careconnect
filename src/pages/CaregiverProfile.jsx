@@ -84,6 +84,37 @@ export default function CaregiverProfile() {
     initDashboard();
   }, [navigate]);
 
+  // Auto-generate and save slug if missing
+  useEffect(() => {
+    const generateAndSaveSlug = async () => {
+      if (profile && !profile.slug && user) {
+        const nameToSlug = profile.display_name || user.full_name;
+        if (nameToSlug) {
+          const generatedSlug = nameToSlug
+            .toLowerCase()
+            .replace(/\s+/g, '-')
+            .replace(/[^a-z0-9-]/g, '')
+            .replace(/--+/g, '-')
+            .replace(/^-+|-+$/g, '');
+
+          if (generatedSlug) {
+            try {
+              await base44.entities.CaregiverProfile.update(profile.id, { slug: generatedSlug });
+              setProfile(prev => ({ ...prev, slug: generatedSlug }));
+              toast.success('Profile link generated!');
+            } catch (error) {
+              console.error('Failed to generate slug:', error);
+            }
+          }
+        }
+      }
+    };
+
+    if (!loading && profile && user) {
+      generateAndSaveSlug();
+    }
+  }, [profile?.id, user?.id, loading]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
