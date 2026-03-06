@@ -170,10 +170,10 @@ export default function Home() {
                // Authenticated - show role-based dashboard link
                user.app_role === 'parent' ? (
                  <div className="flex gap-2">
-                   <Button variant="ghost" onClick={() => navigate(createPageUrl('ParentBookings'))}>
+                   <Button variant="ghost" size="sm" className="text-xs sm:text-sm" onClick={() => navigate(createPageUrl('ParentBookings'))}>
                      My Bookings
                    </Button>
-                   <Button variant="outline" onClick={() => navigate(createPageUrl('ParentBookings') + '?tab=account')}>
+                   <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={() => navigate(createPageUrl('ParentBookings') + '?tab=account')}>
                      My Account
                    </Button>
                  </div>
