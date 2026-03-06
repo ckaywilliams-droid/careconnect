@@ -169,11 +169,11 @@ export default function Home() {
               ) : user ? (
                // Authenticated - show role-based dashboard link
                user.app_role === 'parent' ? (
-                 <div className="flex gap-2">
-                   <Button variant="ghost" size="sm" className="text-xs sm:text-sm" onClick={() => navigate(createPageUrl('ParentBookings'))}>
+                 <div className="flex items-center gap-2">
+                   <Button variant="ghost" onClick={() => navigate(createPageUrl('ParentBookings'))} className="text-gray-700 hover:text-[#C36239]">
                      My Bookings
                    </Button>
-                   <Button variant="outline" size="sm" className="text-xs sm:text-sm" onClick={() => navigate(createPageUrl('ParentBookings') + '?tab=account')}>
+                   <Button variant="outline" onClick={() => navigate(createPageUrl('ParentBookings') + '?tab=account')}>
                      My Account
                    </Button>
                  </div>
