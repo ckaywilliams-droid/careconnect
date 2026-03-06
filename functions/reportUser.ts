@@ -49,17 +49,17 @@ Deno.serve(async (req) => {
 
   // F-091 Abuse.1: Rate limit 10 user reports/24h
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const recentReports = await base44.asServiceRole.entities.FlaggedContent.filter({
+  const allUserReports = await base44.asServiceRole.entities.FlaggedContent.filter({
     reporter_user_id: user.id,
     target_type: 'user'
   });
-  const recentCount = recentReports.filter(r => r.created_date > oneDayAgo).length;
+  const recentCount = allUserReports.filter(r => r.created_date > oneDayAgo).length;
   if (recentCount >= 10) {
     return Response.json({ error: 'You have reached the maximum number of reports for today. Please try again tomorrow.' }, { status: 429 });
   }
 
   // (5) Duplicate check: no existing pending/under_review report against this user
-  const duplicates = recentReports.filter(r =>
+  const duplicates = allUserReports.filter(r =>
     r.target_id === reported_user_id &&
     ['pending', 'under_review'].includes(r.status)
   );
@@ -68,17 +68,20 @@ Deno.serve(async (req) => {
   }
 
   // Create FlaggedContent record for user report
+  // Fix: include booking_id context when provided
   const flagRecord = await base44.asServiceRole.entities.FlaggedContent.create({
     reporter_user_id: user.id,
     target_type: 'user',
     target_id: reported_user_id,
     reason: reason_category,
     reason_detail: trimmedNote,
+    booking_id: booking_id || null,
     status: 'pending'
   });
 
   // F-091 Abuse.2: Alert on 5+ reports against different users in 24h
-  const distinctReportedUsers = new Set(recentReports.filter(r => r.created_date > oneDayAgo).map(r => r.target_id));
+  const recentReports = allUserReports.filter(r => r.created_date > oneDayAgo);
+  const distinctReportedUsers = new Set(recentReports.map(r => r.target_id));
   distinctReportedUsers.add(reported_user_id);
   if (distinctReportedUsers.size >= 5) {
     await base44.asServiceRole.entities.AbuseAlert.create({
