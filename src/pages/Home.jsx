@@ -171,7 +171,7 @@ export default function Home() {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const dashboardPage = user.app_role === 'parent' ? 'FindCaregivers' :
+                    const dashboardPage = user.app_role === 'parent' ? 'ParentBookings' :
                                          user.app_role === 'caregiver' ? 'CaregiverProfile' :
                                          user.app_role === 'super_admin' ? 'AdminDashboard' : 'Home';
                     navigate(createPageUrl(dashboardPage));
