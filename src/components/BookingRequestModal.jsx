@@ -144,7 +144,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
   const selectedSlot = availabilitySlots.find(s => s.id === selectedSlotId) || null;
   const estimate = estimatedCost(selectedSlot, profile.hourly_rate_cents);
 
-  const canSubmit = selectedSlotId && numChildren >= 1 && parseInt(captchaValue) === captchaQuestion.answer;
+  const canSubmit = selectedSlotId && numChildren >= 1 && recaptchaToken;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
