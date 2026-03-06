@@ -91,7 +91,10 @@ export default function SlotEntryForm({
       if (isEditMode) {
         await base44.entities.AvailabilitySlot.update(initialSlot.id, data);
       } else {
-        await base44.entities.AvailabilitySlot.create(data);
+        const result = await base44.functions.invoke('createAvailabilitySlot', data);
+        if (!result.data.success) {
+          throw new Error(result.data.error);
+        }
       }
     },
     onSuccess: () => {
