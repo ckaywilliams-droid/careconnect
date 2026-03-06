@@ -196,6 +196,15 @@ export default function ParentBookings() {
   });
   const cgProfiles = Object.fromEntries(cgProfilesList.map(p => [p.id, p]));
 
+  // Track already-reviewed bookings for the current user
+  const completedIds = bookings.filter(b => b.status === 'completed').map(b => b.id);
+  const { data: existingReviews = [], refetch: refetchReviews } = useQuery({
+    queryKey: ['my-reviews', user?.id],
+    queryFn: () => base44.entities.Review.filter({ parent_user_id: user.id }),
+    enabled: !!user && completedIds.length > 0,
+  });
+  const reviewedBookingIds = new Set(existingReviews.map(r => r.booking_request_id));
+
   const filterMap = {
     active:    b => ['pending', 'accepted', 'in_progress', 'cancellation_requested_by_caregiver'].includes(b.status),
     completed: b => ['completed'].includes(b.status),
