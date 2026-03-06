@@ -101,6 +101,23 @@ ${baseUrl}/FindCaregivers
     }).catch(() => {});
   }
 
+  // ── Layer 8: Audit log — F-077 Audit.2 ─────────────────────────────────
+  await base44.functions.invoke('logBookingEvent', {
+    event_type: 'booking_status_transition',
+    booking_id: booking_request_id,
+    actor_user_id: user.id,
+    actor_role: 'caregiver',
+    old_status: 'pending',
+    new_status: 'declined',
+    slot_id: booking.availability_slot_id,
+    slot_version_before: slot ? (slot.version_number || 0) : null,
+    slot_version_after: slot ? (slot.version_number || 0) + 1 : null,
+    caregiver_profile_id: booking.caregiver_profile_id,
+    parent_user_id: booking.parent_user_id,
+    caregiver_user_id: booking.caregiver_user_id,
+    meta: { action: 'decline' }
+  }).catch(() => {});
+
   return Response.json({
     success: true,
     booking_request_id,

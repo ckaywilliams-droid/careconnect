@@ -174,6 +174,42 @@ ${baseUrl}/CaregiverProfile
     })
   ]);
 
+  // ── Layer 8: Audit log — F-077 Audit.1 ─────────────────────────────────
+  await Promise.allSettled([
+    base44.functions.invoke('logBookingEvent', {
+      event_type: 'booking_status_transition',
+      booking_id: booking_request_id,
+      actor_user_id: user.id,
+      actor_role: 'caregiver',
+      old_status: 'pending',
+      new_status: 'accepted',
+      slot_id: booking.availability_slot_id,
+      slot_version_before: slotVersionBefore,
+      slot_version_after: verifiedSlot.version_number,
+      caregiver_profile_id: booking.caregiver_profile_id,
+      parent_user_id: booking.parent_user_id,
+      caregiver_user_id: booking.caregiver_user_id,
+      meta: { action: 'accept' }
+    }),
+    // F-077 Audit.1: Phone reveal event → PIIAccessLog
+    base44.functions.invoke('logBookingEvent', {
+      event_type: 'phone_reveal',
+      booking_id: booking_request_id,
+      actor_user_id: user.id,
+      actor_role: 'caregiver',
+      caregiver_user_id: booking.caregiver_user_id,
+      parent_user_id: booking.parent_user_id,
+      pii_event: {
+        field_accessed: 'phone',
+        target_entity_type: 'User',
+        target_entity_id: booking.caregiver_user_id,
+        booking_context_id: booking_request_id,
+        access_context: 'booking_accepted',
+        accessor_role: 'caregiver'
+      }
+    })
+  ]);
+
   return Response.json({
     success: true,
     booking_request_id,

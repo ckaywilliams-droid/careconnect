@@ -143,6 +143,43 @@ ${baseUrl}/CaregiverProfile
     }).catch(() => {});
   }
 
+  // ── Layer 8: Audit log — F-078 Audit.1 ──────────────────────────────────
+  const isLateCancel = booking.status === 'accepted' && (() => {
+    const twoHoursFromNow = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    return new Date(booking.start_time) < twoHoursFromNow;
+  })();
+
+  await Promise.allSettled([
+    base44.functions.invoke('logBookingEvent', {
+      event_type: 'booking_status_transition',
+      booking_id: booking_request_id,
+      actor_user_id: user.id,
+      actor_role: 'parent',
+      old_status: booking.status,
+      new_status: 'cancelled_by_parent',
+      slot_id: slot?.id,
+      slot_version_before: slotVersionBefore,
+      slot_version_after: verifiedSlot.version_number,
+      caregiver_profile_id: booking.caregiver_profile_id,
+      parent_user_id: booking.parent_user_id,
+      caregiver_user_id: booking.caregiver_user_id,
+      meta: {
+        cancellation_reason: cancellation_reason || null,
+        was_accepted_booking: booking.status === 'accepted'
+      }
+    }),
+    isLateCancel && base44.functions.invoke('logBookingEvent', {
+      event_type: 'late_cancellation_flag',
+      booking_id: booking_request_id,
+      actor_user_id: user.id,
+      actor_role: 'parent',
+      old_status: booking.status,
+      new_status: 'cancelled_by_parent',
+      caregiver_profile_id: booking.caregiver_profile_id,
+      meta: { start_time: booking.start_time, flagged_for_late_cancel: true }
+    })
+  ]);
+
   return Response.json({
     success: true,
     booking_request_id,
