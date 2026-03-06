@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 // Pages that never require the onboarding guard
 const PUBLIC_PAGES = [
@@ -32,14 +33,21 @@ export default function Layout({ children, currentPageName }) {
     return null;
   }
 
-  const [checking, setChecking] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  const handleLogout = async () => {
+    await base44.auth.logout();
+    setCurrentUser(null);
+    navigate('/');
+  };
 
   const pageKey = (currentPageName || '').toLowerCase().replace(/[^a-z]/g, '');
   const isPublicPage = PUBLIC_PAGES.includes(pageKey);
 
   useEffect(() => {
     if (isPublicPage) {
-      setChecking(false);
+      setCheckingAuth(false);
       return;
     }
 
@@ -47,11 +55,13 @@ export default function Layout({ children, currentPageName }) {
       try {
         const authenticated = await base44.auth.isAuthenticated();
         if (!authenticated) {
-          setChecking(false);
+          setCurrentUser(null);
+          setCheckingAuth(false);
           return;
         }
 
         const user = await base44.auth.me();
+        setCurrentUser(user);
 
         // F-021B Global Route Guard:
         // If logged in AND (role == null OR onboarding_complete == false)
@@ -76,12 +86,12 @@ export default function Layout({ children, currentPageName }) {
       } catch (e) {
         // Not authenticated or error — let the page handle it
       } finally {
-        setChecking(false);
+        setCheckingAuth(false);
       }
     })();
   }, [location.pathname]);
 
-  if (checking) {
+  if (checkingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#FEFEFE]">
         <Loader2 className="w-8 h-8 animate-spin text-[#C36239]" />
@@ -89,5 +99,16 @@ export default function Layout({ children, currentPageName }) {
     );
   }
 
-  return <>{children}</>;
+  return (
+    <>
+      {!checkingAuth && currentUser && (
+        <div className="flex justify-end p-4 bg-white border-b border-[#E5E2DC] shadow-sm">
+          <Button variant="ghost" onClick={handleLogout}>
+            Sign Out
+          </Button>
+        </div>
+      )}
+      {children}
+    </>
+  );
 }
