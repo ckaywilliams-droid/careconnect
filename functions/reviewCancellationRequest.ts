@@ -69,6 +69,19 @@ Deno.serve(async (req) => {
         body: `Hi ${cgProf?.display_name || ''},\n\nThe parent has denied your cancellation request for the booking on ${dateStr}. The booking remains confirmed.\n\nIf you have an emergency, please contact support.\n\n${baseUrlDeny}/CaregiverProfile\n\n– CareNest`
       }).catch(() => {});
     }
+    // ── Layer 8: Audit log — F-086 Audit.1 (deny) ──────────────────────────
+    await base44.functions.invoke('logBookingEvent', {
+      event_type: 'cancellation_denied',
+      booking_id: booking_request_id,
+      actor_user_id: user.id,
+      actor_role: 'parent',
+      old_status: 'cancellation_requested_by_caregiver',
+      new_status: 'accepted',
+      caregiver_profile_id: booking.caregiver_profile_id,
+      parent_user_id: booking.parent_user_id,
+      caregiver_user_id: booking.caregiver_user_id,
+      meta: { via_email_link: false, action: 'deny' }
+    }).catch(() => {});
     return Response.json({ success: true, booking_request_id, action: 'denied', status: 'accepted' }, { status: 200 });
   }
 
@@ -141,6 +154,35 @@ Deno.serve(async (req) => {
       to: parentUserA.email,
       subject: 'Booking Cancelled by Caregiver',
       body: `Hi,\n\n${cgProfA?.display_name || 'Your caregiver'} has cancelled your booking for ${dateStrA}. The time slot has been released.\n\nFind another caregiver:\n${baseUrlApprove}/FindCaregivers\n\n– CareNest`
+    })
+  ]);
+
+  // ── Layer 8: Audit log — F-086 Audit.1 (approve) + F-088 Audit.1 ─────────
+  await Promise.allSettled([
+    base44.functions.invoke('logBookingEvent', {
+      event_type: 'cancellation_approved',
+      booking_id: booking_request_id,
+      actor_user_id: user.id,
+      actor_role: 'parent',
+      old_status: 'cancellation_requested_by_caregiver',
+      new_status: 'cancelled_by_caregiver',
+      slot_id: booking.availability_slot_id,
+      slot_version_before: slot ? slot.version_number : null,
+      slot_version_after: slot ? (slot.version_number || 0) + 1 : null,
+      caregiver_profile_id: booking.caregiver_profile_id,
+      parent_user_id: booking.parent_user_id,
+      caregiver_user_id: booking.caregiver_user_id,
+      meta: { via_email_link: false, action: 'approve', slot_reopened: true }
+    }),
+    base44.functions.invoke('logBookingEvent', {
+      event_type: 'slot_reopen',
+      booking_id: booking_request_id,
+      actor_user_id: 'system',
+      actor_role: 'system',
+      slot_id: booking.availability_slot_id,
+      slot_version_before: slot ? slot.version_number : null,
+      slot_version_after: slot ? (slot.version_number || 0) + 1 : null,
+      meta: { trigger: 'cancelled_by_caregiver' }
     })
   ]);
 
