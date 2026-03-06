@@ -30,11 +30,6 @@ export default function SlotEntryForm({
   onCancel
 }) {
   const isEditMode = !!initialSlot;
-  const [user, setUser] = useState(null);
-  
-  useEffect(() => {
-    base44.auth.me().then(u => setUser(u));
-  }, []);
 
   const [formData, setFormData] = useState({
     slot_date: format(date, 'yyyy-MM-dd'),
