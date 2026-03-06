@@ -159,6 +159,41 @@ Deno.serve(async (req) => {
     })
   ]);
 
+  // ── Layer 8: Audit log — F-084R Audit.1 + F-088 Audit.1 (if slot released)
+  const logPayload = {
+    event_type: 'booking_status_transition',
+    booking_id: booking.id,
+    actor_user_id: user.id,
+    actor_role: 'super_admin',
+    old_status: booking.status,
+    new_status: 'resolved',
+    caregiver_profile_id: booking.caregiver_profile_id,
+    parent_user_id: booking.parent_user_id,
+    caregiver_user_id: booking.caregiver_user_id,
+    meta: {
+      review_case_id,
+      ruling,
+      slot_action,
+      issue_strike: !!issue_strike,
+      increment_no_show: !!increment_no_show,
+      profile_hold_triggered: profileHoldTriggered
+    },
+    admin_action: {
+      action_type: 'force_cancel_booking',
+      target_entity_type: 'BookingRequest',
+      target_entity_id: booking.id,
+      reason: notes || `Admin resolution: ${ruling}`,
+      payload: {
+        ruling, slot_action,
+        issue_strike: !!issue_strike,
+        increment_no_show: !!increment_no_show,
+        profile_hold_triggered: profileHoldTriggered
+      }
+    }
+  };
+
+  await base44.functions.invoke('logBookingEvent', logPayload).catch(() => {});
+
   return Response.json({
     success: true,
     review_case_id,
