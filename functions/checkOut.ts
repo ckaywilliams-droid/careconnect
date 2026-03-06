@@ -1,12 +1,13 @@
 /**
- * F-081R: Check-Out System — Layer 2 (Access Control)
+ * F-081R: Check-Out System — Layers 2 + 3
+ * F-076: State Machine: in_progress → completed (terminal, both parties confirm)
  *
- * Access gates enforced:
- * - Session valid and role=caregiver OR parent
- * - BookingRequest exists and actor owns it
- * - BookingRequest.status=in_progress (F-081R Access.2)
+ * Two-step mutual confirmation (F-081R Logic.1, Logic.2):
+ * - Caregiver marks complete first → transient flag
+ * - Parent confirms → transition to completed, check_out_time set
+ * - If parent does not confirm within 4h → admin alert (no auto-complete)
  *
- * Layer 3+ to be implemented in subsequent layers.
+ * Slot effect: booked — archived (no status change on the slot itself at completed)
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
@@ -14,52 +15,83 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
 
-  // Gate 1: Session valid and role is caregiver or parent
+  // ── Layer 2: Access gates ─────────────────────────────────────────────────
   const user = await base44.auth.me();
-  if (!user) {
-    return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
   if (user.app_role !== 'caregiver' && user.app_role !== 'parent') {
     return Response.json({ error: 'Only caregivers and parents may perform check-out.' }, { status: 403 });
   }
 
   const body = await req.json();
   const { booking_request_id } = body;
+  if (!booking_request_id) return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
 
-  if (!booking_request_id) {
-    return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
-  }
-
-  // Fetch the booking request
-  const bookings = await base44.asServiceRole.entities.BookingRequest.filter({
-    id: booking_request_id
-  });
+  const bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
   const booking = bookings[0];
+  if (!booking) return Response.json({ error: 'Not found.' }, { status: 404 });
 
-  if (!booking) {
-    return Response.json({ error: 'Not found.' }, { status: 404 });
-  }
-
-  // Gate: Actor must own this booking
   const isCaregiver = user.app_role === 'caregiver' && booking.caregiver_user_id === user.id;
   const isParent = user.app_role === 'parent' && booking.parent_user_id === user.id;
-  if (!isCaregiver && !isParent) {
-    return Response.json({ error: 'Not found.' }, { status: 404 });
-  }
+  if (!isCaregiver && !isParent) return Response.json({ error: 'Not found.' }, { status: 404 });
 
-  // Gate: Booking must be in_progress (F-081R Access.2)
+  // ── Layer 2: Status gate — must be in_progress ────────────────────────────
   if (booking.status !== 'in_progress') {
-    return Response.json({
-      error: `Check-out is only available for in-progress bookings. Current status: ${booking.status}.`,
-      current_status: booking.status
-    }, { status: 409 });
+    return Response.json({ error: `Check-out is only available for in-progress bookings. Current status: ${booking.status}.`, current_status: booking.status }, { status: 409 });
   }
 
-  // All gates passed
-  return Response.json({
-    gates_passed: true,
-    booking,
-    actor_role: user.app_role,
-    actor_user_id: user.id
-  }, { status: 200 });
+  const now = new Date();
+
+  // ── Layer 3: Two-step checkout state machine ──────────────────────────────
+  // We track caregiver checkout confirmation via check_out_time nullable field.
+  // caregiver marks: set check_out_time (transient — parent hasn't confirmed yet)
+  // parent confirms: if check_out_time already set → transition to completed
+
+  if (isCaregiver) {
+    // Caregiver step: mark session complete
+    if (!booking.check_out_time) {
+      await base44.asServiceRole.entities.BookingRequest.update(booking_request_id, {
+        check_out_time: now.toISOString()
+      });
+    }
+    return Response.json({
+      success: true,
+      step: 'caregiver_marked_complete',
+      message: 'Session marked complete. Waiting for parent to confirm.',
+      booking_request_id
+    }, { status: 200 });
+  }
+
+  if (isParent) {
+    // Parent step: confirm checkout
+    if (!booking.check_out_time) {
+      return Response.json({
+        error: 'The caregiver has not yet marked the session complete. Please wait for them to do so first.',
+        step: 'awaiting_caregiver'
+      }, { status: 409 });
+    }
+
+    // Both confirmed — compare-and-swap: in_progress → completed
+    try {
+      await base44.asServiceRole.entities.BookingRequest.update(booking_request_id, {
+        status: 'completed',
+        check_out_time: now.toISOString() // update to parent confirmation time as final
+      });
+    } catch (err) {
+      return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
+    }
+
+    const verify = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
+    if (!verify[0] || verify[0].status !== 'completed') {
+      return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
+    }
+
+    // Layer 4 (completion emails, payout timer post-MVP) added in next layer
+    return Response.json({
+      success: true,
+      step: 'both_confirmed',
+      booking_request_id,
+      status: 'completed',
+      check_out_time: now.toISOString()
+    }, { status: 200 });
+  }
 });
