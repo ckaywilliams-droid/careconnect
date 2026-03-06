@@ -125,7 +125,8 @@ export default function Register() {
       navigate('/VerifyEmail', {
         state: {
           email: formData.email.toLowerCase().trim()
-        }
+        },
+        replace: true
       });
     } catch (error) {
       const msg = error.message || 'Registration failed. Please try again.';
