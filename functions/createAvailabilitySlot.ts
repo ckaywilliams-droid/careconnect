@@ -36,14 +36,17 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You can only create slots for your own profile' }, { status: 403 });
     }
 
-    // Create the availability slot with server-populated caregiver_user_id
+    // Create the availability slot with server-populated caregiver_user_id and explicit defaults
     const slot = await base44.entities.AvailabilitySlot.create({
       caregiver_profile_id,
       caregiver_user_id: user.id,
       slot_date,
       start_time,
       end_time,
-      notes: notes || null
+      notes: notes || null,
+      version_number: 0,
+      status: 'open',
+      is_blocked: false
     });
 
     return Response.json({ success: true, slot });
