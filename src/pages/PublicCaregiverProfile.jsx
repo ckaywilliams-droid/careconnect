@@ -33,44 +33,53 @@ export default function PublicCaregiverProfile() {
 
   useEffect(() => {
     const fetchProfile = async () => {
+      setLoading(true);
+      setError(null);
+
+      // Isolate auth check — should not prevent loading public profile
+      let currentUser = null;
       try {
-        setLoading(true);
-        setError(null);
+        currentUser = await base44.auth.me();
+      } catch {
+        // User not authenticated — this is fine for a public profile page
+      }
+      setUser(currentUser);
 
-        // Get current user
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-
-        // Fetch caregiver profile
+      // Fetch caregiver profile
+      try {
         const response = await base44.functions.invoke('getCaregiverPublicProfile', { slug });
 
-        if (response.data) {
-          setProfile(response.data.profile);
-          setCertifications(response.data.certifications || []);
-          setAvailabilitySlots(response.data.availabilitySlots || []);
+        if (!response?.data?.profile) {
+          setError('Caregiver not found');
+          setLoading(false);
+          return;
+        }
 
-          // Check if user is viewing their own profile
-          if (currentUser && currentUser.id === response.data.profile.user_id) {
-            setIsOwnProfile(true);
-          }
+        setProfile(response.data.profile);
+        setCertifications(response.data.certifications || []);
+        setAvailabilitySlots(response.data.availabilitySlots || []);
 
-          // F-075 UI.1: Check if this parent already has a pending OR accepted request
-          // with this caregiver (either blocks submitting a new request)
-          if (currentUser?.app_role === 'parent' && response.data.profile?.id) {
-            const [pendingReqs, acceptedReqs] = await Promise.all([
-              base44.entities.BookingRequest.filter({
-                parent_user_id: currentUser.id,
-                caregiver_profile_id: response.data.profile.id,
-                status: 'pending'
-              }).catch(() => []),
-              base44.entities.BookingRequest.filter({
-                parent_user_id: currentUser.id,
-                caregiver_profile_id: response.data.profile.id,
-                status: 'accepted'
-              }).catch(() => [])
-            ]);
-            setHasPendingRequest(pendingReqs.length > 0 || acceptedReqs.length > 0);
-          }
+        // Check if user is viewing their own profile
+        if (currentUser && currentUser.id === response.data.profile.user_id) {
+          setIsOwnProfile(true);
+        }
+
+        // F-075 UI.1: Check if this parent already has a pending OR accepted request
+        // with this caregiver (either blocks submitting a new request)
+        if (currentUser?.app_role === 'parent' && response.data.profile?.id) {
+          const [pendingReqs, acceptedReqs] = await Promise.all([
+            base44.entities.BookingRequest.filter({
+              parent_user_id: currentUser.id,
+              caregiver_profile_id: response.data.profile.id,
+              status: 'pending'
+            }).catch(() => []),
+            base44.entities.BookingRequest.filter({
+              parent_user_id: currentUser.id,
+              caregiver_profile_id: response.data.profile.id,
+              status: 'accepted'
+            }).catch(() => [])
+          ]);
+          setHasPendingRequest(pendingReqs.length > 0 || acceptedReqs.length > 0);
         }
       } catch (err) {
         console.error('Error fetching profile:', err);
