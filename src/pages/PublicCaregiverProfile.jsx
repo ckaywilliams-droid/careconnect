@@ -42,12 +42,6 @@ export default function PublicCaregiverProfile() {
         // Fetch caregiver profile
         const response = await base44.functions.invoke('getCaregiverPublicProfile', { slug });
 
-        if (response.status === 404) {
-          setError('Caregiver not found');
-          setProfile(null);
-          return;
-        }
-
         if (response.data) {
           setProfile(response.data.profile);
           setCertifications(response.data.certifications || []);
@@ -58,14 +52,22 @@ export default function PublicCaregiverProfile() {
             setIsOwnProfile(true);
           }
 
-          // F-075 UI.1: Check if this parent already has a pending request with this caregiver
+          // F-075 UI.1: Check if this parent already has a pending OR accepted request
+          // with this caregiver (either blocks submitting a new request)
           if (currentUser?.app_role === 'parent' && response.data.profile?.id) {
-            const existing = await base44.entities.BookingRequest.filter({
-              parent_user_id: currentUser.id,
-              caregiver_profile_id: response.data.profile.id,
-              status: 'pending'
-            }).catch(() => []);
-            setHasPendingRequest(existing.length > 0);
+            const [pendingReqs, acceptedReqs] = await Promise.all([
+              base44.entities.BookingRequest.filter({
+                parent_user_id: currentUser.id,
+                caregiver_profile_id: response.data.profile.id,
+                status: 'pending'
+              }).catch(() => []),
+              base44.entities.BookingRequest.filter({
+                parent_user_id: currentUser.id,
+                caregiver_profile_id: response.data.profile.id,
+                status: 'accepted'
+              }).catch(() => [])
+            ]);
+            setHasPendingRequest(pendingReqs.length > 0 || acceptedReqs.length > 0);
           }
         }
       } catch (err) {
@@ -215,7 +217,7 @@ export default function PublicCaregiverProfile() {
         <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2">
           <div className="relative">
             <img
-              src={profile.profile_photo_url || null}
+              src={profile.profile_photo_url || undefined}
               alt={profile.display_name}
               className="w-32 h-32 md:w-40 md:h-40 rounded-full border-4 border-white shadow-lg object-cover"
               onError={(e) => e.target.style.display='none'}
@@ -426,14 +428,14 @@ export default function PublicCaregiverProfile() {
                       {format(parseISO(slot.slot_date), 'EEE, MMM d')}
                     </span>
                     <span className="text-[#643737]">
-                      {slot.start_time} – {slot.end_time}
+                      {slot.start_time} \u2013 {slot.end_time}
                     </span>
                   </div>
                 ))}
               </div>
             ) : (
               <p className="text-center text-[#643737]">
-                No available times — contact to enquire.
+                No available times \u2014 contact to enquire.
               </p>
             )}
           </CardContent>
@@ -451,7 +453,7 @@ export default function PublicCaregiverProfile() {
           />
         )}
 
-        {/* F-091 UI.1: Report caregiver link — low prominence */}
+        {/* F-091 UI.1: Report caregiver link \u2014 low prominence */}
         {user && user.app_role !== 'caregiver' && !isOwnProfile && (
           <div className="mb-4 text-center">
             <button
@@ -487,8 +489,9 @@ export default function PublicCaregiverProfile() {
           <Button
             variant="outline"
             onClick={() => {
+              // Fix: use createPageUrl() for correct URL format (matches rest of codebase)
               const baseUrl = window.location.origin;
-              const profileUrl = `${baseUrl}/publiccaregiverprofile/${profile.slug}`;
+              const profileUrl = `${baseUrl}${createPageUrl('PublicCaregiverProfile')}?slug=${profile.slug}`;
               navigator.clipboard.writeText(profileUrl);
               setCopied(true);
               setTimeout(() => setCopied(false), 2000);
