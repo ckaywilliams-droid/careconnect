@@ -115,23 +115,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  // Log to AdminActionLog (F-084R Audit.1)
-  await base44.asServiceRole.entities.AdminActionLog.create({
-    admin_user_id: user.id,
-    admin_role: 'super_admin',
-    action_type: 'force_cancel_booking',
-    target_entity_type: 'BookingRequest',
-    target_entity_id: booking.id,
-    reason: notes || `Admin resolution: ${ruling}`,
-    payload: JSON.stringify({
-      ruling,
-      slot_action,
-      issue_strike: !!issue_strike,
-      increment_no_show: !!increment_no_show,
-      profile_hold_triggered: profileHoldTriggered
-    }),
-    action_timestamp: now
-  });
+  // AdminActionLog is written via logBookingEvent (Layer 8) at the end of this function.
 
   // ── Layer 4: Resolution emails to both parties ───────────────────────────
   const baseUrlAR = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
