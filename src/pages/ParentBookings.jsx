@@ -160,6 +160,7 @@ export default function ParentBookings() {
   const [noShowDesc, setNoShowDesc] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [reviewModal, setReviewModal] = useState(null); // { booking, caregiverName }
+  const [threadModal, setThreadModal] = useState(null); // { booking }
 
   useEffect(() => {
     (async () => {

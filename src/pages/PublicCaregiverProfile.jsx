@@ -9,6 +9,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, MapPin, Star, AlertCircle, Edit2, Copy, Check } from 'lucide-react';
 import ReviewsSection from '@/components/ReviewsSection';
 import BookingRequestModal from '@/components/BookingRequestModal';
+import ReportUserModal from '@/components/messaging/ReportUserModal';
 import { format, parseISO } from 'date-fns';
 
 export default function PublicCaregiverProfile() {
