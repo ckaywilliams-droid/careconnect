@@ -61,7 +61,7 @@ function CancellationRequestBanner({ booking, onRespond }) {
   );
 }
 
-function BookingCard({ booking, cgProfiles, onAction }) {
+function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
   const cgProfile = cgProfiles[booking.caregiver_profile_id];
   const start = new Date(booking.start_time);
   const end = new Date(booking.end_time);
