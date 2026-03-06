@@ -26,7 +26,7 @@ const STATUS_CONFIG = {
   declined:                             { label: 'Declined',              color: 'bg-red-100 text-red-800' },
   cancelled_by_parent:                  { label: 'Cancelled by You',      color: 'bg-gray-100 text-gray-600' },
   cancelled_by_caregiver:               { label: 'Cancelled by Caregiver',color: 'bg-gray-100 text-gray-600' },
-  cancellation_requested_by_caregiver:  { label: '⚠ Cancel Requested',    color: 'bg-orange-100 text-orange-800' },
+  cancellation_requested_by_caregiver:  { label: '\u26a0 Cancel Requested',    color: 'bg-orange-100 text-orange-800' },
   expired:                              { label: 'Expired',               color: 'bg-gray-100 text-gray-500' },
   in_progress:                          { label: 'In Progress',           color: 'bg-blue-100 text-blue-800' },
   completed:                            { label: 'Completed',             color: 'bg-emerald-100 text-emerald-800' },
@@ -87,7 +87,7 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
           </p>
           <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" />
-            {format(start, 'h:mm a')} – {format(end, 'h:mm a')}
+            {format(start, 'h:mm a')} \u2013 {format(end, 'h:mm a')}
           </p>
           <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
@@ -231,7 +231,8 @@ export default function ParentBookings() {
       try {
         const res = await invoke('checkIn', { booking_request_id: booking.id });
         toast.success(res.step === 'both_confirmed' ? 'Session started!' : res.message || 'Check-in recorded.');
-        queryClient.invalidateQueries(['parent-bookings']);
+        // Fix: React Query v5 requires object form for invalidateQueries
+        queryClient.invalidateQueries({ queryKey: ['parent-bookings'] });
       } catch (e) {
         toast.error(e.response?.data?.error || 'Check-in failed');
       } finally { setSubmitting(false); }
@@ -242,7 +243,7 @@ export default function ParentBookings() {
       try {
         const res = await invoke('checkOut', { booking_request_id: booking.id });
         toast.success(res.step === 'both_confirmed' ? 'Session complete! Thank you.' : res.message || 'Check-out recorded.');
-        queryClient.invalidateQueries(['parent-bookings']);
+        queryClient.invalidateQueries({ queryKey: ['parent-bookings'] });
       } catch (e) {
         toast.error(e.response?.data?.error || 'Check-out failed');
       } finally { setSubmitting(false); }
@@ -252,8 +253,8 @@ export default function ParentBookings() {
       setSubmitting(true);
       try {
         await invoke('reviewCancellationRequest', { booking_request_id: booking.id, action: extra });
-        toast.success(extra === 'approve' ? 'Cancellation approved.' : 'Booking kept — cancellation denied.');
-        queryClient.invalidateQueries(['parent-bookings']);
+        toast.success(extra === 'approve' ? 'Cancellation approved.' : 'Booking kept \u2014 cancellation denied.');
+        queryClient.invalidateQueries({ queryKey: ['parent-bookings'] });
       } catch (e) {
         toast.error(e.response?.data?.error || 'Failed to respond');
       } finally { setSubmitting(false); }
@@ -288,7 +289,7 @@ export default function ParentBookings() {
         await invoke('reportNoShow', { booking_request_id: modal.booking.id, description: noShowDesc });
         toast.success('Report submitted. Our team will review shortly.');
       }
-      queryClient.invalidateQueries(['parent-bookings']);
+      queryClient.invalidateQueries({ queryKey: ['parent-bookings'] });
       setModal(null);
     } catch (e) {
       toast.error(e.response?.data?.error || 'Action failed');
@@ -403,7 +404,7 @@ export default function ParentBookings() {
           <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
             <DialogHeader className="px-4 pt-4 pb-2 border-b border-gray-100 flex-shrink-0">
               <DialogTitle className="text-base">
-                Conversation — {cgProfiles[threadModal.booking.caregiver_profile_id]?.display_name || 'Caregiver'}
+                Conversation \u2014 {cgProfiles[threadModal.booking.caregiver_profile_id]?.display_name || 'Caregiver'}
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-hidden p-4">
@@ -435,7 +436,7 @@ export default function ParentBookings() {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-gray-600">
-            Describe what happened. Our team will review and get back to you within 24–48 hours.
+            Describe what happened. Our team will review and get back to you within 24\u201348 hours.
           </p>
           <Textarea
             placeholder="Describe the issue..."
