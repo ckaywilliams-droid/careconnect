@@ -340,7 +340,7 @@ export default function ParentBookings() {
                 ) : (
                   <div className="space-y-3">
                     {bookings.filter(filterMap[tab]).map(b => (
-                      <BookingCard key={b.id} booking={b} cgProfiles={cgProfiles} onAction={handleAction} />
+                      <BookingCard key={b.id} booking={b} cgProfiles={cgProfiles} onAction={handleAction} reviewed={reviewedBookingIds.has(b.id)} />
                     ))}
                   </div>
                 )}
