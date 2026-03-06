@@ -26,7 +26,7 @@ export default function SlotDetailPanel({ isOpen, onClose, selectedDate, slots, 
 
   const deleteSlotMutation = useMutation({
     mutationFn: async (slotId) => {
-      await base44.entities.AvailabilitySlot.delete(slotId);
+      await base44.asServiceRole.entities.AvailabilitySlot.delete(slotId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries(['availability-slots']);
