@@ -1,242 +1,336 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Calendar, Users, AlertCircle, Loader2 } from 'lucide-react';
+import { Calendar, Users, AlertCircle, Loader2, Clock, AlertTriangle, ArrowRight, Minus, Plus } from 'lucide-react';
+import { format, parseISO, differenceInMinutes } from 'date-fns';
+
+// Group open slots by date
+function groupSlotsByDate(slots) {
+  const groups = {};
+  slots.forEach(slot => {
+    const d = slot.slot_date;
+    if (!groups[d]) groups[d] = [];
+    groups[d].push(slot);
+  });
+  return groups;
+}
+
+function formatSlotRange(slot) {
+  return `${slot.start_time} – ${slot.end_time}`;
+}
+
+function estimatedCost(slot, hourlyRateCents) {
+  if (!slot || !hourlyRateCents) return null;
+  const [sh, sm] = slot.start_time.split(':').map(Number);
+  const [eh, em] = slot.end_time.split(':').map(Number);
+  const minutes = (eh * 60 + em) - (sh * 60 + sm);
+  if (minutes <= 0) return null;
+  const hours = minutes / 60;
+  return (hours * hourlyRateCents / 100).toFixed(2);
+}
+
+// Conflict state — shows alternative slots
+function ConflictView({ alternatives, profile, onSelectAlternative, onBrowseOthers }) {
+  return (
+    <div className="space-y-4">
+      <Alert className="border-amber-300 bg-amber-50">
+        <AlertTriangle className="h-4 w-4 text-amber-600" />
+        <AlertDescription className="text-amber-800">
+          <strong>This slot was just taken.</strong> Another parent has requested this slot.
+          {alternatives.length > 0
+            ? ` Here are other times with ${profile.display_name}:`
+            : ' No other slots are currently available.'}
+        </AlertDescription>
+      </Alert>
+
+      {alternatives.length > 0 ? (
+        <div className="space-y-2">
+          {alternatives.map(slot => (
+            <button
+              key={slot.id}
+              className="w-full text-left border border-gray-200 rounded-xl p-4 hover:border-[#C36239] hover:bg-orange-50 transition-colors"
+              onClick={() => onSelectAlternative(slot)}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {format(parseISO(slot.slot_date), 'EEEE, MMMM d')}
+                  </p>
+                  <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                    <Clock className="w-3.5 h-3.5" /> {formatSlotRange(slot)}
+                  </p>
+                </div>
+                <ArrowRight className="w-4 h-4 text-[#C36239]" />
+              </div>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      <button
+        className="text-sm text-gray-500 underline underline-offset-2 hover:text-gray-700"
+        onClick={onBrowseOthers}
+      >
+        Browse other caregivers
+      </button>
+    </div>
+  );
+}
 
 export default function BookingRequestModal({ profile, availabilitySlots, preselectedSlot, onClose }) {
   const navigate = useNavigate();
+
+  // Step: 'form' | 'conflict'
+  const [step, setStep] = useState('form');
+  const [selectedDate, setSelectedDate] = useState(preselectedSlot?.slot_date || '');
   const [selectedSlotId, setSelectedSlotId] = useState(preselectedSlot?.id || '');
-  const [numChildren, setNumChildren] = useState('1');
+  const [numChildren, setNumChildren] = useState(1);
   const [specialRequests, setSpecialRequests] = useState('');
-  const [captchaValue, setCaptchaValue] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [conflictAlternatives, setConflictAlternatives] = useState([]);
 
   // Simple math CAPTCHA
   const [captchaQuestion] = useState(() => {
-    const num1 = Math.floor(Math.random() * 10) + 1;
-    const num2 = Math.floor(Math.random() * 10) + 1;
-    return { num1, num2, answer: num1 + num2 };
+    const a = Math.floor(Math.random() * 9) + 1;
+    const b = Math.floor(Math.random() * 9) + 1;
+    return { a, b, answer: a + b };
   });
+  const [captchaValue, setCaptchaValue] = useState('');
+
+  const slotsByDate = useMemo(() => groupSlotsByDate(availabilitySlots), [availabilitySlots]);
+  const sortedDates = useMemo(() => Object.keys(slotsByDate).sort(), [slotsByDate]);
+  const slotsForDate = selectedDate ? (slotsByDate[selectedDate] || []) : [];
+  const selectedSlot = availabilitySlots.find(s => s.id === selectedSlotId) || null;
+  const estimate = estimatedCost(selectedSlot, profile.hourly_rate_cents);
+
+  const canSubmit = selectedSlotId && numChildren >= 1 && parseInt(captchaValue) === captchaQuestion.answer;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    // Validation
-    if (!selectedSlotId) {
-      setError('Please select a time slot.');
-      return;
-    }
-
-    if (!numChildren || numChildren < 1 || numChildren > 10) {
-      setError('Number of children must be between 1 and 10.');
-      return;
-    }
-
-    if (specialRequests.length > 500) {
-      setError('Special requests must be 500 characters or less.');
-      return;
-    }
-
-    // CAPTCHA validation
+    if (!selectedSlotId) { setError('Please select a time slot.'); return; }
     if (parseInt(captchaValue) !== captchaQuestion.answer) {
-      setError('CAPTCHA answer is incorrect. Please try again.');
+      setError('Incorrect answer. Please try again.');
       setCaptchaValue('');
       return;
     }
 
+    setSubmitting(true);
     try {
-      setSubmitting(true);
-
-      // Get current user
-      const user = await base44.auth.me();
-      if (!user) {
-        setError('You must be logged in to request a booking.');
-        return;
-      }
-
-      // Get the selected slot details
-      const selectedSlot = availabilitySlots.find(s => s.id === selectedSlotId);
-      if (!selectedSlot) {
-        setError('Selected time slot is no longer available.');
-        return;
-      }
-
-      // Create booking request
-      const bookingData = {
-        caregiver_profile_id: profile.id,
-        caregiver_user_id: profile.user_id,
-        parent_id: user.id,
+      const res = await base44.functions.invoke('submitBookingRequest', {
         availability_slot_id: selectedSlotId,
-        start_datetime: selectedSlot.start_datetime,
-        end_datetime: selectedSlot.end_datetime,
-        num_children: parseInt(numChildren),
-        special_requests: specialRequests || null,
-        status: 'pending',
-        hourly_rate_cents: profile.hourly_rate_cents
-      };
+        num_children: numChildren,
+        special_requests: specialRequests || undefined,
+        captcha_token: `math:${captchaValue}`,
+      });
 
-      await base44.entities.BookingRequest.create(bookingData);
-
-      // Success - redirect to My Bookings
-      navigate(createPageUrl('MyBookings'));
+      if (res.data?.success) {
+        navigate(createPageUrl('ParentBookings'));
+      }
     } catch (err) {
-      console.error('Error creating booking request:', err);
-      setError(err.message || 'Failed to submit booking request. Please try again.');
+      const errData = err.response?.data;
+      if (errData?.error === 'slot_conflict') {
+        setConflictAlternatives(errData.alternative_slots || []);
+        setStep('conflict');
+      } else if (errData?.existing_booking_id) {
+        setError(`You already have a pending request with this caregiver. View it in My Bookings.`);
+      } else {
+        setError(errData?.error || 'Failed to submit request. Please try again.');
+      }
+    } finally {
       setSubmitting(false);
     }
   };
 
+  const handleSelectAlternative = (slot) => {
+    setSelectedDate(slot.slot_date);
+    setSelectedSlotId(slot.id);
+    setCaptchaValue('');
+    setStep('form');
+    setError(null);
+  };
+
   return (
     <Dialog open={true} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl">Request Booking with {profile.display_name}</DialogTitle>
+          <DialogTitle>Request Booking with {profile.display_name}</DialogTitle>
           <DialogDescription>
-            Fill out the form below to request a booking. The caregiver will review and respond to your request.
+            {profile.hourly_rate_cents
+              ? `$${(profile.hourly_rate_cents / 100).toFixed(0)}/hr · Select an available time slot`
+              : 'Select an available time slot'}
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-6 mt-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
+        {step === 'conflict' ? (
+          <ConflictView
+            alternatives={conflictAlternatives}
+            profile={profile}
+            onSelectAlternative={handleSelectAlternative}
+            onBrowseOthers={() => { onClose(); navigate(createPageUrl('FindCaregivers')); }}
+          />
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-5 mt-2">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
 
-          {/* Slot Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="slot" className="flex items-center gap-2">
-              <Calendar className="w-4 h-4" />
-              Select Time Slot *
-            </Label>
-            <Select value={selectedSlotId} onValueChange={setSelectedSlotId} required>
-              <SelectTrigger id="slot">
-                <SelectValue placeholder="Choose an available time slot" />
-              </SelectTrigger>
-              <SelectContent>
-                {availabilitySlots.map((slot) => (
-                  <SelectItem key={slot.id} value={slot.id}>
-                    {new Date(slot.start_datetime).toLocaleDateString('en-US', { 
-                      weekday: 'short', 
-                      month: 'short', 
-                      day: 'numeric' 
-                    })} • {new Date(slot.start_datetime).toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit' 
-                    })} - {new Date(slot.end_datetime).toLocaleTimeString('en-US', { 
-                      hour: 'numeric', 
-                      minute: '2-digit' 
-                    })}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            {/* Date selection */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Calendar className="w-4 h-4" /> Select Date
+              </Label>
+              {sortedDates.length === 0 ? (
+                <p className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+                  No upcoming availability. Check back later.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {sortedDates.map(d => (
+                    <button
+                      key={d}
+                      type="button"
+                      onClick={() => { setSelectedDate(d); setSelectedSlotId(''); }}
+                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                        selectedDate === d
+                          ? 'border-[#C36239] bg-[#C36239] text-white'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-[#C36239]'
+                      }`}
+                    >
+                      {format(parseISO(d), 'EEE, MMM d')}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
-          {/* Number of Children */}
-          <div className="space-y-2">
-            <Label htmlFor="numChildren" className="flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Number of Children *
-            </Label>
-            <Select value={numChildren} onValueChange={setNumChildren} required>
-              <SelectTrigger id="numChildren">
-                <SelectValue placeholder="Select number" />
-              </SelectTrigger>
-              <SelectContent>
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                  <SelectItem key={num} value={num.toString()}>
-                    {num} {num === 1 ? 'child' : 'children'}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Special Requests */}
-          <div className="space-y-2">
-            <Label htmlFor="specialRequests">
-              Special Requests (Optional)
-              <span className="text-sm text-gray-500 ml-2">{specialRequests.length}/500</span>
-            </Label>
-            <Textarea
-              id="specialRequests"
-              value={specialRequests}
-              onChange={(e) => setSpecialRequests(e.target.value.slice(0, 500))}
-              placeholder="Any special requirements or notes for the caregiver..."
-              rows={4}
-              className="resize-none"
-            />
-          </div>
-
-          {/* CAPTCHA */}
-          <div className="space-y-2">
-            <Label htmlFor="captcha">
-              Security Check: What is {captchaQuestion.num1} + {captchaQuestion.num2}? *
-            </Label>
-            <Input
-              id="captcha"
-              type="number"
-              value={captchaValue}
-              onChange={(e) => setCaptchaValue(e.target.value)}
-              placeholder="Enter the answer"
-              required
-            />
-          </div>
-
-          {/* Booking Summary */}
-          <div className="bg-gray-50 rounded-lg p-4 space-y-2">
-            <h4 className="font-semibold text-gray-900">Booking Summary</h4>
-            <div className="text-sm text-gray-700 space-y-1">
-              <div className="flex justify-between">
-                <span>Hourly Rate:</span>
-                <span className="font-semibold">${(profile.hourly_rate_cents / 100).toFixed(0)}/hr</span>
+            {/* Slot chips */}
+            {selectedDate && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Clock className="w-4 h-4" /> Select Time
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {slotsForDate.map(slot => (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      onClick={() => setSelectedSlotId(slot.id)}
+                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                        selectedSlotId === slot.id
+                          ? 'border-[#C36239] bg-[#C36239] text-white'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-[#C36239]'
+                      }`}
+                    >
+                      {formatSlotRange(slot)}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span>Number of Children:</span>
-                <span className="font-semibold">{numChildren}</span>
+            )}
+
+            {/* Estimated cost */}
+            {estimate && selectedSlot && (
+              <div className="bg-orange-50 border border-orange-100 rounded-lg px-4 py-3 text-sm text-gray-700">
+                <span className="font-medium">Estimated cost: </span>
+                <span className="text-[#C36239] font-semibold">${estimate}</span>
+                <span className="text-gray-500 ml-1">
+                  ({(() => {
+                    const [sh, sm] = selectedSlot.start_time.split(':').map(Number);
+                    const [eh, em] = selectedSlot.end_time.split(':').map(Number);
+                    const mins = (eh * 60 + em) - (sh * 60 + sm);
+                    const h = Math.floor(mins / 60);
+                    const m = mins % 60;
+                    return `${h}h${m ? ` ${m}m` : ''} @ $${(profile.hourly_rate_cents / 100).toFixed(0)}/hr`;
+                  })()})
+                </span>
+                <p className="text-xs text-gray-400 mt-0.5">Estimate only — payment infrastructure coming soon.</p>
+              </div>
+            )}
+
+            {/* Number of children stepper */}
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5">
+                <Users className="w-4 h-4" /> Number of Children
+              </Label>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setNumChildren(n => Math.max(1, n - 1))}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                >
+                  <Minus className="w-3.5 h-3.5" />
+                </button>
+                <span className="w-10 text-center font-semibold text-gray-900">{numChildren}</span>
+                <button
+                  type="button"
+                  onClick={() => setNumChildren(n => Math.min(10, n + 1))}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+                <span className="text-sm text-gray-500">{numChildren === 1 ? 'child' : 'children'}</span>
               </div>
             </div>
-          </div>
 
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              disabled={submitting}
-              className="flex-1"
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 bg-[#C36239] hover:bg-[#75290F] text-white"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                'Submit Request'
-              )}
-            </Button>
-          </div>
-        </form>
+            {/* Special requests */}
+            <div className="space-y-2">
+              <Label htmlFor="sr">
+                Special Requests <span className="text-gray-400 font-normal">(optional)</span>
+                <span className="ml-2 text-xs text-gray-400">{specialRequests.length}/500</span>
+              </Label>
+              <Textarea
+                id="sr"
+                value={specialRequests}
+                onChange={e => setSpecialRequests(e.target.value.slice(0, 500))}
+                placeholder="Allergies, routines, any special instructions..."
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+
+            {/* CAPTCHA */}
+            <div className="space-y-2">
+              <Label htmlFor="captcha">
+                Security check: What is {captchaQuestion.a} + {captchaQuestion.b}?
+              </Label>
+              <input
+                id="captcha"
+                type="number"
+                value={captchaValue}
+                onChange={e => setCaptchaValue(e.target.value)}
+                className="w-32 border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#C36239]"
+                placeholder="Answer"
+                autoComplete="off"
+              />
+            </div>
+
+            {/* Submit */}
+            <div className="flex gap-3 pt-2">
+              <Button type="button" variant="outline" onClick={onClose} disabled={submitting} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting || !canSubmit}
+                className="flex-1 bg-[#C36239] hover:bg-[#75290F] text-white"
+              >
+                {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Request Booking'}
+              </Button>
+            </div>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );
