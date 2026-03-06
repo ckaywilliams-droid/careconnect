@@ -28,6 +28,7 @@ Deno.serve(async (req) => {
     booking_id: booking_request_id,
     parent_user_id,
     caregiver_user_id,
+    caregiver_profile_id,
     is_active: true,
     is_flagged: false,
     is_deleted: false
