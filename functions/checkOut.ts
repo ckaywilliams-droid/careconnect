@@ -114,6 +114,25 @@ Deno.serve(async (req) => {
       })
     ]);
 
+    // ── Layer 8: Audit log — F-081R Audit.1 ────────────────────────────────
+    await base44.functions.invoke('logBookingEvent', {
+      event_type: 'checkout',
+      booking_id: booking_request_id,
+      actor_user_id: user.id,
+      actor_role: 'parent',
+      old_status: 'in_progress',
+      new_status: 'completed',
+      caregiver_profile_id: booking.caregiver_profile_id,
+      parent_user_id: booking.parent_user_id,
+      caregiver_user_id: booking.caregiver_user_id,
+      meta: {
+        check_in_time: booking.check_in_time,
+        check_out_time: now.toISOString(),
+        duration_hrs: durationHrs,
+        total_display: totalDisplay
+      }
+    }).catch(() => {});
+
     return Response.json({
       success: true,
       step: 'both_confirmed',

@@ -118,6 +118,25 @@ ${baseUrl}/ParentBookings
     }).catch(() => {});
   }
 
+  // ── Layer 8: Audit log — F-085 Audit.1 ──────────────────────────────────
+  await base44.functions.invoke('logBookingEvent', {
+    event_type: 'cancellation_request',
+    booking_id: booking_request_id,
+    actor_user_id: user.id,
+    actor_role: 'caregiver',
+    old_status: 'accepted',
+    new_status: 'cancellation_requested_by_caregiver',
+    caregiver_profile_id: booking.caregiver_profile_id,
+    parent_user_id: booking.parent_user_id,
+    caregiver_user_id: booking.caregiver_user_id,
+    meta: {
+      cancellation_requested_at: now2.toISOString(),
+      cancellation_response_deadline: deadline.toISOString(),
+      // Note: reason text is stored on the entity — not re-logged here to avoid duplication
+      reason_length: cancellation_reason.trim().length
+    }
+  }).catch(() => {});
+
   // Slot remains booked — no slot change at this stage (F-085 Data.1)
   return Response.json({
     success: true,
