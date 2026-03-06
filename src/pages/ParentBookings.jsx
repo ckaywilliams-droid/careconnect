@@ -136,6 +136,12 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
             <Star className="w-4 h-4 mr-1" /> Leave Review
           </Button>
         )}
+        {/* View conversation */}
+        {(booking.status !== 'declined' && booking.status !== 'expired') && (
+          <Button size="sm" variant="outline" onClick={() => onAction('view_thread', booking)}>
+            View Conversation
+          </Button>
+        )}
         {/* View caregiver profile */}
         {cgProfile?.slug && (
           <Button size="sm" variant="ghost" asChild>

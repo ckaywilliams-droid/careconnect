@@ -26,6 +26,8 @@ export default function PublicCaregiverProfile() {
   const [copied, setCopied] = useState(false);
   const [showBookingModal, setShowBookingModal] = useState(false);
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportBanner, setReportBanner] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -446,6 +448,37 @@ export default function PublicCaregiverProfile() {
             profile={profile}
             availabilitySlots={availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked)}
             onClose={() => setShowBookingModal(false)}
+          />
+        )}
+
+        {/* F-091 UI.1: Report caregiver link — low prominence */}
+        {user && user.app_role !== 'caregiver' && !isOwnProfile && (
+          <div className="mb-4 text-center">
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="text-xs text-gray-400 hover:text-gray-600 underline underline-offset-2"
+            >
+              Report this caregiver
+            </button>
+          </div>
+        )}
+
+        {reportBanner && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800 text-center">
+            Your report has been submitted. Our team typically reviews reports within 48 hours.
+          </div>
+        )}
+
+        {showReportModal && (
+          <ReportUserModal
+            reportedUserId={profile.user_id}
+            reportedName={profile.display_name}
+            onClose={() => setShowReportModal(false)}
+            onSuccess={() => {
+              setShowReportModal(false);
+              setReportBanner(true);
+              setTimeout(() => setReportBanner(false), 6000);
+            }}
           />
         )}
 
