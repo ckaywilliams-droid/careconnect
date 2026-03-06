@@ -98,13 +98,45 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
   const [error, setError] = useState(null);
   const [conflictAlternatives, setConflictAlternatives] = useState([]);
 
-  // Simple math CAPTCHA
-  const [captchaQuestion] = useState(() => {
-    const a = Math.floor(Math.random() * 9) + 1;
-    const b = Math.floor(Math.random() * 9) + 1;
-    return { a, b, answer: a + b };
-  });
-  const [captchaValue, setCaptchaValue] = useState('');
+  const [recaptchaToken, setRecaptchaToken] = useState('');
+  const recaptchaRef = useRef(null);
+
+  // Load reCAPTCHA script once
+  useEffect(() => {
+    if (document.getElementById('recaptcha-script')) return;
+    const script = document.createElement('script');
+    script.id = 'recaptcha-script';
+    script.src = 'https://www.google.com/recaptcha/api.js';
+    script.async = true;
+    script.defer = true;
+    document.head.appendChild(script);
+  }, []);
+
+  // Render reCAPTCHA widget after script loads
+  useEffect(() => {
+    const renderWidget = () => {
+      if (window.grecaptcha && recaptchaRef.current && !recaptchaRef.current.dataset.rendered) {
+        recaptchaRef.current.dataset.rendered = 'true';
+        window.grecaptcha.render(recaptchaRef.current, {
+          sitekey: RECAPTCHA_SITE_KEY,
+          callback: (token) => setRecaptchaToken(token),
+          'expired-callback': () => setRecaptchaToken(''),
+        });
+      }
+    };
+
+    if (window.grecaptcha) {
+      renderWidget();
+    } else {
+      const interval = setInterval(() => {
+        if (window.grecaptcha) {
+          clearInterval(interval);
+          renderWidget();
+        }
+      }, 200);
+      return () => clearInterval(interval);
+    }
+  }, []);
 
   const slotsByDate = useMemo(() => groupSlotsByDate(availabilitySlots), [availabilitySlots]);
   const sortedDates = useMemo(() => Object.keys(slotsByDate).sort(), [slotsByDate]);
