@@ -12,6 +12,7 @@ const localizer = momentLocalizer(moment);
 
 export default function CaregiverAvailability() {
   const [user, setUser] = useState(null);
+  const [caregiverProfileId, setCaregiverProfileId] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -23,19 +24,21 @@ export default function CaregiverAvailability() {
   const loadUser = async () => {
     const currentUser = await base44.auth.me();
     setUser(currentUser);
+    const profiles = await base44.entities.CaregiverProfile.filter({ user_id: currentUser.id });
+    if (profiles.length > 0) {
+      setCaregiverProfileId(profiles[0].id);
+    }
   };
 
   const { data: slots = [], isLoading } = useQuery({
-    queryKey: ['availability-slots', user?.id],
+    queryKey: ['availability-slots', caregiverProfileId],
     queryFn: async () => {
-      if (!user) return [];
-      const profile = await base44.entities.CaregiverProfile.filter({ user_id: user.id });
-      if (!profile[0]) return [];
-      return await base44.entities.AvailabilitySlot.filter({ 
-        caregiver_profile_id: profile[0].id 
+      if (!caregiverProfileId) return [];
+      return await base44.entities.AvailabilitySlot.filter({
+        caregiver_profile_id: caregiverProfileId
       });
     },
-    enabled: !!user,
+    enabled: !!caregiverProfileId,
   });
 
   // Convert slots to calendar events
