@@ -427,6 +427,9 @@ export default function PublicCaregiverProfile() {
           </CardContent>
         </Card>
 
+        {/* Reviews */}
+        <ReviewsSection caregiverProfileId={profile.id} />
+
         {/* Copy Profile Link Button */}
         <div className="mb-8 p-4 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC]">
           <Button
