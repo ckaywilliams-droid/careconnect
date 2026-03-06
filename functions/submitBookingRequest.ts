@@ -57,13 +57,16 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Special requests must be 500 characters or less.' }, { status: 400 });
   }
 
-  // ── GATE 3: CAPTCHA — must be third check, before DB reads on caregiver ──
-  // NOTE: This client-arithmetic CAPTCHA provides minimal bot protection.
-  // For production, integrate hCaptcha or reCAPTCHA with server-side token validation.
-  // The rate limit in GATE 7b (5 requests/hour) provides the primary abuse protection.
-  const parts = String(captcha_token).split(':');
-  if (parts.length !== 3 || parseInt(parts[2]) !== parseInt(parts[0]) + parseInt(parts[1])) {
-    return Response.json({ error: 'Please complete the verification check.', gate_failed: 'gate_3_captcha_failed' }, { status: 400 });
+  // ── GATE 3: reCAPTCHA v2 server-side verification ────────────────────────
+  const recaptchaSecret = Deno.env.get('RECAPTCHA_SECRET_KEY');
+  const recaptchaRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `secret=${recaptchaSecret}&response=${captcha_token}`
+  });
+  const recaptchaData = await recaptchaRes.json();
+  if (!recaptchaData.success) {
+    return Response.json({ error: 'Please complete the reCAPTCHA verification.', gate_failed: 'gate_3_captcha_failed' }, { status: 400 });
   }
 
   // ── Fetch slot ────────────────────────────────────────────────────────────
