@@ -74,6 +74,25 @@ Deno.serve(async (req) => {
                     user_id: user.id,
                     display_name: display_name || user.full_name || 'New Parent'
                 });
+
+                // F-096 Triggers.1: Create first Household automatically
+                await base44.asServiceRole.entities.Household.create({
+                    parent_id: user.id,
+                    nickname: 'My Home',
+                    zip_code: user.zip_code || '',
+                    has_pets: false,
+                    pet_count: 0,
+                    child_count: 0,
+                    is_primary: true,
+                    is_active: true
+                });
+
+                // F-099: Set onboarding_step=1 (email not yet verified, or 2 if already verified)
+                const onboardingStep = user.is_email_verified ? 2 : 1;
+                await base44.asServiceRole.entities.User.update(user.id, {
+                    onboarding_step: onboardingStep,
+                    onboarding_complete: false
+                });
             }
         } catch (profileError) {
             // (7) Roll back: clear app_role and onboarding_complete
