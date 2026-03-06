@@ -39,8 +39,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You can only review completed bookings.' }, { status: 400 });
     }
 
-    // Duplicate check — one review per booking
-    const existing = await base44.entities.Review.filter({ booking_request_id });
+    // Duplicate check — one review per booking per parent (both fields)
+    const existing = await base44.asServiceRole.entities.Review.filter({
+      booking_request_id,
+      parent_user_id: user.id,
+    });
     if (existing.length > 0) {
       return Response.json({ error: 'You have already reviewed this booking.' }, { status: 409 });
     }
