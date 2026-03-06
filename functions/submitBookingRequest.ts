@@ -9,7 +9,7 @@
  *
  * Triggers.1 sequence (atomic):
  * 1. Validate all 7 gates
- * 2. Verify CAPTCHA
+ * 2. Verify reCAPTCHA v2 token against Google API
  * 3. Atomic slot soft-lock: UPDATE slot WHERE status='open' AND version_number=N
  * 4. Create BookingRequest with status=pending
  * 5. If BookingRequest creation fails after soft-lock: rollback slot to open
@@ -57,16 +57,25 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Special requests must be 500 characters or less.' }, { status: 400 });
   }
 
-  // ── GATE 3: reCAPTCHA v2 server-side verification ────────────────────────
+  // ── GATE 3: reCAPTCHA v2 — server-side verification ──────────────────────
   const recaptchaSecret = Deno.env.get('RECAPTCHA_SECRET_KEY');
+  if (!recaptchaSecret) {
+    console.error('RECAPTCHA_SECRET_KEY env var not set');
+    return Response.json({ error: 'Server configuration error. Please contact support.', gate_failed: 'gate_3_captcha_misconfigured' }, { status: 500 });
+  }
+
+  const verifyForm = new URLSearchParams();
+  verifyForm.set('secret', recaptchaSecret);
+  verifyForm.set('response', captcha_token);
+
   const recaptchaRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: `secret=${recaptchaSecret}&response=${captcha_token}`
+    body: verifyForm
   });
   const recaptchaData = await recaptchaRes.json();
+
   if (!recaptchaData.success) {
-    return Response.json({ error: 'Please complete the reCAPTCHA verification.', gate_failed: 'gate_3_captcha_failed' }, { status: 400 });
+    return Response.json({ error: 'Please complete the verification check.', gate_failed: 'gate_3_captcha_failed' }, { status: 400 });
   }
 
   // ── Fetch slot ────────────────────────────────────────────────────────────
@@ -97,7 +106,6 @@ Deno.serve(async (req) => {
 
   // ── GATE 6: Slot status=open AND is_blocked=false ─────────────────────────
   if (slot.status !== 'open' || slot.is_blocked) {
-    // Fetch alternative open slots for the same caregiver (F-087 UI)
     const altSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
       caregiver_profile_id: caregiverProfile.id,
       status: 'open',
@@ -149,11 +157,8 @@ Deno.serve(async (req) => {
   // LAYER 3 — STATE MACHINE: Atomic soft-lock + BookingRequest creation
   // ═══════════════════════════════════════════════════════════════════════════
 
-  // Step 1: Read current slot version_number for optimistic lock
   const currentVersionNumber = slot.version_number || 0;
 
-  // Step 2: Atomic soft-lock — UPDATE slot WHERE status='open' AND version_number=N
-  // Per F-076 Addendum Access.2: version_number guard on all slot status changes
   let softLockSucceeded = false;
   try {
     await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
@@ -162,7 +167,6 @@ Deno.serve(async (req) => {
     });
     softLockSucceeded = true;
   } catch (lockErr) {
-    // Slot could not be locked — likely already taken by concurrent request
     const altSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
       caregiver_profile_id: caregiverProfile.id,
       status: 'open',
@@ -180,11 +184,9 @@ Deno.serve(async (req) => {
     }, { status: 409 });
   }
 
-  // Step 3: Verify soft-lock committed with correct version (compare-and-swap check)
   const lockedSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({ id: slot.id });
   const lockedSlot = lockedSlots[0];
   if (!lockedSlot || lockedSlot.status !== 'soft_locked' || lockedSlot.version_number !== currentVersionNumber + 1) {
-    // Version mismatch — concurrent modification: reject (do not create booking)
     return Response.json({
       error: 'slot_conflict',
       conflicting_slot_id: availability_slot_id,
@@ -192,12 +194,9 @@ Deno.serve(async (req) => {
     }, { status: 409 });
   }
 
-  // Step 4: Create BookingRequest with status=pending
-  // Derive start_time and end_time from the slot (server-side — F-074 UI.1)
   const startTime = new Date(`${slot.slot_date}T${slot.start_time}:00`).toISOString();
   const endTime = new Date(`${slot.slot_date}T${slot.end_time}:00`).toISOString();
 
-  // Fetch parent profile for parent_profile_id
   const parentProfiles = await base44.asServiceRole.entities.ParentProfile.filter({ user_id: user.id });
   const parentProfile = parentProfiles[0];
 
@@ -214,23 +213,19 @@ Deno.serve(async (req) => {
       end_time: endTime,
       num_children: numChildrenInt,
       special_requests: special_requests ? special_requests.replace(/<[^>]*>/g, '').slice(0, 500) : null,
-      // F-081 Data.1: snapshot immutable fields at creation time
       hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0,
-      platform_fee_pct_snapshot: 0, // MVP: 0 fee
+      platform_fee_pct_snapshot: 0,
       is_duplicate_checked: true
     });
   } catch (createErr) {
-    // Step 5 (F-074 Triggers.2): Rollback soft-lock if BookingRequest creation fails
     await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
       status: 'open',
-      version_number: currentVersionNumber + 2 // increment again on rollback
+      version_number: currentVersionNumber + 2
     });
     return Response.json({ error: 'Failed to create booking request. The time slot has been released. Please try again.' }, { status: 500 });
   }
 
-  // ── F-088 Logic.1: Create MessageThread synchronously with BookingRequest ──
-  // Fix: create thread BEFORE sending emails so rollback cancels a booking
-  // that neither party has been notified about yet
+  // ── F-088 Logic.1: Create MessageThread before sending emails ─────────────
   try {
     await base44.functions.invoke('createMessageThread', {
       booking_request_id: newBooking.id,
@@ -239,7 +234,6 @@ Deno.serve(async (req) => {
       caregiver_profile_id: caregiverProfile.id
     });
   } catch (threadErr) {
-    // Thread creation failed — rollback both BookingRequest and slot (F-088 Logic.1)
     await base44.asServiceRole.entities.BookingRequest.update(newBooking.id, { is_deleted: true }).catch(() => {});
     await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
       status: 'open',
@@ -249,7 +243,6 @@ Deno.serve(async (req) => {
   }
 
   // ── Layer 4: Transactional emails ─────────────────────────────────────────
-  // Fix: emails sent AFTER thread creation — rollback above prevents ghost emails
   const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
   const caregiverEmailBody = `
 Hi ${caregiverProfile.display_name},
@@ -296,7 +289,7 @@ ${baseUrl}/ParentBookings
     })
   ]);
 
-  // ── Layer 8: Audit log — F-074 Audit.1 (initial pending state) ──────────
+  // ── Layer 8: Audit log ────────────────────────────────────────────────────
   await base44.functions.invoke('logBookingEvent', {
     event_type: 'booking_status_transition',
     booking_id: newBooking.id,
