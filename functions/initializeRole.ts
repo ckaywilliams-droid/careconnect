@@ -74,10 +74,11 @@ Deno.serve(async (req) => {
                 });
 
                 // F-096 Triggers.1: Create first Household automatically.
-                // zip_code omitted here — user hasn't entered one yet; filled in during onboarding.
+                // zip_code required—use empty string, will be filled in during onboarding.
                 await base44.asServiceRole.entities.Household.create({
                     parent_id: user.id,
                     nickname: 'My Home',
+                    zip_code: '',
                     has_pets: false,
                     pet_count: 0,
                     child_count: 0,
