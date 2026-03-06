@@ -68,6 +68,7 @@ import RoleSelection from './pages/RoleSelection';
 import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
+import ParentBookings from './pages/ParentBookings';
 import __Layout from './Layout.jsx';
 
 
@@ -93,6 +94,7 @@ export const PAGES = {
     "SubmitEvidence": SubmitEvidence,
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
+    "ParentBookings": ParentBookings,
 }
 
 export const pagesConfig = {
