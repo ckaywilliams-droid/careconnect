@@ -116,7 +116,7 @@ export default function CaregiverAvailability() {
           onClose={handleClosePanel}
           selectedDate={selectedDate}
           slots={slots}
-          caregiverId={user?.id}
+          caregiverId={caregiverProfileId}
         />
       </div>
     </div>
