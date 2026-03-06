@@ -241,6 +241,12 @@ export default function ParentBookings() {
       } finally { setSubmitting(false); }
       return;
     }
+    // Leave review modal
+    if (type === 'leave_review') {
+      const cgProfile = cgProfilesList.find(p => p.id === booking.caregiver_profile_id);
+      setReviewModal({ booking, caregiverName: cgProfile?.display_name || 'Caregiver' });
+      return;
+    }
     // Modals
     setCancelReason('');
     setNoShowDesc('');
