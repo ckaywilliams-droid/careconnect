@@ -10,12 +10,18 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
 
+    console.log('=== createAvailabilitySlot DEBUG ===');
+    console.log('USER OBJECT:', JSON.stringify(user, null, 2));
+    console.log('USER.app_role:', user?.app_role);
+    console.log('USER.role:', user?.role);
+
     if (!user) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (user.app_role !== 'caregiver') {
-      return Response.json({ error: 'Only caregivers can create availability slots' }, { status: 403 });
+    const roleField = user.app_role ?? user.role;
+    if (roleField !== 'caregiver') {
+      return Response.json({ error: `Only caregivers can create availability slots. Found role: ${roleField}` }, { status: 403 });
     }
 
     const { caregiver_profile_id, slot_date, start_time, end_time, notes } = await req.json();
