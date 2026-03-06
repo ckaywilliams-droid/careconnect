@@ -9,8 +9,6 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-
-
         // (2) Reject if already onboarded
         if (user.onboarding_complete) {
             return Response.json({ error: 'Role already selected' }, { status: 409 });
@@ -75,11 +73,11 @@ Deno.serve(async (req) => {
                     display_name: display_name || user.full_name || 'New Parent'
                 });
 
-                // F-096 Triggers.1: Create first Household automatically
+                // F-096 Triggers.1: Create first Household automatically.
+                // zip_code omitted here — user hasn't entered one yet; filled in during onboarding.
                 await base44.asServiceRole.entities.Household.create({
                     parent_id: user.id,
                     nickname: 'My Home',
-                    zip_code: user.zip_code || '',
                     has_pets: false,
                     pet_count: 0,
                     child_count: 0,
@@ -88,7 +86,8 @@ Deno.serve(async (req) => {
                 });
 
                 // F-099: Set onboarding_step=1 (email not yet verified, or 2 if already verified)
-                const onboardingStep = user.is_email_verified ? 2 : 1;
+                // Fix: use email_verified (not is_email_verified — wrong field name)
+                const onboardingStep = user.email_verified ? 2 : 1;
                 await base44.asServiceRole.entities.User.update(user.id, {
                     onboarding_step: onboardingStep,
                     onboarding_complete: false
