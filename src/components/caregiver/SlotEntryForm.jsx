@@ -26,11 +26,16 @@ export default function SlotEntryForm({
   date,
   existingSlots = [],
   caregiverProfileId,
-  caregiverUserId,
   onSuccess,
   onCancel
 }) {
   const isEditMode = !!initialSlot;
+  const [user, setUser] = useState(null);
+  
+  useEffect(() => {
+    base44.auth.me().then(u => setUser(u));
+  }, []);
+
   const [formData, setFormData] = useState({
     slot_date: format(date, 'yyyy-MM-dd'),
     start_time: initialSlot?.start_time || '09:00',
@@ -67,8 +72,12 @@ export default function SlotEntryForm({
       newErrors.duration = 'Slots must be at least 30 minutes long.';
     }
 
-    // F-057 Errors.3: Check for past date
-    if (new Date(formData.slot_date) < new Date()) {
+    // F-057 Errors.3: Check for past date (not just past dates, but today if time has passed)
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const selected = new Date(formData.slot_date);
+    
+    if (selected < today) {
       newErrors.slot_date = 'You cannot add availability for past dates.';
     }
 
@@ -134,9 +143,14 @@ export default function SlotEntryForm({
       return;
     }
 
+    if (!user) {
+      setErrors({ submit: 'User not authenticated' });
+      return;
+    }
+
     createMutation.mutate({
       caregiver_profile_id: caregiverProfileId,
-      caregiver_user_id: caregiverUserId,
+      caregiver_user_id: user.id,
       slot_date: formData.slot_date,
       start_time: formData.start_time,
       end_time: formData.end_time,
