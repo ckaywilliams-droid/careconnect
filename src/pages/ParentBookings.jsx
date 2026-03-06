@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Calendar, Clock, Users, LogIn, LogOut, XCircle, Flag,
-  AlertTriangle, Loader2, CheckCircle, ArrowRight
+  AlertTriangle, Loader2, CheckCircle, ArrowRight, Star
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
