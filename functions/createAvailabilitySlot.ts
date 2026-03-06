@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
     }
 
     // Create the availability slot with server-populated caregiver_user_id and explicit defaults
-    const slot = await base44.entities.AvailabilitySlot.create({
+    const createPayload = {
       caregiver_profile_id,
       caregiver_user_id: user.id,
       slot_date,
@@ -53,7 +53,9 @@ Deno.serve(async (req) => {
       version_number: 0,
       status: 'open',
       is_blocked: false
-    });
+    };
+    console.log('CREATE PAYLOAD:', JSON.stringify(createPayload, null, 2));
+    const slot = await base44.entities.AvailabilitySlot.create(createPayload);
 
     return Response.json({ success: true, slot });
   } catch (error) {
