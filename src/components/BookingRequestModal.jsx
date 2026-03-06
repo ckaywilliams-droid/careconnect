@@ -151,11 +151,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
     setError(null);
 
     if (!selectedSlotId) { setError('Please select a time slot.'); return; }
-    if (parseInt(captchaValue) !== captchaQuestion.answer) {
-      setError('Incorrect answer. Please try again.');
-      setCaptchaValue('');
-      return;
-    }
+    if (!recaptchaToken) { setError('Please complete the reCAPTCHA verification.'); return; }
 
     setSubmitting(true);
     try {
@@ -163,7 +159,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
         availability_slot_id: selectedSlotId,
         num_children: numChildren,
         special_requests: specialRequests || undefined,
-        captcha_token: `math:${captchaValue}`,
+        captcha_token: recaptchaToken,
       });
 
       if (res.data?.success) {
