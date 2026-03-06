@@ -77,7 +77,7 @@ export default function RoleSelection() {
         throw new Error(response.data.error);
       }
       if (response.data?.already_complete) {
-        navigate(role === 'caregiver' ? '/CaregiverProfile' : '/FindCaregivers', { replace: true });
+        navigate(role === 'caregiver' ? '/CaregiverProfile' : '/ParentBookings', { replace: true });
         return;
       }
       navigate(role === 'caregiver' ? '/CaregiverProfile' : '/FindCaregivers', { replace: true });
