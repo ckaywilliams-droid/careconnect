@@ -3,7 +3,8 @@ import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Shield, AlertTriangle, Loader2 } from 'lucide-react';
+import { Shield, AlertTriangle, Loader2, Copy, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import ProfileTab from '@/components/caregiver/ProfileTab';
 import AvailabilityTab from '@/components/caregiver/AvailabilityTab';
 import BookingsTab from '@/components/caregiver/BookingsTab';
@@ -27,6 +28,25 @@ export default function CaregiverProfile() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('profile');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopyProfileLink = () => {
+    if (profile && profile.slug) {
+      const publicProfileUrl = `${window.location.origin}/caregivers/${profile.slug}`;
+      navigator.clipboard.writeText(publicProfileUrl)
+        .then(() => {
+          setCopied(true);
+          toast.success('Your public booking link has been copied!');
+          setTimeout(() => setCopied(false), 2000);
+        })
+        .catch((err) => {
+          console.error('Failed to copy profile link:', err);
+          toast.error('Failed to copy link. Please try again.');
+        });
+    } else {
+      toast.error('Profile information not available to generate link.');
+    }
+  };
 
   useEffect(() => {
     const initDashboard = async () => {
@@ -111,6 +131,20 @@ export default function CaregiverProfile() {
                     ✓ Verified
                   </div>
                 )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyProfileLink}
+                  disabled={!profile.slug}
+                  className="flex items-center gap-1"
+                >
+                  {copied ? (
+                    <Check className="w-3 h-3 text-green-600" />
+                  ) : (
+                    <Copy className="w-3 h-3" />
+                  )}
+                  {copied ? "Copied!" : "Copy Booking Link"}
+                </Button>
               </div>
             )}
           </div>
