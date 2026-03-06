@@ -61,11 +61,27 @@ Deno.serve(async (req) => {
       createPayload.notes = notes;
     }
     console.log('CREATE PAYLOAD:', JSON.stringify(createPayload, null, 2));
-    const slot = await base44.entities.AvailabilitySlot.create(createPayload);
+
+    // Wrap database insert with detailed error capture
+    let slot;
+    try {
+      slot = await base44.entities.AvailabilitySlot.create(createPayload);
+      console.log('SLOT CREATED SUCCESSFULLY:', slot.id);
+    } catch (dbError) {
+      console.error('DATABASE ERROR:', dbError.message);
+      console.error('DATABASE ERROR STACK:', dbError.stack);
+      return Response.json({
+        error: 'Database operation failed',
+        details: dbError.message,
+        userId: user.id,
+        userRole: user.app_role ?? user.role,
+        payload: createPayload
+      }, { status: 500 });
+    }
 
     return Response.json({ success: true, slot });
   } catch (error) {
-    console.error('Error creating availability slot:', error);
+    console.error('Unexpected error in createAvailabilitySlot:', error);
     return Response.json({ error: error.message || 'Failed to create availability slot' }, { status: 500 });
   }
 });
