@@ -106,17 +106,17 @@ Deno.serve(async (req) => {
   }
 
   // Create the message
+  // Fix: store deletion_reason='filtered' so MessageThread.jsx can detect redacted messages
   const message = await base44.asServiceRole.entities.Message.create({
     thread_id,
     sender_user_id: user.id,
     content: finalContent,
     body_original: bodyOriginal,
+    deletion_reason: isFiltered ? 'filtered' : null,
     is_read: false,
     is_system_message: false,
     sent_at: new Date().toISOString(),
     is_deleted: false,
-    // Store filter flag and removed status in deletion_reason field temporarily
-    // (using existing schema fields — is_filtered maps to is_flagged, status to is_deleted)
   });
 
   // Update thread last_message_at
@@ -136,22 +136,28 @@ Deno.serve(async (req) => {
     }).catch(() => {});
   }
 
-  // F-088 Triggers.1: New message notification (send email if recipient hasn't been active in 30 min)
+  // F-088 Triggers.1: New message notification
+  // Fix: fetch recipient's own recent messages (not the sender's) to detect activity
   const recipientId = thread.parent_user_id === user.id ? thread.caregiver_user_id : thread.parent_user_id;
   const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-  const recentRecipientMessages = recentMessages.filter(m =>
-    m.sender_user_id === recipientId && m.created_date > thirtyMinAgo
-  );
+  const recentRecipientMessages = await base44.asServiceRole.entities.Message.filter({
+    thread_id,
+    sender_user_id: recipientId
+  });
+  const recipientWasRecentlyActive = recentRecipientMessages.some(m => m.created_date > thirtyMinAgo);
 
-  if (recentRecipientMessages.length === 0) {
+  if (!recipientWasRecentlyActive) {
     const recipientUsers = await base44.asServiceRole.entities.User.filter({ id: recipientId });
     const recipientUser = recipientUsers[0];
     if (recipientUser?.email) {
       const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+      // Fix: send caregivers to CaregiverProfile, parents to ParentBookings
+      const isRecipientCaregiver = recipientId === thread.caregiver_user_id;
+      const inboxPath = isRecipientCaregiver ? '/CaregiverProfile' : '/ParentBookings';
       await base44.asServiceRole.integrations.Core.SendEmail({
         to: recipientUser.email,
         subject: 'New message from CareNest',
-        body: `You have a new message. Log in to read it:\n\n${baseUrl}/ParentBookings`
+        body: `You have a new message. Log in to read it:\n\n${baseUrl}${inboxPath}`
       }).catch(() => {});
     }
   }
