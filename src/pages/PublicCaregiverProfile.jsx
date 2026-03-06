@@ -169,15 +169,28 @@ export default function PublicCaregiverProfile() {
       );
     }
 
+    if (hasPendingRequest) {
+      return (
+        <Button
+          size="lg"
+          variant="outline"
+          className="w-full border-[#C36239] text-[#C36239]"
+          onClick={() => navigate(createPageUrl('ParentBookings'))}
+        >
+          View Pending Request
+        </Button>
+      );
+    }
+
+    const openSlots = availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked);
     return (
       <Button
         size="lg"
         className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
-        onClick={() => {
-          // TODO: Open booking modal with this caregiver pre-selected
-        }}
+        onClick={() => setShowBookingModal(true)}
+        disabled={openSlots.length === 0}
       >
-        Request Booking
+        {openSlots.length === 0 ? 'No Availability' : 'Request Booking'}
       </Button>
     );
   };
