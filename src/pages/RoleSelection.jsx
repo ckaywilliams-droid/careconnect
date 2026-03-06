@@ -50,7 +50,7 @@ export default function RoleSelection() {
           } else if (user.app_role === 'caregiver') {
             navigate('/CaregiverProfile', { replace: true });
           } else {
-            navigate('/FindCaregivers', { replace: true });
+            navigate('/ParentBookings', { replace: true });
           }
           return;
         }
