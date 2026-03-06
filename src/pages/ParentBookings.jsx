@@ -258,6 +258,11 @@ export default function ParentBookings() {
       } finally { setSubmitting(false); }
       return;
     }
+    // View message thread
+    if (type === 'view_thread') {
+      setThreadModal({ booking });
+      return;
+    }
     // Leave review modal
     if (type === 'leave_review') {
       const cgProfile = cgProfilesList.find(p => p.id === booking.caregiver_profile_id);
@@ -382,6 +387,22 @@ export default function ParentBookings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Message Thread Modal */}
+      {threadModal && (
+        <Dialog open={true} onOpenChange={() => setThreadModal(null)}>
+          <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
+            <DialogHeader className="px-4 pt-4 pb-2 border-b border-gray-100 flex-shrink-0">
+              <DialogTitle className="text-base">
+                Conversation — {cgProfiles[threadModal.booking.caregiver_profile_id]?.display_name || 'Caregiver'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-hidden p-4">
+              <MessageThread booking={threadModal.booking} currentUser={user} />
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Leave Review Modal */}
       {reviewModal && (
