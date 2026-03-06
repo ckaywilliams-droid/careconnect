@@ -108,16 +108,11 @@ export default function SlotEntryForm({
   // Delete mutation
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      // F-055: Validate before deletion
-      const validation = await base44.functions.invoke('validateSlotDeletion', {
-        slot_id: initialSlot.id
-      });
-
-      if (!validation.data.success) {
-        throw new Error(validation.data.error);
+      // Guard: never delete slots with pending or confirmed bookings
+      if (['soft_locked', 'booked'].includes(initialSlot.status)) {
+        throw new Error('Cannot delete a slot with a pending or confirmed booking.');
       }
-
-      await base44.entities.AvailabilitySlot.delete(initialSlot.id);
+      await base44.asServiceRole.entities.AvailabilitySlot.delete(initialSlot.id);
     },
     onSuccess: () => {
       setShowDeleteConfirm(false);
