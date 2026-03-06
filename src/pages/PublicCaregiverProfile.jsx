@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, MapPin, Star, AlertCircle, Edit2, Copy, Check } from 'lucide-react';
 import ReviewsSection from '@/components/ReviewsSection';
+import BookingRequestModal from '@/components/BookingRequestModal';
+import { format, parseISO } from 'date-fns';
 
 export default function PublicCaregiverProfile() {
   const [searchParams] = useSearchParams();
