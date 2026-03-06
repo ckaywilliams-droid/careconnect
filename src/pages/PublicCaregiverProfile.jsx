@@ -54,6 +54,16 @@ export default function PublicCaregiverProfile() {
           if (currentUser && currentUser.id === response.data.profile.user_id) {
             setIsOwnProfile(true);
           }
+
+          // F-075 UI.1: Check if this parent already has a pending request with this caregiver
+          if (currentUser?.app_role === 'parent' && response.data.profile?.id) {
+            const existing = await base44.entities.BookingRequest.filter({
+              parent_user_id: currentUser.id,
+              caregiver_profile_id: response.data.profile.id,
+              status: 'pending'
+            }).catch(() => []);
+            setHasPendingRequest(existing.length > 0);
+          }
         }
       } catch (err) {
         console.error('Error fetching profile:', err);
