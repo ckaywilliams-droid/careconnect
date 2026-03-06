@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { createPageUrl } from '@/utils';
 import LeaveReviewModal from '@/components/LeaveReviewModal';
 import MessageThread from '@/components/messaging/MessageThread';
+import AccountSettingsTab from '@/components/parent/AccountSettingsTab';
 
 const STATUS_CONFIG = {
   pending:                              { label: 'Pending Response',      color: 'bg-yellow-100 text-yellow-800' },
@@ -160,7 +161,7 @@ export default function ParentBookings() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
-  const [tab, setTab] = useState('active');
+  const [tab, setTab] = useState('bookings');
   const [modal, setModal] = useState(null); // { type, booking, extra }
   const [cancelReason, setCancelReason] = useState('');
   const [noShowDesc, setNoShowDesc] = useState('');
@@ -308,13 +309,13 @@ export default function ParentBookings() {
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">My Bookings</h1>
-          <p className="text-sm text-gray-500 mt-1">Track and manage your care sessions</p>
+          <h1 className="text-2xl font-bold text-gray-900">My Account</h1>
+          <p className="text-sm text-gray-500 mt-1">Manage your bookings and household profile</p>
         </div>
       </div>
 
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {needsActionCount > 0 && (
+        {needsActionCount > 0 && tab === 'bookings' && (
           <Alert className="border-orange-300 bg-orange-50 mb-6">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800">
@@ -323,44 +324,52 @@ export default function ParentBookings() {
           </Alert>
         )}
 
-        <Card>
-          <CardContent className="pt-6">
-            <Tabs value={tab} onValueChange={setTab}>
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="active">
-                  Active ({bookings.filter(filterMap.active).length})
-                </TabsTrigger>
-                <TabsTrigger value="completed">
-                  Completed ({bookings.filter(filterMap.completed).length})
-                </TabsTrigger>
-                <TabsTrigger value="cancelled">
-                  Past ({bookings.filter(filterMap.cancelled).length})
-                </TabsTrigger>
-              </TabsList>
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabsList className="mb-6">
+            <TabsTrigger value="bookings">My Bookings</TabsTrigger>
+            <TabsTrigger value="account">Account Settings</TabsTrigger>
+          </TabsList>
 
-              <TabsContent value={tab} className="mt-6">
-                {bookings.filter(filterMap[tab]).length === 0 ? (
-                  <div className="text-center py-14 text-gray-400">
-                    <Calendar className="w-10 h-10 mx-auto mb-3" />
-                    <p className="font-medium">No bookings here</p>
-                    {tab === 'active' && (
-                      <Button className="mt-4 bg-[#C36239] hover:bg-[#75290F] text-white"
-                        onClick={() => navigate(createPageUrl('FindCaregivers'))}>
-                        Find a Caregiver
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {bookings.filter(filterMap[tab]).map(b => (
-                      <BookingCard key={b.id} booking={b} cgProfiles={cgProfiles} onAction={handleAction} reviewed={reviewedBookingIds.has(b.id)} />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+          <TabsContent value="bookings">
+            <Card>
+              <CardContent className="pt-6">
+                <Tabs defaultValue="active">
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="active">Active ({bookings.filter(filterMap.active).length})</TabsTrigger>
+                    <TabsTrigger value="completed">Completed ({bookings.filter(filterMap.completed).length})</TabsTrigger>
+                    <TabsTrigger value="cancelled">Past ({bookings.filter(filterMap.cancelled).length})</TabsTrigger>
+                  </TabsList>
+                  {['active', 'completed', 'cancelled'].map(t => (
+                    <TabsContent key={t} value={t} className="mt-6">
+                      {bookings.filter(filterMap[t]).length === 0 ? (
+                        <div className="text-center py-14 text-gray-400">
+                          <Calendar className="w-10 h-10 mx-auto mb-3" />
+                          <p className="font-medium">No bookings here</p>
+                          {t === 'active' && (
+                            <Button className="mt-4 bg-[#C36239] hover:bg-[#75290F] text-white"
+                              onClick={() => navigate(createPageUrl('FindCaregivers'))}>
+                              Find a Caregiver
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {bookings.filter(filterMap[t]).map(b => (
+                            <BookingCard key={b.id} booking={b} cgProfiles={cgProfiles} onAction={handleAction} reviewed={reviewedBookingIds.has(b.id)} />
+                          ))}
+                        </div>
+                      )}
+                    </TabsContent>
+                  ))}
+                </Tabs>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="account">
+            {user && <AccountSettingsTab user={user} />}
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Cancel Modal */}
