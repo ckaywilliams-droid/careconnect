@@ -84,9 +84,10 @@ export default function SlotEntryForm({
   const createMutation = useMutation({
     mutationFn: async (data) => {
       if (isEditMode) {
-        await base44.asServiceRole.entities.AvailabilitySlot.update(initialSlot.id, data);
+        await base44.entities.AvailabilitySlot.update(initialSlot.id, data);
       } else {
-        await base44.asServiceRole.entities.AvailabilitySlot.create(data);
+        const response = await base44.functions.invoke('createAvailabilitySlot', data);
+        return response.data.slot;
       }
     },
     onSuccess: () => {
@@ -112,7 +113,7 @@ export default function SlotEntryForm({
       if (['soft_locked', 'booked'].includes(initialSlot.status)) {
         throw new Error('Cannot delete a slot with a pending or confirmed booking.');
       }
-      await base44.asServiceRole.entities.AvailabilitySlot.delete(initialSlot.id);
+      await base44.entities.AvailabilitySlot.delete(initialSlot.id);
     },
     onSuccess: () => {
       setShowDeleteConfirm(false);
