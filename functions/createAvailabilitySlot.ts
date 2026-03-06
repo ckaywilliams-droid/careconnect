@@ -10,13 +10,16 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
 
+    // Identity Check
     console.log('=== createAvailabilitySlot DEBUG ===');
-    console.log('USER OBJECT:', JSON.stringify(user, null, 2));
-    console.log('USER.app_role:', user?.app_role);
-    console.log('USER.role:', user?.role);
+    console.log('AUTH USER ID:', user?.id);
+    console.log('AUTH USER ROLE (app_role):', user?.app_role);
+    console.log('AUTH USER ROLE (role):', user?.role);
+    console.log('FULL USER OBJECT:', JSON.stringify(user, null, 2));
 
     if (!user) {
-      return Response.json({ error: 'Unauthorized' }, { status: 401 });
+      console.log('AUTH FAILED: No user object returned from base44.auth.me()');
+      return Response.json({ error: 'Unauthorized - not logged in' }, { status: 401 });
     }
 
     const roleField = user.app_role ?? user.role;
@@ -24,7 +27,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: `Only caregivers can create availability slots. Found role: ${roleField}` }, { status: 403 });
     }
 
-    const { caregiver_profile_id, slot_date, start_time, end_time, notes } = await req.json();
+    // Payload Log
+    const rawBody = await req.clone().json();
+    console.log('RAW REQUEST BODY:', JSON.stringify(rawBody, null, 2));
+
+    const { caregiver_profile_id, slot_date, start_time, end_time, notes } = rawBody;
 
     // Validate required fields
     if (!caregiver_profile_id || !slot_date || !start_time || !end_time) {
