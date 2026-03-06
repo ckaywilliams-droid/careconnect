@@ -24,6 +24,9 @@ Deno.serve(async (req) => {
   const body = await req.json();
   const { message_id, reason_category, reason_note } = body;
 
+  // (2) message_id present — checked first so subsequent errors are correctly attributed
+  if (!message_id) return Response.json({ error: 'message_id is required.' }, { status: 400 });
+
   // (4) reason_category valid
   if (!reason_category || !VALID_CATEGORIES.includes(reason_category)) {
     return Response.json({ error: 'Please select a valid reason category.' }, { status: 400 });
@@ -42,7 +45,6 @@ Deno.serve(async (req) => {
   }
 
   // (2) Message exists
-  if (!message_id) return Response.json({ error: 'message_id is required.' }, { status: 400 });
   const messages = await base44.asServiceRole.entities.Message.filter({ id: message_id });
   const message = messages[0];
   if (!message) return Response.json({ error: 'Not found.' }, { status: 404 });
@@ -66,6 +68,7 @@ Deno.serve(async (req) => {
   }
 
   // (6) Duplicate check: no existing pending/under_review flag from this user on this message
+  // Uses all-time recentFlags (no time scope) so active flags always block re-flagging
   const duplicateFlags = recentFlags.filter(f =>
     f.target_id === message_id &&
     f.target_type === 'message' &&
@@ -85,19 +88,15 @@ Deno.serve(async (req) => {
     status: 'pending'
   });
 
-  // Update Message.is_flagged = true (using is_flagged field on MessageThread for now — 
-  // Message entity uses is_deleted for soft delete, we track flagging via FlaggedContent)
   // Mark thread as flagged for admin visibility
   await base44.asServiceRole.entities.MessageThread.update(message.thread_id, {
     is_flagged: true
   }).catch(() => {});
 
-  // F-090 Logic.3: Populate booking_id from thread
-  if (thread.booking_id && flagRecord.id) {
-    await base44.asServiceRole.entities.FlaggedContent.update(flagRecord.id, {
-      // booking_id not in current FlaggedContent schema — stored in reason_detail context
-    }).catch(() => {});
-  }
+  // Fix: also flag the individual Message entity so admin queries on Message.is_flagged work
+  await base44.asServiceRole.entities.Message.update(message_id, {
+    is_flagged: true
+  }).catch(() => {});
 
   // F-090 Triggers.1 (4): Send confirmation to flagging user
   await base44.asServiceRole.integrations.Core.SendEmail({
