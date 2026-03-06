@@ -167,18 +167,28 @@ export default function Home() {
                 // Loading state
                 <div className="h-9 w-32 bg-gray-200 animate-pulse rounded"></div>
               ) : user ? (
-                // Authenticated - show role-based dashboard link
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    const dashboardPage = user.app_role === 'parent' ? 'ParentBookings' :
-                                         user.app_role === 'caregiver' ? 'CaregiverProfile' :
-                                         user.app_role === 'super_admin' ? 'AdminDashboard' : 'Home';
-                    navigate(createPageUrl(dashboardPage));
-                  }}
-                >
-                  My Dashboard
-                </Button>
+               // Authenticated - show role-based dashboard link
+               user.app_role === 'parent' ? (
+                 <div className="flex gap-2">
+                   <Button variant="ghost" onClick={() => navigate(createPageUrl('ParentBookings'))}>
+                     My Bookings
+                   </Button>
+                   <Button variant="outline" onClick={() => navigate(createPageUrl('ParentBookings') + '?tab=account')}>
+                     My Account
+                   </Button>
+                 </div>
+               ) : (
+                 <Button
+                   variant="outline"
+                   onClick={() => {
+                     const dashboardPage = user.app_role === 'caregiver' ? 'CaregiverProfile' :
+                                          user.app_role === 'super_admin' ? 'AdminDashboard' : 'Home';
+                     navigate(createPageUrl(dashboardPage));
+                   }}
+                 >
+                   My Dashboard
+                 </Button>
+               )
               ) : (
                 // Unauthenticated - show Sign In and Register Now
                 <>

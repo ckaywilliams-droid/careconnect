@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -161,7 +161,11 @@ export default function ParentBookings() {
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   const [authReady, setAuthReady] = useState(false);
-  const [tab, setTab] = useState('bookings');
+  const location = useLocation();
+  const [tab, setTab] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    return params.get('tab') === 'account' ? 'account' : 'bookings';
+  });
   const [modal, setModal] = useState(null); // { type, booking, extra }
   const [cancelReason, setCancelReason] = useState('');
   const [noShowDesc, setNoShowDesc] = useState('');

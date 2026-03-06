@@ -305,18 +305,28 @@ export default function FindCaregivers() {
                                 )}
                             </Button>
                             {user ? (
-                                <Button
+                                user.app_role === 'parent' ? (
+                                  <div className="flex gap-2">
+                                    <Button variant="ghost" size="sm" className="hidden sm:flex" onClick={() => navigate(createPageUrl('ParentBookings'))}>
+                                      My Bookings
+                                    </Button>
+                                    <Button variant="outline" size="sm" className="hidden sm:flex" onClick={() => navigate(createPageUrl('ParentBookings') + '?tab=account')}>
+                                      My Account
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
                                     variant="ghost"
                                     size="sm"
                                     className="hidden sm:flex"
                                     onClick={() => {
-                                        const pg = user.app_role === 'parent' ? 'ParentBookings' :
-                                            user.app_role === 'caregiver' ? 'CaregiverProfile' : 'AdminDashboard';
+                                        const pg = user.app_role === 'caregiver' ? 'CaregiverProfile' : 'AdminDashboard';
                                         navigate(createPageUrl(pg));
                                     }}
-                                >
+                                  >
                                     My Dashboard
-                                </Button>
+                                  </Button>
+                                )
                             ) : (
                                 <>
                                     <Button

@@ -59,7 +59,7 @@ export default function ParentOnboarding() {
       const u = await base44.auth.me();
       setUser(u);
       if (!u || u.app_role !== 'parent') { navigate(createPageUrl('Home')); return; }
-      if (u.onboarding_complete) { navigate(createPageUrl('FindCaregivers')); return; }
+      if (u.onboarding_complete) { navigate(createPageUrl('ParentBookings')); return; }
 
       const currentStep = u.onboarding_step || 1;
       setStep(currentStep < 5 ? currentStep + 1 : 5);
@@ -146,7 +146,7 @@ export default function ParentOnboarding() {
     // Re-fetch user to check onboarding_complete
     const u = await base44.auth.me();
     if (u.onboarding_complete) {
-      navigate(createPageUrl('FindCaregivers'));
+      navigate(createPageUrl('ParentBookings'));
     } else {
       setError('Profile saved. Please complete any remaining steps.');
     }
