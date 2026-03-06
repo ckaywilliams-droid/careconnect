@@ -457,6 +457,15 @@ export default function PublicCaregiverProfile() {
         {/* Reviews */}
         <ReviewsSection caregiverProfileId={profile.id} />
 
+        {/* Booking Modal */}
+        {showBookingModal && (
+          <BookingRequestModal
+            profile={profile}
+            availabilitySlots={availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked)}
+            onClose={() => setShowBookingModal(false)}
+          />
+        )}
+
         {/* Copy Profile Link Button */}
         <div className="mb-8 p-4 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC]">
           <Button
