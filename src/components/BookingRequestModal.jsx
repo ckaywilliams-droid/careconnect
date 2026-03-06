@@ -183,7 +183,8 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
   const handleSelectAlternative = (slot) => {
     setSelectedDate(slot.slot_date);
     setSelectedSlotId(slot.id);
-    setCaptchaValue('');
+    setRecaptchaToken('');
+    if (window.grecaptcha) window.grecaptcha.reset();
     setStep('form');
     setError(null);
   };
