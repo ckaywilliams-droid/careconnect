@@ -310,7 +310,7 @@ export default function FindCaregivers() {
                                     size="sm"
                                     className="hidden sm:flex"
                                     onClick={() => {
-                                        const pg = user.app_role === 'parent' ? 'ParentDashboard' :
+                                        const pg = user.app_role === 'parent' ? 'ParentBookings' :
                                             user.app_role === 'caregiver' ? 'CaregiverProfile' : 'AdminDashboard';
                                         navigate(createPageUrl(pg));
                                     }}
