@@ -9,7 +9,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Only parents can submit reviews.' }, { status: 403 });
     }
 
-    const { booking_request_id, rating, body } = await req.json();
+    let payload = {};
+    if (req.method === 'POST') {
+      payload = await req.json();
+    }
+    const { booking_request_id, rating, body } = payload;
 
     if (!booking_request_id || !rating) {
       return Response.json({ error: 'booking_request_id and rating are required.' }, { status: 400 });
