@@ -375,6 +375,19 @@ export default function ParentBookings() {
         </DialogContent>
       </Dialog>
 
+      {/* Leave Review Modal */}
+      {reviewModal && (
+        <LeaveReviewModal
+          booking={reviewModal.booking}
+          caregiverName={reviewModal.caregiverName}
+          onClose={() => setReviewModal(null)}
+          onSuccess={() => {
+            setReviewModal(null);
+            refetchReviews();
+          }}
+        />
+      )}
+
       {/* No-Show Report Modal */}
       <Dialog open={modal?.type === 'report_no_show'} onOpenChange={() => setModal(null)}>
         <DialogContent>
