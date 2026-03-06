@@ -13,6 +13,8 @@
  * 3. Atomic slot soft-lock: UPDATE slot WHERE status='open' AND version_number=N
  * 4. Create BookingRequest with status=pending
  * 5. If BookingRequest creation fails after soft-lock: rollback slot to open
+ * 6. Create MessageThread — if this fails, rollback BookingRequest + slot
+ * 7. Send confirmation emails ONLY after thread is confirmed created
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
@@ -56,7 +58,9 @@ Deno.serve(async (req) => {
   }
 
   // ── GATE 3: CAPTCHA — must be third check, before DB reads on caregiver ──
-  // Format: "num1:num2:answer"
+  // NOTE: This client-arithmetic CAPTCHA provides minimal bot protection.
+  // For production, integrate hCaptcha or reCAPTCHA with server-side token validation.
+  // The rate limit in GATE 7b (5 requests/hour) provides the primary abuse protection.
   const parts = String(captcha_token).split(':');
   if (parts.length !== 3 || parseInt(parts[2]) !== parseInt(parts[0]) + parseInt(parts[1])) {
     return Response.json({ error: 'Please complete the verification check.', gate_failed: 'gate_3_captcha_failed' }, { status: 400 });
@@ -221,8 +225,28 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Failed to create booking request. The time slot has been released. Please try again.' }, { status: 500 });
   }
 
-  // ── Layer 4: Transactional emails ────────────────────────────────────────
-  // Email to caregiver: new pending booking request
+  // ── F-088 Logic.1: Create MessageThread synchronously with BookingRequest ──
+  // Fix: create thread BEFORE sending emails so rollback cancels a booking
+  // that neither party has been notified about yet
+  try {
+    await base44.functions.invoke('createMessageThread', {
+      booking_request_id: newBooking.id,
+      parent_user_id: user.id,
+      caregiver_user_id: caregiverProfile.user_id,
+      caregiver_profile_id: caregiverProfile.id
+    });
+  } catch (threadErr) {
+    // Thread creation failed — rollback both BookingRequest and slot (F-088 Logic.1)
+    await base44.asServiceRole.entities.BookingRequest.update(newBooking.id, { is_deleted: true }).catch(() => {});
+    await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
+      status: 'open',
+      version_number: currentVersionNumber + 2
+    }).catch(() => {});
+    return Response.json({ error: 'Failed to create booking thread. Please try again.' }, { status: 500 });
+  }
+
+  // ── Layer 4: Transactional emails ─────────────────────────────────────────
+  // Fix: emails sent AFTER thread creation — rollback above prevents ghost emails
   const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
   const caregiverEmailBody = `
 Hi ${caregiverProfile.display_name},
@@ -241,7 +265,6 @@ ${baseUrl}/CaregiverProfile
 – CareNest
   `.trim();
 
-  // Email to parent: request submitted confirmation
   const parentEmailBody = `
 Hi,
 
@@ -269,24 +292,6 @@ ${baseUrl}/ParentBookings
       body: parentEmailBody
     })
   ]);
-
-  // ── F-088 Logic.1: Create MessageThread synchronously with BookingRequest ──
-  try {
-    await base44.functions.invoke('createMessageThread', {
-      booking_request_id: newBooking.id,
-      parent_user_id: user.id,
-      caregiver_user_id: caregiverProfile.user_id,
-      caregiver_profile_id: caregiverProfile.id
-    });
-  } catch (threadErr) {
-    // Thread creation failed — rollback both BookingRequest and slot (F-088 Logic.1)
-    await base44.asServiceRole.entities.BookingRequest.update(newBooking.id, { is_deleted: true }).catch(() => {});
-    await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
-      status: 'open',
-      version_number: currentVersionNumber + 2
-    }).catch(() => {});
-    return Response.json({ error: 'Failed to create booking thread. Please try again.' }, { status: 500 });
-  }
 
   // ── Layer 8: Audit log — F-074 Audit.1 (initial pending state) ──────────
   await base44.functions.invoke('logBookingEvent', {
