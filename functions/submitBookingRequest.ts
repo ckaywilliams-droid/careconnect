@@ -270,6 +270,24 @@ ${baseUrl}/ParentBookings
     })
   ]);
 
+  // ── F-088 Logic.1: Create MessageThread synchronously with BookingRequest ──
+  try {
+    await base44.functions.invoke('createMessageThread', {
+      booking_request_id: newBooking.id,
+      parent_user_id: user.id,
+      caregiver_user_id: caregiverProfile.user_id,
+      caregiver_profile_id: caregiverProfile.id
+    });
+  } catch (threadErr) {
+    // Thread creation failed — rollback both BookingRequest and slot (F-088 Logic.1)
+    await base44.asServiceRole.entities.BookingRequest.update(newBooking.id, { is_deleted: true }).catch(() => {});
+    await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
+      status: 'open',
+      version_number: currentVersionNumber + 2
+    }).catch(() => {});
+    return Response.json({ error: 'Failed to create booking thread. Please try again.' }, { status: 500 });
+  }
+
   // ── Layer 8: Audit log — F-074 Audit.1 (initial pending state) ──────────
   await base44.functions.invoke('logBookingEvent', {
     event_type: 'booking_status_transition',
