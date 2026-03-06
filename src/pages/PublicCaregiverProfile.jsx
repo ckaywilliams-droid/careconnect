@@ -414,37 +414,19 @@ export default function PublicCaregiverProfile() {
           <CardContent>
             {availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked).length > 0 ? (
               <div className="space-y-2">
-                {availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked).slice(0, 7).map((slot) => {
-                  const startDate = new Date(slot.slot_start_time);
-                  const endDate = new Date(slot.slot_end_time);
-                  return (
-                    <div
-                      key={slot.id}
-                      className="flex items-center justify-between p-3 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC]"
-                    >
-                      <span className="font-medium text-[#0C2119]">
-                        {startDate.toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric'
-                        })}
-                      </span>
-                      <span className="text-[#643737]">
-                        {startDate.toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true
-                        })}{' '}
-                        –{' '}
-                        {endDate.toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true
-                        })}
-                      </span>
-                    </div>
-                  );
-                })}
+                {availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked).slice(0, 7).map((slot) => (
+                  <div
+                    key={slot.id}
+                    className="flex items-center justify-between p-3 bg-[#F9F7F4] rounded-lg border border-[#E5E2DC]"
+                  >
+                    <span className="font-medium text-[#0C2119]">
+                      {format(parseISO(slot.slot_date), 'EEE, MMM d')}
+                    </span>
+                    <span className="text-[#643737]">
+                      {slot.start_time} – {slot.end_time}
+                    </span>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className="text-center text-[#643737]">
