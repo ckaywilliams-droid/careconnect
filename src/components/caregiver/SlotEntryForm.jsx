@@ -143,19 +143,22 @@ export default function SlotEntryForm({
       return;
     }
 
-    if (!user) {
-      setErrors({ submit: 'User not authenticated' });
-      return;
+    if (isEditMode) {
+      createMutation.mutate({
+        slot_date: formData.slot_date,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        notes: formData.notes || null
+      });
+    } else {
+      createMutation.mutate({
+        caregiver_profile_id: caregiverProfileId,
+        slot_date: formData.slot_date,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        notes: formData.notes || null
+      });
     }
-
-    createMutation.mutate({
-      caregiver_profile_id: caregiverProfileId,
-      caregiver_user_id: user.id,
-      slot_date: formData.slot_date,
-      start_time: formData.start_time,
-      end_time: formData.end_time,
-      notes: formData.notes || null
-    });
   };
 
   const canDelete = !isEditMode || initialSlot.status !== 'soft_locked';
