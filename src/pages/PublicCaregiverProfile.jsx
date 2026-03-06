@@ -10,6 +10,7 @@ import { CheckCircle2, MapPin, Star, AlertCircle, Edit2, Copy, Check } from 'luc
 import ReviewsSection from '@/components/ReviewsSection';
 import BookingRequestModal from '@/components/BookingRequestModal';
 import ReportUserModal from '@/components/messaging/ReportUserModal';
+import PublicCaregiverAvailability from '@/components/caregiver/PublicCaregiverAvailability';
 import { format, parseISO } from 'date-fns';
 
 export default function PublicCaregiverProfile() {
@@ -28,6 +29,7 @@ export default function PublicCaregiverProfile() {
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportBanner, setReportBanner] = useState(false);
+  const [preselectedSlot, setPreselectedSlot] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -449,7 +451,11 @@ export default function PublicCaregiverProfile() {
           <BookingRequestModal
             profile={profile}
             availabilitySlots={availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked)}
-            onClose={() => setShowBookingModal(false)}
+            preselectedSlot={preselectedSlot}
+            onClose={() => {
+              setShowBookingModal(false);
+              setPreselectedSlot(null);
+            }}
           />
         )}
 
