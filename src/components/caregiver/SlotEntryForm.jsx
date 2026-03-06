@@ -84,20 +84,16 @@ export default function SlotEntryForm({
   const createMutation = useMutation({
     mutationFn: async (data) => {
       if (isEditMode) {
-        await base44.entities.AvailabilitySlot.update(initialSlot.id, data);
+        await base44.asServiceRole.entities.AvailabilitySlot.update(initialSlot.id, data);
       } else {
-        const result = await base44.functions.invoke('createAvailabilitySlot', data);
-        if (!result.data.success) {
-          throw new Error(result.data.error);
-        }
+        await base44.asServiceRole.entities.AvailabilitySlot.create(data);
       }
     },
     onSuccess: () => {
       onSuccess?.();
     },
     onError: (error) => {
-      // F-057 Errors.4: Server-side conflict handling
-      if (error.message.includes('conflict')) {
+      if (error.message?.includes('conflict')) {
         setErrors({
           submit: 'This slot conflicts with an existing slot. Please adjust your times.'
         });
