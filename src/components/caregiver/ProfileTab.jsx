@@ -295,28 +295,30 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
                     <Upload className="w-8 h-8 text-gray-400" />
                   </div>
                 )}
-                <div>
-                  <input
-                    type="file"
-                    id="profile-photo"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handlePhotoUpload(e, 'profile')}
-                    disabled={uploadingPhoto}
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => document.getElementById('profile-photo').click()}
-                    disabled={uploadingPhoto}
-                  >
-                    {uploadingPhoto ? (
-                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
-                    ) : (
-                      <><Upload className="w-4 h-4 mr-2" /> Upload</>
-                    )}
-                  </Button>
-                </div>
+                {isEditMode && (
+                  <div>
+                    <input
+                      type="file"
+                      id="profile-photo"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handlePhotoUpload(e, 'profile')}
+                      disabled={uploadingPhoto}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('profile-photo').click()}
+                      disabled={uploadingPhoto}
+                    >
+                      {uploadingPhoto ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
+                      ) : (
+                        <><Upload className="w-4 h-4 mr-2" /> Upload</>
+                      )}
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
 
