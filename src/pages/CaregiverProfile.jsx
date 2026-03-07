@@ -30,6 +30,9 @@ export default function CaregiverProfile() {
   const [error, setError] = useState('');
   const [activeTab, setActiveTab] = useState('profile');
   const [copied, setCopied] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const profileSaveRef = useRef(null);
+  const profileCancelRef = useRef(null);
 
   const handleCopyProfileLink = () => {
     if (profile && profile.slug) {
