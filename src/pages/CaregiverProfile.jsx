@@ -34,6 +34,27 @@ export default function CaregiverProfile() {
   const profileSaveRef = useRef(null);
   const profileCancelRef = useRef(null);
 
+  const handleCancelEdit = () => {
+    profileCancelRef.current?.();
+    setIsEditMode(false);
+  };
+
+  const handleSaveEdit = () => {
+    profileSaveRef.current?.();
+  };
+
+  const handleProfileDelete = () => {
+    setProfile(null);
+    navigate('/');
+  };
+
+  const handleTabChange = (tab) => {
+    if (isEditMode && tab !== 'profile') {
+      setIsEditMode(false);
+    }
+    setActiveTab(tab);
+  };
+
   const handleCopyProfileLink = () => {
     if (profile && profile.slug) {
       const publicProfileUrl = `${window.location.origin}/PublicCaregiverProfile?slug=${profile.slug}`;

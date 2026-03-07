@@ -36,6 +36,19 @@ export default function SettingsTab({ user, profile, onProfileDelete }) {
     phone: user?.phone || ''
   });
 
+  const deleteProfileMutation = useMutation({
+    mutationFn: async () => {
+      await base44.entities.CaregiverProfile.delete(profile.id);
+    },
+    onSuccess: () => {
+      toast.success('Profile deleted');
+      onProfileDelete?.();
+    },
+    onError: (error) => {
+      toast.error(error.message || 'Failed to delete profile');
+    }
+  });
+
   const updateEmailMutation = useMutation({
     mutationFn: async (data) => {
       // This would call a backend function to update email
