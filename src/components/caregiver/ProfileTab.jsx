@@ -332,26 +332,30 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
                     className="w-full h-24 rounded object-cover"
                   />
                 )}
-                <input
-                  type="file"
-                  id="header-photo"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(e) => handlePhotoUpload(e, 'header')}
-                  disabled={uploadingPhoto}
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => document.getElementById('header-photo').click()}
-                  disabled={uploadingPhoto}
-                >
-                  {uploadingPhoto ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
-                  ) : (
-                    <><Upload className="w-4 h-4 mr-2" /> Upload</>
-                  )}
-                </Button>
+                {isEditMode && (
+                  <>
+                    <input
+                      type="file"
+                      id="header-photo"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handlePhotoUpload(e, 'header')}
+                      disabled={uploadingPhoto}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => document.getElementById('header-photo').click()}
+                      disabled={uploadingPhoto}
+                    >
+                      {uploadingPhoto ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
+                      ) : (
+                        <><Upload className="w-4 h-4 mr-2" /> Upload</>
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
