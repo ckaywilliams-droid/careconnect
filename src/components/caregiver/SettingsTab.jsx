@@ -116,7 +116,7 @@ export default function SettingsTab({ user, profile }) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label className="text-gray-500 text-xs">Full Name</Label>
-              <p className="text-sm font-medium text-gray-900">{user?.full_name}</p>
+              <p className="text-sm font-medium text-gray-900">{profile?.display_name || user?.full_name}</p>
             </div>
             <div>
               <Label className="text-gray-500 text-xs">Account Role</Label>
