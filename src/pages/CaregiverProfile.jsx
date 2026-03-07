@@ -144,7 +144,9 @@ export default function CaregiverProfile() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">My Dashboard</h1>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {profile?.display_name ? `Welcome, ${profile.display_name}` : 'My Dashboard'}
+              </h1>
               <p className="text-sm text-gray-600 mt-1">
                 Manage your profile, availability, and bookings
               </p>
