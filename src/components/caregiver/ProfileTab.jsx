@@ -492,27 +492,29 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <input
-              type="file"
-              id="cert-upload"
-              accept=".pdf,.jpg,.jpeg,.png"
-              className="hidden"
-              onChange={handleCertUpload}
-              disabled={uploadingCert}
-            />
-            <Button
-              variant="outline"
-              onClick={() => document.getElementById('cert-upload').click()}
-              disabled={uploadingCert}
-            >
-              {uploadingCert ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
-              ) : (
-                <><Upload className="mr-2 h-4 w-4" /> Upload Certificate</>
-              )}
-            </Button>
-          </div>
+          {isEditMode && (
+            <div>
+              <input
+                type="file"
+                id="cert-upload"
+                accept=".pdf,.jpg,.jpeg,.png"
+                className="hidden"
+                onChange={handleCertUpload}
+                disabled={uploadingCert}
+              />
+              <Button
+                variant="outline"
+                onClick={() => document.getElementById('cert-upload').click()}
+                disabled={uploadingCert}
+              >
+                {uploadingCert ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Uploading...</>
+                ) : (
+                  <><Upload className="mr-2 h-4 w-4" /> Upload Certificate</>
+                )}
+              </Button>
+            </div>
+          )}
 
           {certifications.length > 0 ? (
             <div className="space-y-2">
