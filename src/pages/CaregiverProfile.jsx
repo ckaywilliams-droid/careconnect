@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Shield, AlertTriangle, Loader2, Copy, Check, ExternalLink } from 'lucide-react';
+import { AlertTriangle, Loader2, Copy, Check, ExternalLink, Pencil, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import ProfileTab from '@/components/caregiver/ProfileTab';
 import AvailabilityTab from '@/components/caregiver/AvailabilityTab';
