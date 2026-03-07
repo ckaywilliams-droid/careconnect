@@ -239,8 +239,8 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
       {/* Profile Completion Indicator - F-047 */}
       <ProfileCompletion profile={profile} />
 
-      {/* Profile Publish Control */}
-      {profile.completion_pct === 100 && (
+      {/* Profile Publish Control — only shown when not yet published */}
+      {profile.completion_pct === 100 && !profile.is_published && (
         <Card className="border-green-200 bg-green-50">
           <CardHeader>
             <div className="flex items-center justify-between">
