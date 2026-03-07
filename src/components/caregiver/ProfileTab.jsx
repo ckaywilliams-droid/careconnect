@@ -29,7 +29,7 @@ import ProfileCompletion from './ProfileCompletion';
  * F-044: Credentials & Documents
  * F-045: Photo Upload
  */
-export default function ProfileTab({ user, profile, onProfileUpdate }) {
+export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode, saveRef, cancelRef, onSaveSuccess }) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
     display_name: '',
