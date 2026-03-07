@@ -166,6 +166,16 @@ export default function CaregiverProfile() {
                   </div>
                 )}
                 <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => window.open(`/PublicCaregiverProfile?slug=${profile.slug}`, '_blank')}
+                  disabled={!profile.slug}
+                  className="flex items-center gap-1"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  View My Public Profile
+                </Button>
+                <Button
                   variant="outline"
                   size="sm"
                   onClick={handleCopyProfileLink}
