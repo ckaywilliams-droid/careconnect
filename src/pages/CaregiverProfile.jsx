@@ -269,7 +269,7 @@ export default function CaregiverProfile() {
 
       {/* Tabbed Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile">My Profile</TabsTrigger>
             <TabsTrigger value="availability">Availability</TabsTrigger>
@@ -278,7 +278,15 @@ export default function CaregiverProfile() {
           </TabsList>
 
           <TabsContent value="profile" className="space-y-6">
-            <ProfileTab user={user} profile={profile} onProfileUpdate={setProfile} />
+            <ProfileTab
+              user={user}
+              profile={profile}
+              onProfileUpdate={setProfile}
+              isEditMode={isEditMode}
+              saveRef={profileSaveRef}
+              cancelRef={profileCancelRef}
+              onSaveSuccess={() => setIsEditMode(false)}
+            />
           </TabsContent>
 
           <TabsContent value="availability" className="space-y-6">
@@ -290,7 +298,7 @@ export default function CaregiverProfile() {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <SettingsTab user={user} profile={profile} />
+            <SettingsTab user={user} profile={profile} onProfileDelete={handleProfileDelete} />
           </TabsContent>
         </Tabs>
       </div>
