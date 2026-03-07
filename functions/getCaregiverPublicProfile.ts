@@ -46,25 +46,28 @@ Deno.serve(async (req) => {
     // Fetch availability (next 7 days) using correct AvailabilitySlot field names
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-    const sevenDaysStr = sevenDaysFromNow.toISOString().split('T')[0]; // YYYY-MM-DD
+    // Fetch up to 6 months of future slots for the calendar
+    const sixMonthsFromNow = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
+    const sixMonthsStr = sixMonthsFromNow.toISOString().split('T')[0];
 
     let availabilitySlots = [];
     try {
-      // Fetch all open, unblocked slots for this caregiver and filter date range in JS
       const rawSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
         caregiver_profile_id: profile.id,
         status: 'open',
         is_blocked: false
       });
 
-      // Filter to next 7 days using string comparison on slot_date
+      // Filter to today → 6 months, return all fields needed by the calendar
       availabilitySlots = (rawSlots || [])
-        .filter(slot => slot.slot_date >= todayStr && slot.slot_date <= sevenDaysStr)
+        .filter(slot => slot.slot_date >= todayStr && slot.slot_date <= sixMonthsStr)
         .map(slot => ({
           id: slot.id,
-          slot_start_time: new Date(`${slot.slot_date}T${slot.start_time}:00`).toISOString(),
-          slot_end_time: new Date(`${slot.slot_date}T${slot.end_time}:00`).toISOString(),
+          slot_date: slot.slot_date,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          status: slot.status,
+          is_blocked: slot.is_blocked,
         }));
     } catch (e) {
       console.error('Failed to fetch availability slots:', e.message);
