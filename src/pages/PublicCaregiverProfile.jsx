@@ -134,8 +134,8 @@ export default function PublicCaregiverProfile() {
     return null;
   }
 
-  const hourlyRateDisplay = profile.hourly_rate_cents
-    ? `$${(profile.hourly_rate_cents / 100).toFixed(2)}/hr`
+  const hourlyRateDisplay = profile.hourly_rate
+    ? `$${parseFloat(profile.hourly_rate).toFixed(2)}/hr`
     : 'Rate on request';
 
   const servicesArray = profile.services_offered
