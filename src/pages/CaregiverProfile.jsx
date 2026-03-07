@@ -233,7 +233,7 @@ export default function CaregiverProfile() {
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <SettingsTab user={user} />
+            <SettingsTab user={user} profile={profile} />
           </TabsContent>
         </Tabs>
       </div>
