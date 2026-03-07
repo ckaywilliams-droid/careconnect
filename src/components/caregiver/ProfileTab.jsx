@@ -88,6 +88,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
     onSuccess: (updatedProfile) => {
       onProfileUpdate(updatedProfile);
       toast.success('Profile updated successfully');
+      onSaveSuccess?.();
     },
     onError: (error) => {
       toast.error(error.message || 'Failed to update profile');
