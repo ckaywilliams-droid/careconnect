@@ -176,7 +176,7 @@ export default function CaregiverProfile() {
               </p>
             </div>
             {profile && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <div className={`px-3 py-1 rounded-full text-xs font-medium ${
                   profile.is_published 
                     ? 'bg-green-100 text-green-800' 
@@ -188,6 +188,39 @@ export default function CaregiverProfile() {
                   <div className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                     ✓ Verified
                   </div>
+                )}
+                {activeTab === 'profile' && (
+                  isEditMode ? (
+                    <>
+                      <Button
+                        size="sm"
+                        onClick={handleSaveEdit}
+                        className="flex items-center gap-1"
+                      >
+                        <Save className="w-3 h-3" />
+                        Save Changes
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCancelEdit}
+                        className="flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Cancel
+                      </Button>
+                    </>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsEditMode(true)}
+                      className="flex items-center gap-1"
+                    >
+                      <Pencil className="w-3 h-3" />
+                      Edit Profile
+                    </Button>
+                  )
                 )}
                 <Button
                   variant="secondary"
