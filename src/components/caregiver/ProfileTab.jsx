@@ -178,6 +178,29 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
     updateProfileMutation.mutate(formData);
   };
 
+  const handleCancel = () => {
+    if (profile) {
+      setFormData({
+        display_name: profile.display_name || '',
+        bio: profile.bio || '',
+        experience_years: profile.experience_years || 0,
+        hourly_rate_cents: profile.hourly_rate_cents || 0,
+        services_offered: profile.services_offered || '',
+        age_groups: profile.age_groups || '',
+        languages: profile.languages || '',
+        city: profile.city || '',
+        state: profile.state || '',
+        zip_code: profile.zip_code || '',
+        profile_photo_url: profile.profile_photo_url || '',
+        header_image_url: profile.header_image_url || ''
+      });
+    }
+  };
+
+  // Assign refs at render time so the parent header buttons can trigger save/cancel
+  if (saveRef) saveRef.current = handleSave;
+  if (cancelRef) cancelRef.current = handleCancel;
+
   const handlePublishToggle = (checked) => {
     togglePublishMutation.mutate(checked);
   };
