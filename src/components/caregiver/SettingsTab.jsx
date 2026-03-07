@@ -315,6 +315,52 @@ export default function SettingsTab({ user, profile, onProfileDelete }) {
           with field-level security and access logging.
         </AlertDescription>
       </Alert>
+
+      {/* Danger Zone */}
+      {profile && (
+        <Card className="border-red-300">
+          <CardHeader>
+            <CardTitle className="text-red-700">Danger Zone</CardTitle>
+            <CardDescription>Irreversible actions — proceed with caution.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-900">Delete Profile</p>
+                <p className="text-xs text-gray-500">Permanently removes your caregiver profile and all associated data.</p>
+              </div>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="flex items-center gap-1">
+                    <Trash2 className="w-4 h-4" />
+                    Delete Profile
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete your caregiver profile?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. Your profile, availability, and all associated data will be permanently deleted.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      className="bg-red-600 hover:bg-red-700"
+                      onClick={() => deleteProfileMutation.mutate()}
+                      disabled={deleteProfileMutation.isLoading}
+                    >
+                      {deleteProfileMutation.isLoading ? (
+                        <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+                      ) : 'Yes, delete my profile'}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
