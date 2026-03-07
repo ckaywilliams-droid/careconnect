@@ -15,7 +15,7 @@ import { toast } from 'react-hot-toast';
  * 
  * Account settings for caregivers
  */
-export default function SettingsTab({ user }) {
+export default function SettingsTab({ user, profile }) {
   const [emailData, setEmailData] = useState({
     email: user?.email || '',
     currentPassword: ''
