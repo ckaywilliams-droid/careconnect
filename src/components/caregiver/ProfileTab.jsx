@@ -366,131 +366,120 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
       <Card>
         <CardHeader>
           <CardTitle>Profile Information</CardTitle>
-          <CardDescription>Update your public profile details</CardDescription>
+          <CardDescription>{isEditMode ? 'Update your public profile details' : 'Your public profile details'}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="display_name">Display Name *</Label>
-              <Input
-                id="display_name"
-                value={formData.display_name}
-                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                placeholder="How you want to appear to parents"
-              />
+          {isEditMode ? (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="display_name">Display Name *</Label>
+                  <Input
+                    id="display_name"
+                    value={formData.display_name}
+                    onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                    placeholder="How you want to appear to parents"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="experience_years">Years of Experience *</Label>
+                  <Input
+                    id="experience_years"
+                    type="number"
+                    value={formData.experience_years}
+                    onChange={(e) => setFormData({ ...formData, experience_years: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hourly_rate">Hourly Rate ($) *</Label>
+                  <Input
+                    id="hourly_rate"
+                    type="number"
+                    step="0.01"
+                    value={formData.hourly_rate_cents / 100}
+                    onChange={(e) => setFormData({ ...formData, hourly_rate_cents: Math.round(parseFloat(e.target.value) * 100) || 0 })}
+                    placeholder="25.00"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="languages">Languages</Label>
+                  <Input
+                    id="languages"
+                    value={formData.languages}
+                    onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
+                    placeholder="English, Spanish"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bio">Bio *</Label>
+                <Textarea
+                  id="bio"
+                  value={formData.bio}
+                  onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
+                  rows={5}
+                  maxLength={500}
+                  placeholder="Tell parents about yourself, your experience, and your approach to childcare..."
+                />
+                <p className="text-xs text-gray-500">{formData.bio.length}/500 characters</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="services_offered">Services Offered</Label>
+                <Input
+                  id="services_offered"
+                  value={formData.services_offered}
+                  onChange={(e) => setFormData({ ...formData, services_offered: e.target.value })}
+                  placeholder="babysitting,nanny_care,overnight_care (comma-separated)"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="age_groups">Age Groups</Label>
+                <Input
+                  id="age_groups"
+                  value={formData.age_groups}
+                  onChange={(e) => setFormData({ ...formData, age_groups: e.target.value })}
+                  placeholder="newborn_0_1,toddler_1_3,preschool_3_5 (comma-separated)"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="city">City *</Label>
+                  <Input id="city" value={formData.city} onChange={(e) => setFormData({ ...formData, city: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="state">State *</Label>
+                  <Input id="state" value={formData.state} onChange={(e) => setFormData({ ...formData, state: e.target.value })} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="zip_code">Zip Code</Label>
+                  <Input id="zip_code" value={formData.zip_code} onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })} />
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                { label: 'Display Name', value: formData.display_name },
+                { label: 'Years of Experience', value: formData.experience_years ? `${formData.experience_years} years` : '—' },
+                { label: 'Hourly Rate', value: formData.hourly_rate_cents ? `$${(formData.hourly_rate_cents / 100).toFixed(2)}/hr` : '—' },
+                { label: 'Languages', value: formData.languages || '—' },
+                { label: 'City', value: formData.city || '—' },
+                { label: 'State', value: formData.state || '—' },
+                { label: 'Zip Code', value: formData.zip_code || '—' },
+                { label: 'Services Offered', value: formData.services_offered || '—' },
+                { label: 'Age Groups', value: formData.age_groups || '—' },
+              ].map(({ label, value }) => (
+                <div key={label}>
+                  <p className="text-xs text-gray-500">{label}</p>
+                  <p className="text-sm font-medium text-gray-900">{value}</p>
+                </div>
+              ))}
+              <div className="md:col-span-2">
+                <p className="text-xs text-gray-500">Bio</p>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{formData.bio || '—'}</p>
+              </div>
             </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="experience_years">Years of Experience *</Label>
-              <Input
-                id="experience_years"
-                type="number"
-                value={formData.experience_years}
-                onChange={(e) => setFormData({ ...formData, experience_years: parseInt(e.target.value) || 0 })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="hourly_rate">Hourly Rate ($) *</Label>
-              <Input
-                id="hourly_rate"
-                type="number"
-                step="0.01"
-                value={formData.hourly_rate_cents / 100}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  hourly_rate_cents: Math.round(parseFloat(e.target.value) * 100) || 0 
-                })}
-                placeholder="25.00"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="languages">Languages</Label>
-              <Input
-                id="languages"
-                value={formData.languages}
-                onChange={(e) => setFormData({ ...formData, languages: e.target.value })}
-                placeholder="English, Spanish"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="bio">Bio *</Label>
-            <Textarea
-              id="bio"
-              value={formData.bio}
-              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-              rows={5}
-              maxLength={500}
-              placeholder="Tell parents about yourself, your experience, and your approach to childcare..."
-            />
-            <p className="text-xs text-gray-500">{formData.bio.length}/500 characters</p>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="services_offered">Services Offered</Label>
-            <Input
-              id="services_offered"
-              value={formData.services_offered}
-              onChange={(e) => setFormData({ ...formData, services_offered: e.target.value })}
-              placeholder="babysitting,nanny_care,overnight_care (comma-separated)"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="age_groups">Age Groups</Label>
-            <Input
-              id="age_groups"
-              value={formData.age_groups}
-              onChange={(e) => setFormData({ ...formData, age_groups: e.target.value })}
-              placeholder="newborn_0_1,toddler_1_3,preschool_3_5 (comma-separated)"
-            />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="city">City *</Label>
-              <Input
-                id="city"
-                value={formData.city}
-                onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="state">State *</Label>
-              <Input
-                id="state"
-                value={formData.state}
-                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="zip_code">Zip Code</Label>
-              <Input
-                id="zip_code"
-                value={formData.zip_code}
-                onChange={(e) => setFormData({ ...formData, zip_code: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="pt-4">
-            <Button
-              onClick={handleSave}
-              disabled={updateProfileMutation.isLoading}
-              className="w-full md:w-auto"
-            >
-              {updateProfileMutation.isLoading ? (
-                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-              ) : (
-                <><Save className="mr-2 h-4 w-4" /> Save Changes</>
-              )}
-            </Button>
-          </div>
+          )}
         </CardContent>
       </Card>
 
