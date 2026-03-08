@@ -12,7 +12,7 @@ import { Calendar, Users, AlertCircle, Loader2, Clock, AlertTriangle, ArrowRight
 const RECAPTCHA_SITE_KEY = '6LfjY4EsAAAAAPp3xz-1_E4TOxFfr0tEutE5qp-j';
 import { format, parseISO, differenceInMinutes } from 'date-fns';
 
-// Group open slots by date
+// Group bookable slots by date
 function groupSlotsByDate(slots) {
   const groups = {};
   slots.forEach(slot => {
@@ -27,14 +27,24 @@ function formatSlotRange(slot) {
   return `${slot.start_time} – ${slot.end_time}`;
 }
 
-function estimatedCost(slot, hourlyRateCents) {
-  if (!slot || !hourlyRateCents) return null;
+function slotDurationMinutes(slot) {
   const [sh, sm] = slot.start_time.split(':').map(Number);
   const [eh, em] = slot.end_time.split(':').map(Number);
-  const minutes = (eh * 60 + em) - (sh * 60 + sm);
+  return (eh * 60 + em) - (sh * 60 + sm);
+}
+
+function estimatedCost(slot, hourlyRateCents) {
+  if (!slot || !hourlyRateCents) return null;
+  const minutes = slotDurationMinutes(slot);
   if (minutes <= 0) return null;
-  const hours = minutes / 60;
-  return (hours * hourlyRateCents / 100).toFixed(2);
+  return ((minutes / 60) * hourlyRateCents / 100).toFixed(2);
+}
+
+function formatDuration(slot) {
+  const mins = slotDurationMinutes(slot);
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return `${h}h${m ? ` ${m}m` : ''}`;
 }
 
 // Conflict state — shows alternative slots
