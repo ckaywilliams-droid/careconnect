@@ -300,14 +300,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
                 <span className="font-medium">Estimated cost: </span>
                 <span className="text-[#C36239] font-semibold">${estimate}</span>
                 <span className="text-gray-500 ml-1">
-                  ({(() => {
-                    const [sh, sm] = selectedSlot.start_time.split(':').map(Number);
-                    const [eh, em] = selectedSlot.end_time.split(':').map(Number);
-                    const mins = (eh * 60 + em) - (sh * 60 + sm);
-                    const h = Math.floor(mins / 60);
-                    const m = mins % 60;
-                    return `${h}h${m ? ` ${m}m` : ''} @ $${(profile.hourly_rate_cents / 100).toFixed(0)}/hr`;
-                  })()})
+                  ({formatDuration(selectedSlot)} @ ${(profile.hourly_rate_cents / 100).toFixed(0)}/hr)
                 </span>
                 <p className="text-xs text-gray-400 mt-0.5">Estimate only — payment infrastructure coming soon.</p>
               </div>
