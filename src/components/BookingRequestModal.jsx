@@ -175,8 +175,11 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
 
     setSubmitting(true);
     try {
+      // Use the original_availability_id (the real DB slot) + the specific sub-slot times
       const res = await base44.functions.invoke('submitBookingRequest', {
-        availability_slot_id: selectedSlotId,
+        availability_slot_id: selectedSlot?.original_availability_id || selectedSlotId,
+        requested_start_time: selectedSlot?.start_time,
+        requested_end_time: selectedSlot?.end_time,
         num_children: numChildren,
         special_requests: specialRequests || undefined,
         captcha_token: recaptchaToken,
