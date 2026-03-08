@@ -160,6 +160,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
   const slotsByDate = useMemo(() => groupSlotsByDate(availabilitySlots), [availabilitySlots]);
   const sortedDates = useMemo(() => Object.keys(slotsByDate).sort(), [slotsByDate]);
   const slotsForDate = selectedDate ? (slotsByDate[selectedDate] || []) : [];
+  // Generated slots have composite IDs (e.g. "slot-1::540") — match by that
   const selectedSlot = availabilitySlots.find(s => s.id === selectedSlotId) || null;
   const estimate = estimatedCost(selectedSlot, profile.hourly_rate_cents);
 
