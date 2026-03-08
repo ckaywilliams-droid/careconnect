@@ -29,11 +29,16 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Invalid role. Must be parent or caregiver.' }, { status: 400 });
         }
 
+        console.log("initializeRole start", { userId: user.id, currentAppRole: user.app_role, incomingRole: role });
+
         // (4) Update User record: set app_role and onboarding_complete
         await base44.asServiceRole.entities.User.update(user.id, {
             app_role: role,
             onboarding_complete: true
         });
+
+        const verifyUpdate = await base44.asServiceRole.entities.User.get(user.id);
+        console.log("DB after update", { userId: user.id, app_role: verifyUpdate.app_role, onboarding_complete: verifyUpdate.onboarding_complete });
 
         let profile = null;
 
