@@ -101,6 +101,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
   // Step: 'form' | 'conflict'
   const [step, setStep] = useState('form');
   const [selectedDate, setSelectedDate] = useState(preselectedSlot?.slot_date || '');
+  // selectedSlotId is the virtual composite ID (slot.id from generated slots)
   const [selectedSlotId, setSelectedSlotId] = useState(preselectedSlot?.id || '');
   const [numChildren, setNumChildren] = useState(1);
   const [specialRequests, setSpecialRequests] = useState('');
