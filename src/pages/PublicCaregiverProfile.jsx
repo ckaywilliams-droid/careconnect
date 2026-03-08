@@ -281,10 +281,15 @@ export default function PublicCaregiverProfile() {
             )}
           </div>
 
-          {/* Rate Pill */}
-          <Badge className="bg-[#C36239] text-white text-lg px-6 py-2 mb-4">
-            {hourlyRateDisplay}
-          </Badge>
+          {/* Rate & Minimum Hours Pills */}
+          <div className="flex items-center justify-center gap-2 flex-wrap mb-4">
+            <Badge className="bg-[#C36239] text-white text-lg px-6 py-2">
+              {hourlyRateDisplay}
+            </Badge>
+            <Badge className="bg-[#F5F1EC] text-[#643737] border border-[#E5E2DC] text-sm px-4 py-2">
+              Min. {minimumHours}h booking
+            </Badge>
+          </div>
 
           {/* Rating & Location */}
           <div className="flex items-center justify-center gap-6 text-[#643737] text-sm md:text-base">
