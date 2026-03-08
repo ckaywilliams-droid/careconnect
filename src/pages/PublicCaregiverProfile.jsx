@@ -198,14 +198,24 @@ export default function PublicCaregiverProfile() {
     }
 
     const openSlots = availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked);
+    if (openSlots.length === 0) {
+      return (
+        <Button
+          size="lg"
+          className="w-full bg-gray-300 text-gray-600 cursor-not-allowed"
+          disabled
+        >
+          No Availability — Check Back Soon
+        </Button>
+      );
+    }
     return (
       <Button
         size="lg"
         className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
         onClick={() => setShowBookingModal(true)}
-        disabled={openSlots.length === 0}
       >
-        {openSlots.length === 0 ? 'No Availability' : 'Request Booking'}
+        Request Booking
       </Button>
     );
   };
