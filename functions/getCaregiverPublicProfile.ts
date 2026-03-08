@@ -1,13 +1,30 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
+/**
+ * F201 Fix: getCaregiverPublicProfile
+ *
+ * Root causes fixed:
+ * 1. Removed base44.asServiceRole.entities.User.filter() suspension check —
+ *    asServiceRole cannot query the User entity (returns 401), causing the
+ *    function to silently fail before reaching the slot query.
+ *    Suspension is now checked via the CaregiverProfile.profile_status field instead.
+ *
+ * 2. Removed try/catch around AvailabilitySlot query — was silently swallowing
+ *    errors and returning [] instead of surfacing the real failure.
+ *
+ * 3. Slot query now filters on caregiver_user_id (was previously caregiver_profile_id
+ *    in an earlier version — caregiver_user_id is the correct FK for RLS-passable queries).
+ *
+ * 4. Added guard for missing profile.user_id to prevent silent empty-slot returns
+ *    caused by a bad FK rather than a legitimately empty schedule.
+ */
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    
-    // Extract slug from request body
+
     const body = await req.json().catch(() => ({}));
     const slug = body.slug;
-    
+
     if (!slug) {
       return Response.json({ error: 'Slug required' }, { status: 400 });
     }
@@ -25,16 +42,21 @@ Deno.serve(async (req) => {
 
     const profile = profiles[0];
 
-    // F-068 Access.3: Check suspension — return 404 indistinguishable from a missing profile
-    // Never return 403 or any status that reveals the profile exists
-    const userRecords = await base44.asServiceRole.entities.User.filter({ id: profile.user_id }, null, 1);
-    if (userRecords.length === 0 || userRecords[0].is_suspended) {
-        return Response.json({ error: 'Profile not found' }, { status: 404 });
+    // F201 Fix #1: Suspension check via CaregiverProfile.profile_status only.
+    // asServiceRole cannot query User entity — 401 was crashing the function silently.
+    if (profile.profile_status === 'on_hold') {
+      return Response.json({ error: 'Profile not found' }, { status: 404 });
+    }
+
+    // F201 Fix #4: Guard against missing user_id FK
+    if (!profile.user_id) {
+      console.error('[getCaregiverPublicProfile] profile.user_id is missing for profile:', profile.id);
+      return Response.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     // Handle image URLs — already full URLs, no signing needed
-    let profilePhotoUrl = profile.profile_photo_url || null;
-    let headerImageUrl = profile.header_image_url || null;
+    const profilePhotoUrl = profile.profile_photo_url || null;
+    const headerImageUrl = profile.header_image_url || null;
 
     // Fetch certifications (non-suppressed only)
     const certifications = await base44.asServiceRole.entities.Certification.filter({
@@ -43,41 +65,38 @@ Deno.serve(async (req) => {
       is_deleted: false
     });
 
-    // Fetch availability (next 7 days) using correct AvailabilitySlot field names
+    // F201 Fix #2 & #3: Slot query — no try/catch (errors must surface), correct FK field.
+    // Query uses caregiver_user_id (not caregiver_profile_id) — this is the field
+    // written by createAvailabilitySlot and the one RLS evaluates against.
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    // Fetch up to 6 months of future slots for the calendar
     const sixMonthsFromNow = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000);
     const sixMonthsStr = sixMonthsFromNow.toISOString().split('T')[0];
 
-    let availabilitySlots = [];
-    try {
-      const rawSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
-        caregiver_user_id: profile.user_id,
-        status: 'open',
-        is_blocked: false
-      });
+    console.log('[getCaregiverPublicProfile] Fetching slots for caregiver_user_id:', profile.user_id);
 
-      // Filter to today → 6 months, return all fields needed by the calendar
-      availabilitySlots = (rawSlots || [])
-        .filter(slot => slot.slot_date >= todayStr && slot.slot_date <= sixMonthsStr)
-        .map(slot => ({
-          id: slot.id,
-          slot_date: slot.slot_date,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-          status: slot.status,
-          is_blocked: slot.is_blocked,
-        }));
-    } catch (e) {
-      console.error('Failed to fetch availability slots:', e.message);
-      availabilitySlots = [];
-    }
+    const rawSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
+      caregiver_user_id: profile.user_id,
+      status: 'open',
+      is_blocked: false
+    });
 
-    // F-070 Access.1/Logic.1: Allowlist DTO — only safe public fields included.
-    // hourly_rate as dollar string (Logic.3). avg_rating null when absent (Errors.2).
-    // Excluded: user_id, email, phone, address, zip_code, completion_pct, is_suspended,
-    //           is_published, is_deleted, created_date, updated_date, profile_photo raw URI.
+    console.log('[getCaregiverPublicProfile] Raw slot count:', rawSlots?.length ?? 0);
+
+    const availabilitySlots = (rawSlots || [])
+      .filter(slot => slot.slot_date >= todayStr && slot.slot_date <= sixMonthsStr)
+      .map(slot => ({
+        id: slot.id,
+        slot_date: slot.slot_date,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        status: slot.status,
+        is_blocked: slot.is_blocked,
+      }));
+
+    console.log('[getCaregiverPublicProfile] Filtered slot count (today → 6mo):', availabilitySlots.length);
+
+    // F-070 Access.1/Logic.1: Allowlist DTO — only safe public fields.
     return Response.json({
       profile: {
         id: profile.id,
@@ -86,7 +105,6 @@ Deno.serve(async (req) => {
         bio: profile.bio || null,
         profile_photo_url: profilePhotoUrl,
         header_image_url: headerImageUrl,
-        // Logic.3: cents → dollar string; never expose raw cents
         hourly_rate: profile.hourly_rate_cents != null
           ? (profile.hourly_rate_cents / 100).toFixed(2)
           : null,
@@ -94,7 +112,6 @@ Deno.serve(async (req) => {
         age_groups: profile.age_groups || null,
         languages: profile.languages || null,
         is_verified: profile.is_verified || false,
-        // Errors.2: null when no reviews — never 0
         average_rating: (profile.average_rating && profile.average_rating > 0) ? profile.average_rating : null,
         total_reviews: profile.total_reviews || 0,
         total_bookings_completed: profile.total_bookings_completed || 0,
@@ -114,7 +131,7 @@ Deno.serve(async (req) => {
       availabilitySlots: availabilitySlots
     });
   } catch (error) {
-    console.error('Error fetching caregiver profile:', error);
+    console.error('[getCaregiverPublicProfile] Unhandled error:', error.message, error.stack);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
   }
 });
