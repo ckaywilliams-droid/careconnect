@@ -404,6 +404,19 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="minimum_hours">Minimum Booking Hours</Label>
+                  <select
+                    id="minimum_hours"
+                    value={formData.minimum_hours}
+                    onChange={(e) => setFormData({ ...formData, minimum_hours: parseInt(e.target.value) })}
+                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    {[1,2,3,4,5,6,7,8].map(h => (
+                      <option key={h} value={h}>{h} hour{h === 1 ? '' : 's'}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="languages">Languages</Label>
                   <Input
                     id="languages"
