@@ -200,8 +200,7 @@ export default function PublicCaregiverProfile() {
       );
     }
 
-    const openSlots = availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked);
-    if (openSlots.length === 0) {
+    if (bookableSlots.length === 0) {
       return (
         <Button
           size="lg"
@@ -457,7 +456,7 @@ export default function PublicCaregiverProfile() {
         {showBookingModal && (
           <BookingRequestModal
             profile={profile}
-            availabilitySlots={availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked)}
+            availabilitySlots={bookableSlots}
             preselectedSlot={preselectedSlot}
             onClose={() => {
               setShowBookingModal(false);
