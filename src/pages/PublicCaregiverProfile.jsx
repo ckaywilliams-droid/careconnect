@@ -57,7 +57,9 @@ export default function PublicCaregiverProfile() {
 
         setProfile(response.data.profile);
         setCertifications(response.data.certifications || []);
-        setAvailabilitySlots(response.data.availabilitySlots || []);
+        const slots = response.data.availabilitySlots || [];
+        setAvailabilitySlots(slots);
+        setBookableSlots(slots);
 
         // Check if user is viewing their own profile
         if (currentUser && currentUser.id === response.data.profile.user_id) {
