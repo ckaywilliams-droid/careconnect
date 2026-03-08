@@ -1,23 +1,17 @@
 /**
- * F-074: Booking Request Form — Layers 2 + 3 (Access Control + State Machine)
- * F-075: Duplicate Request Prevention — Gate 7
- * F-076: State Machine — establishes initial pending state
- * F-088: Atomic soft-lock on AvailabilitySlot
+ * F-074: Booking Request — Access Control + State Machine
+ * F-075: Duplicate/Overlap Prevention
+ * F-056.1: Minimum hours validation + half-open interval overlap check
  *
- * State machine: creates BookingRequest in pending state
- * Slot effect: open → soft_locked (atomic, with version_number optimistic lock)
+ * No slot soft-locking. Uses half-open interval predicate for conflict detection:
+ *   new_start < existing_end AND new_end > existing_start
  *
- * Triggers.1 sequence (atomic):
- * 1. Validate all 7 gates
- * 2. Verify reCAPTCHA v2 token against Google API
- * 3. Atomic slot soft-lock: UPDATE slot WHERE status='open' AND version_number=N
- * 4. Create BookingRequest with status=pending
- * 5. If BookingRequest creation fails after soft-lock: rollback slot to open
- * 6. Create MessageThread — if this fails, rollback BookingRequest + slot
- * 7. Send confirmation emails ONLY after thread is confirmed created
+ * Availability windows remain 'open' to support multiple non-overlapping bookings.
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+
+const timeToMins = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
@@ -47,6 +41,9 @@ Deno.serve(async (req) => {
   if (!availability_slot_id || !captcha_token) {
     return Response.json({ error: 'availability_slot_id and captcha_token are required.' }, { status: 400 });
   }
+  if (!requested_start_time || !requested_end_time) {
+    return Response.json({ error: 'requested_start_time and requested_end_time are required.' }, { status: 400 });
+  }
 
   const numChildrenInt = parseInt(num_children) || 1;
   if (numChildrenInt < 1 || numChildrenInt > 10) {
@@ -61,17 +58,14 @@ Deno.serve(async (req) => {
   const recaptchaSecret = Deno.env.get('RECAPTCHA_SECRET_KEY');
   if (!recaptchaSecret) {
     console.error('RECAPTCHA_SECRET_KEY env var not set');
-    return Response.json({ error: 'Server configuration error. Please contact support.', gate_failed: 'gate_3_captcha_misconfigured' }, { status: 500 });
+    return Response.json({ error: 'Server configuration error.', gate_failed: 'gate_3_captcha_misconfigured' }, { status: 500 });
   }
 
   const verifyForm = new URLSearchParams();
   verifyForm.set('secret', recaptchaSecret);
   verifyForm.set('response', captcha_token);
 
-  const recaptchaRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
-    method: 'POST',
-    body: verifyForm
-  });
+  const recaptchaRes = await fetch('https://www.google.com/recaptcha/api/siteverify', { method: 'POST', body: verifyForm });
   const recaptchaData = await recaptchaRes.json();
 
   if (!recaptchaData.success) {
@@ -82,69 +76,68 @@ Deno.serve(async (req) => {
   const slots = await base44.asServiceRole.entities.AvailabilitySlot.filter({ id: availability_slot_id });
   const slot = slots[0];
   if (!slot) {
-    return Response.json({ error: 'This time slot no longer exists.', gate_failed: 'gate_6_slot_not_found' }, { status: 409 });
+    return Response.json({ error: 'This availability window no longer exists.', gate_failed: 'gate_6_slot_not_found' }, { status: 409 });
   }
 
   // ── Fetch CaregiverProfile ────────────────────────────────────────────────
   const caregiverProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: slot.caregiver_profile_id });
   const caregiverProfile = caregiverProfiles[0];
   if (!caregiverProfile) {
-    return Response.json({ error: 'This caregiver is no longer available. Please return to search to find another caregiver.', gate_failed: 'gate_4_profile_not_found' }, { status: 409 });
+    return Response.json({ error: 'This caregiver is no longer available.', gate_failed: 'gate_4_profile_not_found' }, { status: 409 });
   }
 
   // ── GATE 4: is_published AND profile_status='active' ─────────────────────
   if (!caregiverProfile.is_published || caregiverProfile.profile_status !== 'active') {
-    return Response.json({ error: 'This caregiver is no longer available. Please return to search to find another caregiver.', gate_failed: 'gate_4_caregiver_unavailable' }, { status: 409 });
+    return Response.json({ error: 'This caregiver is no longer available.', gate_failed: 'gate_4_caregiver_unavailable' }, { status: 409 });
   }
 
   // ── GATE 5: caregiver User not suspended ──────────────────────────────────
   const caregiverUsers = await base44.asServiceRole.entities.User.filter({ id: caregiverProfile.user_id });
   const caregiverUser = caregiverUsers[0];
-  if (!caregiverUser || caregiverUser.is_suspended) {
-    return Response.json({ error: 'This caregiver is no longer available. Please return to search to find another caregiver.', gate_failed: 'gate_5_caregiver_suspended' }, { status: 409 });
+  if (caregiverUser?.is_suspended) {
+    return Response.json({ error: 'This caregiver is no longer available.', gate_failed: 'gate_5_caregiver_suspended' }, { status: 409 });
   }
 
-  // ── GATE 6: Slot status=open AND is_blocked=false ─────────────────────────
-  if (slot.status !== 'open' || slot.is_blocked) {
-    const altSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
-      caregiver_profile_id: caregiverProfile.id,
-      status: 'open',
-      is_blocked: false
-    });
-    const alternatives = altSlots
-      .filter(s => s.id !== availability_slot_id && new Date(`${s.slot_date}T${s.start_time}`) > new Date())
-      .slice(0, 3)
-      .map(s => ({ id: s.id, slot_date: s.slot_date, start_time: s.start_time, end_time: s.end_time }));
+  // ── GATE 6: Slot not blocked ──────────────────────────────────────────────
+  if (slot.is_blocked) {
+    return Response.json({ error: 'This availability window is blocked.', gate_failed: 'gate_6_slot_blocked' }, { status: 409 });
+  }
 
+  // ── Validate and parse requested times ───────────────────────────────────
+  const reqStartMins = timeToMins(requested_start_time);
+  const reqEndMins = timeToMins(requested_end_time);
+  const durationHours = (reqEndMins - reqStartMins) / 60;
+
+  if (durationHours <= 0) {
+    return Response.json({ error: 'End time must be after start time.' }, { status: 400 });
+  }
+
+  // ── F-056.1: Minimum hours validation ────────────────────────────────────
+  const minimumHours = caregiverProfile.minimum_hours || 2;
+  if (durationHours < minimumHours) {
     return Response.json({
-      error: 'slot_conflict',
-      gate_failed: 'gate_6_slot_unavailable',
-      conflicting_slot_id: availability_slot_id,
-      alternative_slots: alternatives
-    }, { status: 409 });
+      error: `Minimum booking duration is ${minimumHours} hour${minimumHours === 1 ? '' : 's'}. You requested ${durationHours} hour${durationHours === 1 ? '' : 's'}.`,
+      gate_failed: 'gate_min_hours'
+    }, { status: 400 });
   }
 
-  // ── GATE 7: No duplicate pending request (F-075) ──────────────────────────
-  const existingPending = await base44.asServiceRole.entities.BookingRequest.filter({
-    parent_user_id: user.id,
-    caregiver_profile_id: caregiverProfile.id,
-    status: 'pending'
-  });
-  if (existingPending.length > 0) {
-    const existing = existingPending[0];
+  // ── Window bounds validation ──────────────────────────────────────────────
+  const slotStartMins = timeToMins(slot.start_time);
+  const slotEndMins = timeToMins(slot.end_time);
+  if (reqStartMins < slotStartMins || reqEndMins > slotEndMins) {
     return Response.json({
-      error: `You already have a pending request with ${caregiverProfile.display_name}. Please view your existing request.`,
-      gate_failed: 'gate_7_duplicate',
-      existing_request_id: existing.id,
-      existing_request_created_at: existing.created_date
-    }, { status: 409 });
+      error: "Requested time is outside the caregiver's availability window.",
+      gate_failed: 'gate_window_bounds'
+    }, { status: 400 });
   }
 
-  // ── GATE 7b: Booking submission rate limit — max 5 per parent per hour ────
+  // ── Build ISO datetimes ───────────────────────────────────────────────────
+  const startTimeISO = new Date(`${slot.slot_date}T${requested_start_time}:00`).toISOString();
+  const endTimeISO = new Date(`${slot.slot_date}T${requested_end_time}:00`).toISOString();
+
+  // ── GATE 7: Rate limit — max 5 per parent per hour ────────────────────────
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
-  const recentRequests = await base44.asServiceRole.entities.BookingRequest.filter({
-    parent_user_id: user.id
-  });
+  const recentRequests = await base44.asServiceRole.entities.BookingRequest.filter({ parent_user_id: user.id });
   const recentCount = recentRequests.filter(b => b.created_date > oneHourAgo).length;
   if (recentCount >= 5) {
     return Response.json({
@@ -153,23 +146,23 @@ Deno.serve(async (req) => {
     }, { status: 429 });
   }
 
-  // ═══════════════════════════════════════════════════════════════════════════
-  // LAYER 3 — STATE MACHINE: Atomic soft-lock + BookingRequest creation
-  // ═══════════════════════════════════════════════════════════════════════════
+  // ── Overlap check — half-open interval predicate ──────────────────────────
+  // Correct minimal overlap check: new_start < existing_end AND new_end > existing_start
+  const allCaregiverBookings = await base44.asServiceRole.entities.BookingRequest.filter({
+    caregiver_user_id: caregiverProfile.user_id
+  });
+  const activeBookings = allCaregiverBookings.filter(b =>
+    ['pending', 'accepted', 'in_progress'].includes(b.status)
+  );
 
-  const currentVersionNumber = slot.version_number || 0;
+  const hasConflict = activeBookings.some(b =>
+    startTimeISO < b.end_time && endTimeISO > b.start_time
+  );
 
-  let softLockSucceeded = false;
-  try {
-    await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
-      status: 'soft_locked',
-      version_number: currentVersionNumber + 1
-    });
-    softLockSucceeded = true;
-  } catch (lockErr) {
+  if (hasConflict) {
+    // Provide alternative windows on the same or other days
     const altSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
       caregiver_profile_id: caregiverProfile.id,
-      status: 'open',
       is_blocked: false
     });
     const alternatives = altSlots
@@ -179,32 +172,17 @@ Deno.serve(async (req) => {
 
     return Response.json({
       error: 'slot_conflict',
+      message: 'This time overlaps with an existing booking. Please choose a different time.',
       conflicting_slot_id: availability_slot_id,
       alternative_slots: alternatives
     }, { status: 409 });
   }
 
-  const lockedSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({ id: slot.id });
-  const lockedSlot = lockedSlots[0];
-  if (!lockedSlot || lockedSlot.status !== 'soft_locked' || lockedSlot.version_number !== currentVersionNumber + 1) {
-    return Response.json({
-      error: 'slot_conflict',
-      conflicting_slot_id: availability_slot_id,
-      alternative_slots: []
-    }, { status: 409 });
-  }
-
-  // If parent booked a generated sub-slot, use the specific requested times; otherwise use the full window
-  const startTime = requested_start_time
-    ? new Date(`${slot.slot_date}T${requested_start_time}:00`).toISOString()
-    : new Date(`${slot.slot_date}T${slot.start_time}:00`).toISOString();
-  const endTime = requested_end_time
-    ? new Date(`${slot.slot_date}T${requested_end_time}:00`).toISOString()
-    : new Date(`${slot.slot_date}T${slot.end_time}:00`).toISOString();
-
+  // ── Fetch parent profile ──────────────────────────────────────────────────
   const parentProfiles = await base44.asServiceRole.entities.ParentProfile.filter({ user_id: user.id });
   const parentProfile = parentProfiles[0];
 
+  // ── Create BookingRequest (no slot soft-locking) ──────────────────────────
   let newBooking;
   try {
     newBooking = await base44.asServiceRole.entities.BookingRequest.create({
@@ -214,8 +192,8 @@ Deno.serve(async (req) => {
       caregiver_user_id: caregiverProfile.user_id,
       availability_slot_id: slot.id,
       status: 'pending',
-      start_time: startTime,
-      end_time: endTime,
+      start_time: startTimeISO,
+      end_time: endTimeISO,
       num_children: numChildrenInt,
       special_requests: special_requests ? special_requests.replace(/<[^>]*>/g, '').slice(0, 500) : null,
       hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0,
@@ -223,14 +201,10 @@ Deno.serve(async (req) => {
       is_duplicate_checked: true
     });
   } catch (createErr) {
-    await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
-      status: 'open',
-      version_number: currentVersionNumber + 2
-    });
-    return Response.json({ error: 'Failed to create booking request. The time slot has been released. Please try again.' }, { status: 500 });
+    return Response.json({ error: 'Failed to create booking request. Please try again.' }, { status: 500 });
   }
 
-  // ── F-088 Logic.1: Create MessageThread before sending emails ─────────────
+  // ── Create MessageThread ──────────────────────────────────────────────────
   try {
     await base44.functions.invoke('createMessageThread', {
       booking_request_id: newBooking.id,
@@ -240,22 +214,19 @@ Deno.serve(async (req) => {
     });
   } catch (threadErr) {
     await base44.asServiceRole.entities.BookingRequest.update(newBooking.id, { is_deleted: true }).catch(() => {});
-    await base44.asServiceRole.entities.AvailabilitySlot.update(slot.id, {
-      status: 'open',
-      version_number: currentVersionNumber + 2
-    }).catch(() => {});
     return Response.json({ error: 'Failed to create booking thread. Please try again.' }, { status: 500 });
   }
 
-  // ── Layer 4: Transactional emails ─────────────────────────────────────────
+  // ── Transactional emails ──────────────────────────────────────────────────
   const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
+
   const caregiverEmailBody = `
 Hi ${caregiverProfile.display_name},
 
 You have a new booking request!
 
 Date: ${slot.slot_date}
-Time: ${slot.start_time} – ${slot.end_time}
+Time: ${requested_start_time} – ${requested_end_time} (${durationHours} hour${durationHours === 1 ? '' : 's'})
 Children: ${numChildrenInt}
 ${special_requests ? `Special requests: ${special_requests.replace(/<[^>]*>/g, '').slice(0, 500)}` : ''}
 
@@ -272,7 +243,7 @@ Hi,
 Your booking request has been submitted to ${caregiverProfile.display_name}!
 
 Date: ${slot.slot_date}
-Time: ${slot.start_time} – ${slot.end_time}
+Time: ${requested_start_time} – ${requested_end_time} (${durationHours} hour${durationHours === 1 ? '' : 's'})
 
 You'll be notified once the caregiver responds (within 24 hours).
 
@@ -283,7 +254,7 @@ ${baseUrl}/ParentBookings
 
   await Promise.allSettled([
     base44.asServiceRole.integrations.Core.SendEmail({
-      to: caregiverUser.email,
+      to: caregiverUser?.email || '',
       subject: 'New Booking Request — Action Required',
       body: caregiverEmailBody
     }),
@@ -294,7 +265,7 @@ ${baseUrl}/ParentBookings
     })
   ]);
 
-  // ── Layer 8: Audit log ────────────────────────────────────────────────────
+  // ── Audit log ─────────────────────────────────────────────────────────────
   await base44.functions.invoke('logBookingEvent', {
     event_type: 'booking_status_transition',
     booking_id: newBooking.id,
@@ -303,15 +274,14 @@ ${baseUrl}/ParentBookings
     old_status: null,
     new_status: 'pending',
     slot_id: slot.id,
-    slot_version_before: currentVersionNumber,
-    slot_version_after: currentVersionNumber + 1,
     caregiver_profile_id: caregiverProfile.id,
     parent_user_id: user.id,
     caregiver_user_id: caregiverProfile.user_id,
     meta: {
       action: 'booking_created',
       num_children: numChildrenInt,
-      hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0
+      hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0,
+      duration_hours: durationHours
     }
   }).catch(() => {});
 
@@ -321,8 +291,9 @@ ${baseUrl}/ParentBookings
     status: 'pending',
     caregiver_name: caregiverProfile.display_name,
     slot_date: slot.slot_date,
-    start_time: slot.start_time,
-    end_time: slot.end_time,
+    start_time: requested_start_time,
+    end_time: requested_end_time,
+    duration_hours: durationHours,
     hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0
   }, { status: 201 });
 });

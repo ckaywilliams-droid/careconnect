@@ -5,14 +5,31 @@ import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Calendar, Users, AlertCircle, Loader2, Clock, AlertTriangle, ArrowRight, Minus, Plus } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 
 const RECAPTCHA_SITE_KEY = '6LfjY4EsAAAAAPp3xz-1_E4TOxFfr0tEutE5qp-j';
-import { format, parseISO, differenceInMinutes } from 'date-fns';
 
-// Group bookable slots by date
+// ── Time helpers ──────────────────────────────────────────────────────────────
+function timeToMins(t) {
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minsToTime(m) {
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+function formatTime12h(t) {
+  const [h, m] = t.split(':').map(Number);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
 function groupSlotsByDate(slots) {
   const groups = {};
   slots.forEach(slot => {
@@ -23,45 +40,21 @@ function groupSlotsByDate(slots) {
   return groups;
 }
 
-function formatSlotRange(slot) {
-  return `${slot.start_time} – ${slot.end_time}`;
-}
-
-function slotDurationMinutes(slot) {
-  const [sh, sm] = slot.start_time.split(':').map(Number);
-  const [eh, em] = slot.end_time.split(':').map(Number);
-  return (eh * 60 + em) - (sh * 60 + sm);
-}
-
-function estimatedCost(slot, hourlyRateCents) {
-  if (!slot || !hourlyRateCents) return null;
-  const minutes = slotDurationMinutes(slot);
-  if (minutes <= 0) return null;
-  return ((minutes / 60) * hourlyRateCents / 100).toFixed(2);
-}
-
-function formatDuration(slot) {
-  const mins = slotDurationMinutes(slot);
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${h}h${m ? ` ${m}m` : ''}`;
-}
-
-// Conflict state — shows alternative slots
+// ── Conflict view ─────────────────────────────────────────────────────────────
 function ConflictView({ alternatives, profile, onSelectAlternative, onBrowseOthers }) {
   return (
     <div className="space-y-4">
       <Alert className="border-amber-300 bg-amber-50">
         <AlertTriangle className="h-4 w-4 text-amber-600" />
         <AlertDescription className="text-amber-800">
-          <strong>This slot was just taken.</strong> Another parent has requested this slot.
+          <strong>This time is already booked.</strong> Another parent has an overlapping request.
           {alternatives.length > 0
-            ? ` Here are other times with ${profile.display_name}:`
-            : ' No other slots are currently available.'}
+            ? ` Other available windows with ${profile.display_name}:`
+            : ' No other windows are currently available.'}
         </AlertDescription>
       </Alert>
 
-      {alternatives.length > 0 ? (
+      {alternatives.length > 0 && (
         <div className="space-y-2">
           {alternatives.map(slot => (
             <button
@@ -75,7 +68,8 @@ function ConflictView({ alternatives, profile, onSelectAlternative, onBrowseOthe
                     {format(parseISO(slot.slot_date), 'EEEE, MMMM d')}
                   </p>
                   <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
-                    <Clock className="w-3.5 h-3.5" /> {formatSlotRange(slot)}
+                    <Clock className="w-3.5 h-3.5" />
+                    {formatTime12h(slot.start_time)} – {formatTime12h(slot.end_time)}
                   </p>
                 </div>
                 <ArrowRight className="w-4 h-4 text-[#C36239]" />
@@ -83,7 +77,7 @@ function ConflictView({ alternatives, profile, onSelectAlternative, onBrowseOthe
             </button>
           ))}
         </div>
-      ) : null}
+      )}
 
       <button
         className="text-sm text-gray-500 underline underline-offset-2 hover:text-gray-700"
@@ -95,32 +89,25 @@ function ConflictView({ alternatives, profile, onSelectAlternative, onBrowseOthe
   );
 }
 
+// ── Main modal ────────────────────────────────────────────────────────────────
 export default function BookingRequestModal({ profile, availabilitySlots, preselectedSlot, onClose }) {
   const navigate = useNavigate();
+  const minHours = profile.minimum_hours || 2;
 
-  // Step: 'form' | 'conflict'
   const [step, setStep] = useState('form');
   const [selectedDate, setSelectedDate] = useState(preselectedSlot?.slot_date || '');
-  // selectedSlotId is the virtual composite ID (slot.id from generated slots)
-  const [selectedSlotId, setSelectedSlotId] = useState(preselectedSlot?.id || '');
+  const [selectedWindowId, setSelectedWindowId] = useState('');
+  const [startTimeVal, setStartTimeVal] = useState('');
+  const [durationHours, setDurationHours] = useState(minHours);
   const [numChildren, setNumChildren] = useState(1);
   const [specialRequests, setSpecialRequests] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [conflictAlternatives, setConflictAlternatives] = useState([]);
-
   const [recaptchaToken, setRecaptchaToken] = useState('');
   const recaptchaRef = useRef(null);
 
-  // Update selected date when preselectedSlot changes
-  useEffect(() => {
-    if (preselectedSlot?.slot_date) {
-      setSelectedDate(preselectedSlot.slot_date);
-      setSelectedSlotId(preselectedSlot.id || '');
-    }
-  }, [preselectedSlot]);
-
-  // Load reCAPTCHA script once
+  // reCAPTCHA script
   useEffect(() => {
     if (document.getElementById('recaptcha-script')) return;
     const script = document.createElement('script');
@@ -131,7 +118,6 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
     document.head.appendChild(script);
   }, []);
 
-  // Render reCAPTCHA widget after script loads
   useEffect(() => {
     const renderWidget = () => {
       if (window.grecaptcha && recaptchaRef.current && !recaptchaRef.current.dataset.rendered) {
@@ -143,43 +129,115 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
         });
       }
     };
-
     if (window.grecaptcha) {
       renderWidget();
     } else {
       const interval = setInterval(() => {
-        if (window.grecaptcha) {
-          clearInterval(interval);
-          renderWidget();
-        }
+        if (window.grecaptcha) { clearInterval(interval); renderWidget(); }
       }, 200);
       return () => clearInterval(interval);
     }
   }, []);
 
+  // Sync preselectedSlot changes
+  useEffect(() => {
+    if (preselectedSlot?.slot_date) {
+      setSelectedDate(preselectedSlot.slot_date);
+      setSelectedWindowId('');
+      setStartTimeVal('');
+      setDurationHours(minHours);
+    }
+  }, [preselectedSlot]);
+
   const slotsByDate = useMemo(() => groupSlotsByDate(availabilitySlots), [availabilitySlots]);
   const sortedDates = useMemo(() => Object.keys(slotsByDate).sort(), [slotsByDate]);
   const slotsForDate = selectedDate ? (slotsByDate[selectedDate] || []) : [];
-  // Generated slots have composite IDs (e.g. "slot-1::540") — match by that
-  const selectedSlot = availabilitySlots.find(s => s.id === selectedSlotId) || null;
-  const estimate = estimatedCost(selectedSlot, profile.hourly_rate_cents);
+  const selectedWindow = slotsForDate.find(s => s.id === selectedWindowId) || null;
 
-  const canSubmit = selectedSlotId && numChildren >= 1 && recaptchaToken;
+  // Auto-select the window when there's only one on the date
+  useEffect(() => {
+    if (slotsForDate.length === 1) {
+      setSelectedWindowId(slotsForDate[0].id);
+    } else {
+      setSelectedWindowId('');
+    }
+    setStartTimeVal('');
+    setDurationHours(minHours);
+  }, [selectedDate]);
+
+  // Reset time picks when window changes
+  useEffect(() => {
+    setStartTimeVal('');
+    setDurationHours(minHours);
+  }, [selectedWindowId]);
+
+  // Clamp duration if start time changes and current duration would exceed window
+  useEffect(() => {
+    if (selectedWindow && startTimeVal) {
+      const windowEndMins = timeToMins(selectedWindow.end_time);
+      const startMins = timeToMins(startTimeVal);
+      const maxDurMins = windowEndMins - startMins;
+      if (durationHours * 60 > maxDurMins) {
+        setDurationHours(Math.max(minHours, Math.floor(maxDurMins / 30) * 30 / 60));
+      }
+    }
+  }, [startTimeVal, selectedWindow]);
+
+  // Valid start times: 30-min increments, must leave room for minimum duration
+  const validStartTimes = useMemo(() => {
+    if (!selectedWindow) return [];
+    const windowStartMins = timeToMins(selectedWindow.start_time);
+    const windowEndMins = timeToMins(selectedWindow.end_time);
+    const minDurMins = minHours * 60;
+    const times = [];
+    for (let t = windowStartMins; t + minDurMins <= windowEndMins; t += 30) {
+      times.push(minsToTime(t));
+    }
+    return times;
+  }, [selectedWindow, minHours]);
+
+  // Valid durations: 30-min increments from minHours to max possible
+  const validDurationOptions = useMemo(() => {
+    if (!selectedWindow || !startTimeVal) return [];
+    const windowEndMins = timeToMins(selectedWindow.end_time);
+    const startMins = timeToMins(startTimeVal);
+    const minDurMins = minHours * 60;
+    const maxDurMins = windowEndMins - startMins;
+    const options = [];
+    for (let d = minDurMins; d <= maxDurMins; d += 30) {
+      const h = Math.floor(d / 60);
+      const m = d % 60;
+      options.push({ value: d / 60, label: m === 0 ? `${h}h` : `${h}h 30m` });
+    }
+    return options;
+  }, [selectedWindow, startTimeVal, minHours]);
+
+  const endTimeVal = useMemo(() => {
+    if (!startTimeVal || !durationHours) return null;
+    return minsToTime(timeToMins(startTimeVal) + durationHours * 60);
+  }, [startTimeVal, durationHours]);
+
+  const estimatedCost = useMemo(() => {
+    if (!durationHours || !profile.hourly_rate_cents) return null;
+    return ((durationHours * profile.hourly_rate_cents) / 100).toFixed(2);
+  }, [durationHours, profile.hourly_rate_cents]);
+
+  const canSubmit = selectedWindowId && startTimeVal && endTimeVal && numChildren >= 1 && recaptchaToken;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
 
-    if (!selectedSlotId) { setError('Please select a time slot.'); return; }
+    if (!selectedWindowId) { setError('Please select an availability window.'); return; }
+    if (!startTimeVal) { setError('Please select a start time.'); return; }
     if (!recaptchaToken) { setError('Please complete the reCAPTCHA verification.'); return; }
 
     setSubmitting(true);
     try {
-      // Use the original_availability_id (the real DB slot) + the specific sub-slot times
       const res = await base44.functions.invoke('submitBookingRequest', {
-        availability_slot_id: selectedSlot?.original_availability_id || selectedSlotId,
-        requested_start_time: selectedSlot?.start_time,
-        requested_end_time: selectedSlot?.end_time,
+        availability_slot_id: selectedWindowId,
+        requested_start_time: startTimeVal,
+        requested_end_time: endTimeVal,
         num_children: numChildren,
         special_requests: specialRequests || undefined,
         captcha_token: recaptchaToken,
@@ -193,10 +251,8 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
       if (errData?.error === 'slot_conflict') {
         setConflictAlternatives(errData.alternative_slots || []);
         setStep('conflict');
-      } else if (errData?.existing_booking_id) {
-        setError(`You already have a pending request with this caregiver. View it in My Bookings.`);
       } else {
-        setError(errData?.error || 'Failed to submit request. Please try again.');
+        setError(errData?.error || errData?.message || 'Failed to submit request. Please try again.');
       }
     } finally {
       setSubmitting(false);
@@ -205,7 +261,9 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
 
   const handleSelectAlternative = (slot) => {
     setSelectedDate(slot.slot_date);
-    setSelectedSlotId(slot.id);
+    setSelectedWindowId(slot.id);
+    setStartTimeVal('');
+    setDurationHours(minHours);
     setRecaptchaToken('');
     if (window.grecaptcha) window.grecaptcha.reset();
     setStep('form');
@@ -219,8 +277,9 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
           <DialogTitle>Request Booking with {profile.display_name}</DialogTitle>
           <DialogDescription>
             {profile.hourly_rate_cents
-              ? `$${(profile.hourly_rate_cents / 100).toFixed(0)}/hr · Select an available time slot`
-              : 'Select an available time slot'}
+              ? `$${(profile.hourly_rate_cents / 100).toFixed(0)}/hr · `
+              : ''}
+            Minimum booking: {minHours} hour{minHours === 1 ? '' : 's'}
           </DialogDescription>
         </DialogHeader>
 
@@ -255,7 +314,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
                     <button
                       key={d}
                       type="button"
-                      onClick={() => { setSelectedDate(d); setSelectedSlotId(''); }}
+                      onClick={() => setSelectedDate(d)}
                       className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
                         selectedDate === d
                           ? 'border-[#C36239] bg-[#C36239] text-white'
@@ -269,47 +328,101 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
               )}
             </div>
 
-            {/* Slot chips */}
-            {selectedDate && (
+            {/* Window selection (only shown when multiple windows exist for the date) */}
+            {selectedDate && slotsForDate.length > 1 && (
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5">
-                  <Clock className="w-4 h-4" /> Select Time
+                  <Clock className="w-4 h-4" /> Select Availability Window
                 </Label>
                 <div className="flex flex-wrap gap-2">
                   {slotsForDate.map(slot => (
                     <button
                       key={slot.id}
                       type="button"
-                      onClick={() => setSelectedSlotId(slot.id)}
-                      className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors text-left ${
-                        selectedSlotId === slot.id
+                      onClick={() => setSelectedWindowId(slot.id)}
+                      className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                        selectedWindowId === slot.id
                           ? 'border-[#C36239] bg-[#C36239] text-white'
                           : 'border-gray-200 bg-white text-gray-700 hover:border-[#C36239]'
                       }`}
                     >
-                      <div>{formatSlotRange(slot)}</div>
-                      <div className={`text-xs mt-0.5 ${selectedSlotId === slot.id ? 'text-orange-100' : 'text-gray-400'}`}>
-                        {formatDuration(slot)}
-                      </div>
+                      {formatTime12h(slot.start_time)} – {formatTime12h(slot.end_time)}
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Estimated cost */}
-            {estimate && selectedSlot && (
-              <div className="bg-orange-50 border border-orange-100 rounded-lg px-4 py-3 text-sm text-gray-700">
-                <span className="font-medium">Estimated cost: </span>
-                <span className="text-[#C36239] font-semibold">${estimate}</span>
-                <span className="text-gray-500 ml-1">
-                  ({formatDuration(selectedSlot)} @ ${(profile.hourly_rate_cents / 100).toFixed(0)}/hr)
-                </span>
-                <p className="text-xs text-gray-400 mt-0.5">Estimate only — payment infrastructure coming soon.</p>
+            {/* Single window info banner */}
+            {selectedDate && slotsForDate.length === 1 && (
+              <div className="text-sm text-gray-600 bg-gray-50 rounded-lg px-3 py-2 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-gray-400 shrink-0" />
+                Available: <span className="font-medium">{formatTime12h(slotsForDate[0].start_time)} – {formatTime12h(slotsForDate[0].end_time)}</span>
               </div>
             )}
 
-            {/* Number of children stepper */}
+            {/* Start time picker */}
+            {selectedWindowId && (
+              <div className="space-y-2">
+                <Label>Start Time</Label>
+                <Select value={startTimeVal} onValueChange={setStartTimeVal}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose start time..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {validStartTimes.map(t => (
+                      <SelectItem key={t} value={t}>{formatTime12h(t)}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Duration picker */}
+            {startTimeVal && (
+              <div className="space-y-2">
+                <Label>
+                  Duration{' '}
+                  <span className="text-gray-400 font-normal text-xs">(min {minHours}h)</span>
+                </Label>
+                <Select
+                  value={String(durationHours)}
+                  onValueChange={(v) => setDurationHours(parseFloat(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Choose duration..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {validDurationOptions.map(opt => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Summary: time range + cost */}
+            {startTimeVal && endTimeVal && (
+              <div className="bg-orange-50 border border-orange-100 rounded-lg px-4 py-3 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-700 font-medium">
+                    {formatTime12h(startTimeVal)} → {formatTime12h(endTimeVal)}
+                  </span>
+                  {estimatedCost && (
+                    <span className="text-[#C36239] font-semibold">${estimatedCost}</span>
+                  )}
+                </div>
+                {estimatedCost && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {durationHours}h @ ${(profile.hourly_rate_cents / 100).toFixed(0)}/hr · Estimate only
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* Number of children */}
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5">
                 <Users className="w-4 h-4" /> Number of Children
@@ -351,7 +464,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
             </div>
 
             {/* reCAPTCHA */}
-            <div className="space-y-2">
+            <div>
               <div ref={recaptchaRef} />
             </div>
 
@@ -365,7 +478,9 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
                 disabled={submitting || !canSubmit}
                 className="flex-1 bg-[#C36239] hover:bg-[#75290F] text-white"
               >
-                {submitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</> : 'Request Booking'}
+                {submitting
+                  ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Submitting...</>
+                  : 'Request Booking'}
               </Button>
             </div>
           </form>
