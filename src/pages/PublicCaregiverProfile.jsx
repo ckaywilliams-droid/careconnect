@@ -140,6 +140,7 @@ export default function PublicCaregiverProfile() {
   const hourlyRateDisplay = profile.hourly_rate
     ? `$${parseFloat(profile.hourly_rate).toFixed(2)}/hr`
     : 'Rate on request';
+  const minimumHours = profile.minimum_hours || 2;
 
   const servicesArray = profile.services_offered
     ? profile.services_offered.split(',').map(s => s.trim())
