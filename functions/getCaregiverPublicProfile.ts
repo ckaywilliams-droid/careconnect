@@ -18,6 +18,62 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
  * 4. Added guard for missing profile.user_id to prevent silent empty-slot returns
  *    caused by a bad FK rather than a legitimately empty schedule.
  */
+/**
+ * Generates discrete bookable sub-slots from raw availability windows.
+ * Excludes any segment that overlaps with an existing pending/accepted booking.
+ */
+function generateBookableSlots(rawSlots, existingBookings, options = {}) {
+  const { minBookingHours = 1, incrementMinutes = 60 } = options;
+  const minDurationMins = minBookingHours * 60;
+  const bookableSlots = [];
+
+  const timeToMins = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
+  const minsToTime = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+
+  for (const slot of rawSlots) {
+    const windowStartMins = timeToMins(slot.start_time);
+    const windowEndMins = timeToMins(slot.end_time);
+
+    // Edge case: skip windows shorter than minimum booking duration
+    if (windowEndMins - windowStartMins < minDurationMins) continue;
+
+    // Only consider bookings on this specific date
+    const dateBookings = existingBookings.filter(b =>
+      b.start_time && b.start_time.substring(0, 10) === slot.slot_date
+    );
+
+    let cursor = windowStartMins;
+
+    while (cursor + minDurationMins <= windowEndMins) {
+      const segStartMins = cursor;
+      const segEndMins = cursor + minDurationMins;
+
+      const hasConflict = dateBookings.some(b => {
+        const bStartMins = timeToMins(b.start_time.substring(11, 16));
+        const bEndMins = timeToMins(b.end_time.substring(11, 16));
+        return segStartMins < bEndMins && segEndMins > bStartMins;
+      });
+
+      if (!hasConflict) {
+        bookableSlots.push({
+          id: `${slot.id}::${segStartMins}`,
+          original_availability_id: slot.id,
+          caregiver_user_id: slot.caregiver_user_id,
+          slot_date: slot.slot_date,
+          start_time: minsToTime(segStartMins),
+          end_time: minsToTime(segEndMins),
+          status: 'open',
+          is_blocked: false,
+        });
+      }
+
+      cursor += incrementMinutes;
+    }
+  }
+
+  return bookableSlots;
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);

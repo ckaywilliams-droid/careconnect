@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
 
   // ── Parse body ────────────────────────────────────────────────────────────
   const body = await req.json();
-  const { availability_slot_id, num_children, special_requests, captcha_token } = body;
+  const { availability_slot_id, num_children, special_requests, captcha_token, requested_start_time, requested_end_time } = body;
 
   if (!availability_slot_id || !captcha_token) {
     return Response.json({ error: 'availability_slot_id and captcha_token are required.' }, { status: 400 });
