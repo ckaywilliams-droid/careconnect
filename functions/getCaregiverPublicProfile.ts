@@ -139,18 +139,22 @@ Deno.serve(async (req) => {
 
     console.log('[getCaregiverPublicProfile] Raw slot count:', rawSlots?.length ?? 0);
 
-    const availabilitySlots = (rawSlots || [])
-      .filter(slot => slot.slot_date >= todayStr && slot.slot_date <= sixMonthsStr)
-      .map(slot => ({
-        id: slot.id,
-        slot_date: slot.slot_date,
-        start_time: slot.start_time,
-        end_time: slot.end_time,
-        status: slot.status,
-        is_blocked: slot.is_blocked,
-      }));
+    const filteredRawSlots = (rawSlots || [])
+      .filter(slot => slot.slot_date >= todayStr && slot.slot_date <= sixMonthsStr);
 
-    console.log('[getCaregiverPublicProfile] Filtered slot count (today → 6mo):', availabilitySlots.length);
+    // Fetch existing bookings (pending + accepted) to exclude conflicting sub-slots
+    const existingBookings = await base44.asServiceRole.entities.BookingRequest.filter({
+      caregiver_user_id: profile.user_id
+    }).then(all => all.filter(b => b.status === 'pending' || b.status === 'accepted')).catch(() => []);
+
+    console.log('[getCaregiverPublicProfile] Existing active bookings count:', existingBookings.length);
+
+    const availabilitySlots = generateBookableSlots(filteredRawSlots, existingBookings, {
+      minBookingHours: 1,
+      incrementMinutes: 60
+    });
+
+    console.log('[getCaregiverPublicProfile] Generated bookable slots count:', availabilitySlots.length);
 
     // F-070 Access.1/Logic.1: Allowlist DTO — only safe public fields.
     return Response.json({
