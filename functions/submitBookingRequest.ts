@@ -194,8 +194,13 @@ Deno.serve(async (req) => {
     }, { status: 409 });
   }
 
-  const startTime = new Date(`${slot.slot_date}T${slot.start_time}:00`).toISOString();
-  const endTime = new Date(`${slot.slot_date}T${slot.end_time}:00`).toISOString();
+  // If parent booked a generated sub-slot, use the specific requested times; otherwise use the full window
+  const startTime = requested_start_time
+    ? new Date(`${slot.slot_date}T${requested_start_time}:00`).toISOString()
+    : new Date(`${slot.slot_date}T${slot.start_time}:00`).toISOString();
+  const endTime = requested_end_time
+    ? new Date(`${slot.slot_date}T${requested_end_time}:00`).toISOString()
+    : new Date(`${slot.slot_date}T${slot.end_time}:00`).toISOString();
 
   const parentProfiles = await base44.asServiceRole.entities.ParentProfile.filter({ user_id: user.id });
   const parentProfile = parentProfiles[0];
