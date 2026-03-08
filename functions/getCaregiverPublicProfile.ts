@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
     let availabilitySlots = [];
     try {
       const rawSlots = await base44.asServiceRole.entities.AvailabilitySlot.filter({
-        caregiver_profile_id: profile.id,
+        caregiver_user_id: profile.user_id,
         status: 'open',
         is_blocked: false
       });
