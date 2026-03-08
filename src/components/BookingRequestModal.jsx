@@ -281,13 +281,16 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
                       key={slot.id}
                       type="button"
                       onClick={() => setSelectedSlotId(slot.id)}
-                      className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+                      className={`px-3 py-2 rounded-lg border text-sm font-medium transition-colors text-left ${
                         selectedSlotId === slot.id
                           ? 'border-[#C36239] bg-[#C36239] text-white'
                           : 'border-gray-200 bg-white text-gray-700 hover:border-[#C36239]'
                       }`}
                     >
-                      {formatSlotRange(slot)}
+                      <div>{formatSlotRange(slot)}</div>
+                      <div className={`text-xs mt-0.5 ${selectedSlotId === slot.id ? 'text-orange-100' : 'text-gray-400'}`}>
+                        {formatDuration(slot)}
+                      </div>
                     </button>
                   ))}
                 </div>
