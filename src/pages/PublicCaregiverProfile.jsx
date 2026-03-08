@@ -440,7 +440,7 @@ export default function PublicCaregiverProfile() {
           </CardHeader>
           <CardContent>
             <PublicCaregiverAvailability
-              openSlots={availabilitySlots.filter(s => s.status === 'open' && !s.is_blocked)}
+              openSlots={availabilitySlots}
               onSelectSlotForBooking={(date) => {
                 setPreselectedSlot({ slot_date: format(date, 'yyyy-MM-dd') });
                 setShowBookingModal(true);
