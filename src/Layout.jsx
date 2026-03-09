@@ -69,7 +69,7 @@ export default function Layout({ children, currentPageName }) {
         const needsRoleSelection = !user.app_role || user.app_role === 'user';
         if (!isAdmin && !isVerifyPage && needsRoleSelection) {
           if (pageKey !== 'roleselection' && pageKey !== 'selectrole') {
-            navigate('/RoleSelection', { replace: true });
+            navigate(createPageUrl('RoleSelection'), { replace: true });
             return;
           }
         }
