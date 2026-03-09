@@ -80,6 +80,9 @@ export default function RoleSelection() {
         navigate(role === 'caregiver' ? '/CaregiverProfile' : '/ParentBookings', { replace: true });
         return;
       }
+      // Refresh the auth session so the updated app_role + onboarding_complete
+      // are reflected in base44.auth.me() before the Layout guard runs.
+      await base44.auth.refresh();
       navigate(role === 'caregiver' ? '/CaregiverProfile' : '/FindCaregivers', { replace: true });
     } catch (err) {
       const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';

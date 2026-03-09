@@ -20,7 +20,15 @@ Deno.serve(async (req) => {
             return Response.json({ error: 'Invalid payload: missing user data' }, { status: 400 });
         }
 
-        const { id: userId, full_name, app_role } = user;
+        const { id: userId, full_name, app_role, onboarding_complete } = user;
+
+        // Guard: Only create profiles for users who have explicitly completed onboarding
+        // (i.e. initializeRole has run). If app_role is set but onboarding_complete is
+        // false, it means the role was implicitly assigned — skip to avoid premature creation.
+        if (!onboarding_complete) {
+            console.log(`Skipping profile creation for user ${userId}: onboarding_complete=false. Awaiting explicit role selection.`);
+            return Response.json({ message: 'Skipped: awaiting explicit role selection via initializeRole.' });
+        }
 
         if (!['parent', 'caregiver'].includes(app_role)) {
             // Not a regular user role (e.g. admin created via another route) - skip
