@@ -31,10 +31,9 @@ Deno.serve(async (req) => {
 
         console.log("initializeRole start", { userId: user.id, currentAppRole: user.app_role, incomingRole: role });
 
-        // (4) Update User record: set app_role and onboarding_complete
+        // (4) Update User record: set app_role only; onboarding_complete is set per-role below
         await base44.asServiceRole.entities.User.update(user.id, {
-            app_role: role,
-            onboarding_complete: true
+            app_role: role
         });
 
         const verifyUpdate = await base44.asServiceRole.entities.User.get(user.id);
