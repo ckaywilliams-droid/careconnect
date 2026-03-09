@@ -70,6 +70,14 @@ export default function ParentOnboarding() {
             zip_code: hh.zip_code || '',
             special_instructions: hh.special_instructions || ''
           });
+        } else {
+          // No household yet — create a stub so children have a parent record to attach to
+          const createRes = await base44.functions.invoke('manageHousehold', {
+            action: 'create',
+            nickname: 'My Home'
+          });
+          const newHousehold = createRes.data.household ?? createRes.data;
+          setHousehold(newHousehold);
         }
         setChildren(c);
         setPets(p);
