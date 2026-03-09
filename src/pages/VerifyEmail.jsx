@@ -65,7 +65,7 @@ export default function VerifyEmail() {
       await base44.auth.verifyOtp({ email, otpCode: code });
       setIsVerified(true);
       setTimeout(() => {
-        window.location.href = '/RoleSelection';
+        navigate('/RoleSelection', { replace: true });
       }, 2000);
     } catch (err) {
       setError(err.message || 'Invalid or expired code. Please try again.');
