@@ -18,7 +18,6 @@ Deno.serve(async (req) => {
         }
 
         const { nickname, zip_code, has_pets, special_instructions } = body;
-        if (!zip_code) return Response.json({ error: 'Zip code is required.' }, { status: 400 });
 
         const safeInstructions = special_instructions
             ? special_instructions.replace(/<[^>]*>/g, '').substring(0, 250)
