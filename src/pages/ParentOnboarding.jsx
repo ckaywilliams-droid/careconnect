@@ -135,12 +135,17 @@ export default function ParentOnboarding() {
     const hhForPet = hasPetsHouseholds[0];
     if (!hhForPet) return;
     setSaving(true);
-    const res = await base44.functions.invoke('managePet', { action: 'create', household_id: hhForPet.id, ...newPet });
-    setSaving(false);
-    if (res.data?.error) { setError(res.data.error); return; }
-    setPets(prev => [...prev, res.data.pet]);
-    setNewPet({ pet_type: '', pet_size: '', pet_temperament: '', pet_name: '', additional_notes: '' });
-    setAddingPet(false);
+    try {
+      const res = await base44.functions.invoke('managePet', { action: 'create', household_id: hhForPet.id, ...newPet });
+      if (res.data?.error) { setError(res.data.error); return; }
+      setPets(prev => [...prev, res.data.pet]);
+      setNewPet({ pet_type: '', pet_size: '', pet_temperament: '', pet_name: '', additional_notes: '' });
+      setAddingPet(false);
+    } catch (e) {
+      setError(e.message || 'Failed to add pet. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveStep5 = async () => {
