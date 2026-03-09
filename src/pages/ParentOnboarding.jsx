@@ -56,6 +56,7 @@ export default function ParentOnboarding() {
         if (u.onboarding_complete) { navigate(createPageUrl('ParentDashboard')); return; }
 
         const res = await base44.functions.invoke('getParentHousehold');
+        console.log("household result", res);
         const { household: hh = null, children: c = [], pets: p = [] } = res.data;
         if (hh) {
           setHousehold(hh);
