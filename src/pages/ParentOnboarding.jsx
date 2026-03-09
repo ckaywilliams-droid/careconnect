@@ -383,6 +383,8 @@ export default function ParentOnboarding() {
             </Button>
           </div>
         )}
+          </>
+        )}
       </div>
     </div>
   );
