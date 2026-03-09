@@ -8,9 +8,11 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (user.app_role !== 'parent') return Response.json({ error: 'Parents only.' }, { status: 403 });
 
-    const households = await base44.entities.Household.filter({ parent_id: user.id, is_active: true });
-    const children = await base44.entities.Child.filter({ parent_id: user.id, is_active: true });
-    const pets = await base44.entities.Pet.filter({ parent_id: user.id, is_active: true });
+    const [households, children, pets] = await Promise.all([
+        base44.asServiceRole.entities.Household.filter({ parent_id: user.id, is_active: true }),
+        base44.asServiceRole.entities.Child.filter({ parent_id: user.id, is_active: true }),
+        base44.asServiceRole.entities.Pet.filter({ parent_id: user.id, is_active: true })
+    ]);
 
     return Response.json({ households: households || [], children: children || [], pets: pets || [] });
 });
