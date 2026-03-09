@@ -116,12 +116,17 @@ export default function ParentOnboarding() {
     if (!newChild.first_name.trim()) { setError("Please enter the child's name."); return; }
     if (!newChild.date_of_birth) { setError('Please enter date of birth.'); return; }
     setSaving(true);
-    const res = await base44.functions.invoke('manageChild', { action: 'create', household_id: household?.id, ...newChild });
-    setSaving(false);
-    if (res.data?.error) { setError(res.data.error); return; }
-    setChildren(prev => [...prev, res.data.child]);
-    setNewChild({ first_name: '', date_of_birth: '', allergies: '', notes: '', special_needs_flag: false });
-    setAddingChild(false);
+    try {
+      const res = await base44.functions.invoke('manageChild', { action: 'create', household_id: household?.id, ...newChild });
+      if (res.data?.error) { setError(res.data.error); return; }
+      setChildren(prev => [...prev, res.data.child]);
+      setNewChild({ first_name: '', date_of_birth: '', allergies: '', notes: '', special_needs_flag: false });
+      setAddingChild(false);
+    } catch (e) {
+      setError(e.message || 'Failed to add child. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addPet = async () => {
