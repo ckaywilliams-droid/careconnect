@@ -90,17 +90,21 @@ export default function ParentOnboarding() {
 
   const saveStep2 = async () => {
     setSaving(true); setError('');
-    const res = await base44.functions.invoke('manageHousehold', {
-      action: 'update',
-      household_id: household?.id,
-      nickname: hhNickname,
-      zip_code: hhZip,
-      has_pets: hhHasPets
-    });
-    setSaving(false);
-    if (res.data?.error) { setError(res.data.error); return; }
-    if (hhHasPets) setStep(3);
-    else setStep(3);
+    try {
+      const res = await base44.functions.invoke('manageHousehold', {
+        action: 'update',
+        household_id: household?.id,
+        nickname: hhNickname,
+        zip_code: hhZip,
+        has_pets: hhHasPets
+      });
+      if (res.data?.error) { setError(res.data.error); return; }
+      setStep(3);
+    } catch (e) {
+      setError(e.message || 'Failed to save household. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const addChild = async () => {
