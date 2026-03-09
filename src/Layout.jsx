@@ -55,11 +55,6 @@ export default function Layout({ children, currentPageName }) {
           return;
         }
 
-        if (isPublicPage) {
-          setCheckingAuth(false);
-          return;
-        }
-
         const user = await base44.auth.me();
         setCurrentUser(user);
 
