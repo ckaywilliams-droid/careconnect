@@ -162,12 +162,7 @@ export default function ParentOnboarding() {
         ...address
       });
       if (res.data?.error) { setError(res.data.error); return; }
-      const u = await base44.auth.me();
-      if (u.onboarding_complete) {
-        navigate(createPageUrl('ParentBookings'));
-      } else {
-        setError('Profile saved. Please complete any remaining steps.');
-      }
+      setCompleted(true);
     } catch (e) {
       setError(e.message || 'Failed to save address. Please try again.');
     } finally {
