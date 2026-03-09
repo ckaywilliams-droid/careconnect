@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
@@ -6,11 +6,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
+import { toast as sonnerToast } from 'sonner';
 import {
   ChevronDown, ChevronUp, Plus, Pencil, Trash2, CheckCircle2,
-  AlertTriangle, PawPrint, Users, MapPin, Loader2, Home
+  AlertTriangle, PawPrint, Users, MapPin, Loader2, Home,
+  Upload, X, User, AlertCircle
 } from 'lucide-react';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function calcAge(dob) {
   if (!dob) return '';
   const birth = new Date(dob);
@@ -20,6 +23,29 @@ function calcAge(dob) {
   return `${Math.floor(months / 12)} years old`;
 }
 
+function getInitials(user) {
+  const name = user?.full_name?.trim();
+  if (name) {
+    const parts = name.split(/\s+/);
+    return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  }
+  return user?.email?.[0]?.toUpperCase() ?? '?';
+}
+
+function getDisplayName(user) {
+  const name = user?.full_name?.trim();
+  if (name) return name;
+  return user?.email?.split('@')[0] ?? 'there';
+}
+
+const showToast = (msg, type = 'success') => {
+  type === 'error' ? sonnerToast.error(msg) : sonnerToast.success(msg);
+};
+
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+const ACCEPTED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+// ─── PetIcon ──────────────────────────────────────────────────────────────────
 function PetIcon({ type }) {
   if (type === 'Dog') return <span>🐕</span>;
   if (type === 'Cat') return <span>🐈</span>;
@@ -28,7 +54,288 @@ function PetIcon({ type }) {
   return <PawPrint className="w-4 h-4" />;
 }
 
-export default function AccountSettingsTab({ user }) {
+// ─── InfoRow ──────────────────────────────────────────────────────────────────
+function InfoRow({ label, value }) {
+  return (
+    <div>
+      <p className="text-xs text-gray-400 mb-0.5">{label}</p>
+      <p className="text-sm text-gray-900">{value || <span className="text-gray-300 italic">Not set</span>}</p>
+    </div>
+  );
+}
+
+// ─── AvatarUpload ─────────────────────────────────────────────────────────────
+function AvatarUpload({ user, onSave }) {
+  const [preview, setPreview] = useState(user?.profile_photo_url ?? null);
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef(null);
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ACCEPTED_PHOTO_TYPES.includes(file.type)) {
+      showToast('Please upload a JPG, PNG, GIF, or WebP image.', 'error'); return;
+    }
+    if (file.size > MAX_PHOTO_SIZE) {
+      showToast('Photo must be under 5 MB.', 'error'); return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => setPreview(reader.result);
+    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      setPreview(file_url);
+      await onSave({ profile_photo_url: file_url });
+      showToast('Photo updated');
+    } catch (err) {
+      setPreview(user?.profile_photo_url ?? null);
+      showToast(err.message || 'Upload failed', 'error');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const remove = async () => {
+    try {
+      await onSave({ profile_photo_url: null });
+      setPreview(null);
+      showToast('Photo removed');
+    } catch (err) {
+      showToast(err.message || 'Failed to remove photo', 'error');
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-5">
+      <div className="relative shrink-0">
+        {preview ? (
+          <img src={preview} alt="Profile" className="w-20 h-20 rounded-full object-cover border-2 border-[#E5E2DC]" />
+        ) : (
+          <div className="w-20 h-20 rounded-full bg-[#C36239]/15 border-2 border-[#E5E2DC] flex items-center justify-center text-[#C36239] text-2xl font-bold select-none">
+            {getInitials(user)}
+          </div>
+        )}
+        {uploading && (
+          <div className="absolute inset-0 rounded-full bg-black/40 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 text-white animate-spin" />
+          </div>
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <Button variant="outline" size="sm" onClick={() => inputRef.current?.click()} disabled={uploading} className="text-sm">
+          <Upload className="w-3.5 h-3.5 mr-2" />
+          {preview ? 'Change photo' : 'Upload photo'}
+        </Button>
+        {preview && (
+          <Button variant="ghost" size="sm" onClick={remove} disabled={uploading} className="text-sm text-gray-500 hover:text-red-500">
+            <X className="w-3.5 h-3.5 mr-2" /> Remove
+          </Button>
+        )}
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/gif,image/webp" className="hidden" onChange={handleFile} />
+      </div>
+    </div>
+  );
+}
+
+// ─── ProfileHeader ────────────────────────────────────────────────────────────
+function ProfileHeader({ user, onUserUpdate }) {
+  const handleSave = async (patch) => {
+    await base44.auth.updateMe(patch);
+    onUserUpdate(patch);
+  };
+  return (
+    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center gap-6">
+        <AvatarUpload user={user} onSave={handleSave} />
+        <div>
+          <p className="text-xs text-gray-400 mb-0.5">Welcome back</p>
+          <h2 className="text-2xl font-bold text-[#0C2119]">Hi, {getDisplayName(user)}</h2>
+          {user?.email && <p className="text-sm text-gray-400 mt-0.5">{user.email}</p>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ─── PersonalInfoSection ──────────────────────────────────────────────────────
+function PersonalInfoSection({ user, onUpdate }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    full_name: user?.full_name || '',
+    email:     user?.email     || '',
+    phone:     user?.phone     || '',
+    zip_code:  user?.zip_code  || '',
+  });
+  const [saved, setSaved] = useState({ ...form });
+  const [saving, setSaving] = useState(false);
+  const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await base44.auth.updateMe({ phone: form.phone, zip_code: form.zip_code });
+      setSaved({ ...form });
+      onUpdate?.(form);
+      setEditing(false);
+      showToast('Personal info saved');
+    } catch (e) {
+      showToast(e.message || 'Failed to save', 'error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancel = () => { setForm({ ...saved }); setEditing(false); };
+
+  return (
+    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+          <User className="w-4 h-4 text-[#C36239]" /> Personal Info
+        </h3>
+        {!editing && (
+          <Button onClick={() => setEditing(true)} variant="outline" className="h-8 text-sm">
+            <Pencil className="w-3.5 h-3.5 mr-1.5" /> Edit
+          </Button>
+        )}
+      </div>
+      {editing ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div><Label>Full name</Label><Input value={form.full_name} disabled className="bg-gray-50" /></div>
+            <div><Label>Email</Label><Input value={form.email} disabled className="bg-gray-50" /></div>
+            <div><Label>Phone</Label><Input value={form.phone} onChange={f('phone')} placeholder="+1 (555) 000-0000" /></div>
+            <div><Label>Default zip code</Label><Input value={form.zip_code} onChange={f('zip_code')} /></div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={cancel} className="text-sm">Cancel</Button>
+            <Button onClick={save} disabled={saving} className="bg-[#C36239] hover:bg-[#A0522D] text-white text-sm">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save'}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <InfoRow label="Full name"   value={saved.full_name} />
+          <InfoRow label="Email"       value={saved.email} />
+          <InfoRow label="Phone"       value={saved.phone} />
+          <InfoRow label="Default zip" value={saved.zip_code} />
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── AddressSection ───────────────────────────────────────────────────────────
+function AddressSection({ hh, onSave, saving, errors }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    street_address:       hh.street_address       || '',
+    city:                 hh.city                 || '',
+    state:                hh.state                || '',
+    zip_code:             hh.zip_code             || '',
+    special_instructions: hh.special_instructions || '',
+  });
+  const f = k => e => setForm(p => ({ ...p, [k]: e.target.value }));
+
+  useEffect(() => {
+    setForm({
+      street_address:       hh.street_address       || '',
+      city:                 hh.city                 || '',
+      state:                hh.state                || '',
+      zip_code:             hh.zip_code             || '',
+      special_instructions: hh.special_instructions || '',
+    });
+  }, [hh]);
+
+  const cancel = () => {
+    setForm({
+      street_address:       hh.street_address       || '',
+      city:                 hh.city                 || '',
+      state:                hh.state                || '',
+      zip_code:             hh.zip_code             || '',
+      special_instructions: hh.special_instructions || '',
+    });
+    setEditing(false);
+  };
+
+  const handleSave = async () => {
+    const ok = await onSave(hh, form);
+    if (ok) setEditing(false);
+  };
+
+  const hasAddress = hh.street_address && hh.city && hh.state;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="font-medium text-gray-800 flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-[#C36239]" /> Address
+        </h4>
+        {!editing && (
+          <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-xs text-[#C36239] hover:underline font-medium">
+            <Pencil className="w-3 h-3" /> Edit
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="space-y-3">
+          <div>
+            <Label>Street address *</Label>
+            <Input value={form.street_address} onChange={f('street_address')} />
+            {errors[`addr-${hh.id}-street`] && <p className="text-xs text-red-500 mt-1">{errors[`addr-${hh.id}-street`]}</p>}
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>City *</Label>
+              <Input value={form.city} onChange={f('city')} />
+              {errors[`addr-${hh.id}-city`] && <p className="text-xs text-red-500 mt-1">{errors[`addr-${hh.id}-city`]}</p>}
+            </div>
+            <div>
+              <Label>State *</Label>
+              <Input value={form.state} onChange={f('state')} placeholder="NY" />
+              {errors[`addr-${hh.id}-state`] && <p className="text-xs text-red-500 mt-1">{errors[`addr-${hh.id}-state`]}</p>}
+            </div>
+          </div>
+          <div><Label>Zip code</Label><Input value={form.zip_code} onChange={f('zip_code')} /></div>
+          <div><Label>Special instructions</Label><Input value={form.special_instructions} onChange={f('special_instructions')} placeholder="e.g. Ring doorbell twice" /></div>
+          {errors[`addr-${hh.id}`] && <p className="text-xs text-red-500 mt-1">{errors[`addr-${hh.id}`]}</p>}
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" onClick={cancel} className="text-sm">Cancel</Button>
+            <Button onClick={handleSave} disabled={saving === `addr-${hh.id}`} className="bg-[#C36239] hover:bg-[#A0522D] text-white text-sm">
+              {saving === `addr-${hh.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save address'}
+            </Button>
+          </div>
+        </div>
+      ) : hasAddress ? (
+        <div className="text-sm text-gray-700 space-y-0.5">
+          <p>{hh.street_address}</p>
+          <p>{hh.city}, {hh.state} {hh.zip_code}</p>
+          {hh.special_instructions && (
+            <p className="text-gray-400 text-xs mt-1 italic">"{hh.special_instructions}"</p>
+          )}
+        </div>
+      ) : (
+        <button onClick={() => setEditing(true)} className="text-sm text-amber-600 hover:underline flex items-center gap-1">
+          <AlertCircle className="w-3.5 h-3.5" /> Add address (required before booking)
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+export default function AccountSettingsTab({ user: userProp }) {
+  const [localUser, setLocalUser] = useState(userProp);
+  const user = localUser;
+  const handleUserUpdate = useCallback(
+    (patch) => setLocalUser(prev => ({ ...prev, ...patch })),
+    []
+  );
+
   const [households, setHouseholds] = useState([]);
   const [children, setChildren] = useState([]);
   const [pets, setPets] = useState([]);
@@ -37,17 +344,10 @@ export default function AccountSettingsTab({ user }) {
   const [saving, setSaving] = useState('');
   const [errors, setErrors] = useState({});
 
-  // Personal info state
-  const [personalInfo, setPersonalInfo] = useState({ full_name: '', phone: '', zip_code: '' });
-
-  // New household form
   const [showAddHH, setShowAddHH] = useState(false);
   const [newHH, setNewHH] = useState({ nickname: '', zip_code: '', has_pets: false });
 
-  useEffect(() => {
-    loadData();
-    setPersonalInfo({ full_name: user?.full_name || '', phone: user?.phone || '', zip_code: user?.zip_code || '' });
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
@@ -63,22 +363,17 @@ export default function AccountSettingsTab({ user }) {
   const setFieldError = (key, msg) => setErrors(prev => ({ ...prev, [key]: msg }));
   const clearError = (key) => setErrors(prev => { const n = { ...prev }; delete n[key]; return n; });
 
-  const savePersonalInfo = async () => {
-    setSaving('personal');
-    await base44.auth.updateMe({ phone: personalInfo.phone, zip_code: personalInfo.zip_code });
-    setSaving('');
-  };
-
   const saveAddress = async (hh, addressData) => {
     setSaving(`addr-${hh.id}`);
     setErrors({});
-    if (!addressData.street_address) { setFieldError(`addr-${hh.id}-street`, 'Street address is required.'); setSaving(''); return; }
-    if (!addressData.city) { setFieldError(`addr-${hh.id}-city`, 'City is required.'); setSaving(''); return; }
-    if (!addressData.state) { setFieldError(`addr-${hh.id}-state`, 'State is required.'); setSaving(''); return; }
+    if (!addressData.street_address) { setFieldError(`addr-${hh.id}-street`, 'Street address is required.'); setSaving(''); return false; }
+    if (!addressData.city)           { setFieldError(`addr-${hh.id}-city`,   'City is required.');           setSaving(''); return false; }
+    if (!addressData.state)          { setFieldError(`addr-${hh.id}-state`,  'State is required.');          setSaving(''); return false; }
     const res = await base44.functions.invoke('manageHousehold', { action: 'update', household_id: hh.id, ...addressData });
     setSaving('');
-    if (res.data?.error) { setFieldError(`addr-${hh.id}`, res.data.error); return; }
+    if (res.data?.error) { setFieldError(`addr-${hh.id}`, res.data.error); return false; }
     await loadData();
+    return true;
   };
 
   const saveHHSettings = async (hh, data) => {
@@ -140,7 +435,7 @@ export default function AccountSettingsTab({ user }) {
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-[#C36239]" /></div>;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Incomplete profile banner */}
       {!user?.onboarding_complete && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 flex items-center gap-3">
@@ -150,21 +445,11 @@ export default function AccountSettingsTab({ user }) {
         </div>
       )}
 
-      {/* Personal Info */}
-      <section>
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Info</h3>
-        <div className="bg-white border border-gray-100 rounded-xl p-5 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div><Label>Full name</Label><Input value={personalInfo.full_name} disabled className="bg-gray-50" /></div>
-            <div><Label>Email</Label><Input value={user?.email || ''} disabled className="bg-gray-50" /></div>
-            <div><Label>Phone</Label><Input value={personalInfo.phone} onChange={e => setPersonalInfo(p => ({ ...p, phone: e.target.value }))} placeholder="+1 (555) 000-0000" /></div>
-            <div><Label>Default zip code</Label><Input value={personalInfo.zip_code} onChange={e => setPersonalInfo(p => ({ ...p, zip_code: e.target.value }))} /></div>
-          </div>
-          <Button onClick={savePersonalInfo} disabled={saving === 'personal'} className="bg-[#C36239] hover:bg-[#A0522D] text-white">
-            {saving === 'personal' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Save Personal Info'}
-          </Button>
-        </div>
-      </section>
+      {/* Profile Header with Avatar */}
+      <ProfileHeader user={user} onUserUpdate={handleUserUpdate} />
+
+      {/* Personal Info — view/edit toggle */}
+      <PersonalInfoSection user={user} onUpdate={handleUserUpdate} />
 
       {/* Households */}
       <section>
@@ -193,7 +478,9 @@ export default function AccountSettingsTab({ user }) {
             <div className="flex items-center gap-2"><Switch checked={newHH.has_pets} onCheckedChange={v => setNewHH(p => ({ ...p, has_pets: v }))} /><Label>Has pets</Label></div>
             {errors['new-hh'] && <p className="text-xs text-red-500">{errors['new-hh']}</p>}
             <div className="flex gap-2">
-              <Button onClick={addHousehold} disabled={saving === 'new-hh'} className="bg-[#2D6A4F] text-white">{saving === 'new-hh' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Household'}</Button>
+              <Button onClick={addHousehold} disabled={saving === 'new-hh'} className="bg-[#2D6A4F] text-white">
+                {saving === 'new-hh' ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Add Household'}
+              </Button>
               <Button variant="outline" onClick={() => setShowAddHH(false)}>Cancel</Button>
             </div>
           </div>
@@ -226,14 +513,8 @@ export default function AccountSettingsTab({ user }) {
   );
 }
 
+// ─── HouseholdCard ────────────────────────────────────────────────────────────
 function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors, onSaveAddress, onSaveSettings, onDeleteHH, onAddChild, onDeleteChild, onAddPet, onDeletePet, clearError }) {
-  const [addressData, setAddressData] = useState({
-    street_address: hh.street_address || '',
-    city: hh.city || '',
-    state: hh.state || '',
-    zip_code: hh.zip_code || '',
-    special_instructions: hh.special_instructions || ''
-  });
   const [hasPets, setHasPets] = useState(hh.has_pets);
   const [addingChild, setAddingChild] = useState(false);
   const [newChild, setNewChild] = useState({ first_name: '', date_of_birth: '', allergies: '', notes: '', special_needs_flag: false });
@@ -241,7 +522,6 @@ function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors,
   const [newPet, setNewPet] = useState({ pet_type: '', pet_size: '', pet_temperament: '', pet_name: '', additional_notes: '' });
 
   const isAddressComplete = hh.street_address && hh.city && hh.state;
-  const hasChildren = children.length > 0;
 
   const handleAddChild = async () => {
     const ok = await onAddChild(hh.id, newChild);
@@ -273,32 +553,8 @@ function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors,
 
       {expanded && (
         <div className="border-t border-gray-100 bg-[#FAFAFA] p-5 space-y-6">
-          {/* Address section */}
-          <div>
-            <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2"><MapPin className="w-4 h-4 text-[#C36239]" />Address</h4>
-            <div className="space-y-3">
-              <div>
-                <Input value={addressData.street_address} onChange={e => setAddressData(p => ({ ...p, street_address: e.target.value }))} placeholder="Street address *" />
-                {errors[`addr-${hh.id}-street`] && <p className="text-xs text-red-500 mt-1">{errors[`addr-${hh.id}-street`]}</p>}
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Input value={addressData.city} onChange={e => setAddressData(p => ({ ...p, city: e.target.value }))} placeholder="City *" />
-                  {errors[`addr-${hh.id}-city`] && <p className="text-xs text-red-500 mt-1">{errors[`addr-${hh.id}-city`]}</p>}
-                </div>
-                <div>
-                  <Input value={addressData.state} onChange={e => setAddressData(p => ({ ...p, state: e.target.value }))} placeholder="State *" />
-                  {errors[`addr-${hh.id}-state`] && <p className="text-xs text-red-500 mt-1">{errors[`addr-${hh.id}-state`]}</p>}
-                </div>
-              </div>
-              <Input value={addressData.zip_code} onChange={e => setAddressData(p => ({ ...p, zip_code: e.target.value }))} placeholder="Zip code" />
-              <Input value={addressData.special_instructions} onChange={e => setAddressData(p => ({ ...p, special_instructions: e.target.value }))} placeholder="Special instructions (optional)" />
-            </div>
-            {errors[`addr-${hh.id}`] && <p className="text-xs text-red-500 mt-2">{errors[`addr-${hh.id}`]}</p>}
-            <Button onClick={() => onSaveAddress(hh, addressData)} disabled={saving === `addr-${hh.id}`} size="sm" className="mt-3 bg-[#C36239] hover:bg-[#A0522D] text-white">
-              {saving === `addr-${hh.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save Address'}
-            </Button>
-          </div>
+          {/* Address — view/edit toggle */}
+          <AddressSection hh={hh} onSave={onSaveAddress} saving={saving} errors={errors} />
 
           {/* Pets toggle */}
           <div className="flex items-center gap-3 pb-2">
@@ -306,7 +562,7 @@ function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors,
             <Label>This household has pets</Label>
           </div>
 
-          {/* Children section */}
+          {/* Children */}
           <div>
             <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-[#2D6A4F]" />Children</h4>
             <div className="space-y-2 mb-3">
@@ -325,11 +581,10 @@ function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors,
                   </button>
                 </div>
               ))}
-              {errors[`child-del-${children.map(c=>c.id).join('')}`] && <p className="text-xs text-red-500">{errors[`child-del-${children.map(c=>c.id).join('')}`]}</p>}
             </div>
             {addingChild ? (
               <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-white">
-                <div><Input value={newChild.first_name} onChange={e => setNewChild(p => ({ ...p, first_name: e.target.value }))} placeholder="Name or nickname *" /></div>
+                <Input value={newChild.first_name} onChange={e => setNewChild(p => ({ ...p, first_name: e.target.value }))} placeholder="Name or nickname *" />
                 <div>
                   <Input type="date" value={newChild.date_of_birth} max={new Date().toISOString().split('T')[0]} onChange={e => setNewChild(p => ({ ...p, date_of_birth: e.target.value }))} />
                   {newChild.date_of_birth && <p className="text-xs text-gray-500 mt-0.5">{calcAge(newChild.date_of_birth)}</p>}
@@ -339,7 +594,9 @@ function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors,
                 <div className="flex items-center gap-2"><Switch checked={newChild.special_needs_flag} onCheckedChange={v => setNewChild(p => ({ ...p, special_needs_flag: v }))} /><span className="text-sm">Special care needs</span></div>
                 {errors[`child-add-${hh.id}`] && <p className="text-xs text-red-500">{errors[`child-add-${hh.id}`]}</p>}
                 <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAddChild} disabled={saving === `child-add-${hh.id}`} className="bg-[#2D6A4F] text-white">{saving === `child-add-${hh.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Add'}</Button>
+                  <Button size="sm" onClick={handleAddChild} disabled={saving === `child-add-${hh.id}`} className="bg-[#2D6A4F] text-white">
+                    {saving === `child-add-${hh.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Add'}
+                  </Button>
                   <Button size="sm" variant="outline" onClick={() => setAddingChild(false)}>Cancel</Button>
                 </div>
               </div>
@@ -350,7 +607,7 @@ function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors,
             )}
           </div>
 
-          {/* Pets section (only if has_pets) */}
+          {/* Pets (conditional) */}
           {hasPets && (
             <div>
               <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2"><PawPrint className="w-4 h-4 text-[#C36239]" />Pets</h4>
@@ -390,7 +647,9 @@ function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors,
                   <Input value={newPet.additional_notes} onChange={e => setNewPet(p => ({ ...p, additional_notes: e.target.value }))} placeholder="Additional notes (optional)" />
                   {errors[`pet-add-${hh.id}`] && <p className="text-xs text-red-500">{errors[`pet-add-${hh.id}`]}</p>}
                   <div className="flex gap-2">
-                    <Button size="sm" onClick={handleAddPet} disabled={saving === `pet-add-${hh.id}`} className="bg-[#2D6A4F] text-white">{saving === `pet-add-${hh.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Add'}</Button>
+                    <Button size="sm" onClick={handleAddPet} disabled={saving === `pet-add-${hh.id}`} className="bg-[#2D6A4F] text-white">
+                      {saving === `pet-add-${hh.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Add'}
+                    </Button>
                     <Button size="sm" variant="outline" onClick={() => setAddingPet(false)}>Cancel</Button>
                   </div>
                 </div>

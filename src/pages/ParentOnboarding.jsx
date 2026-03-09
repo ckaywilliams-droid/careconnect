@@ -33,6 +33,7 @@ export default function ParentOnboarding() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [completed, setCompleted] = useState(false);
 
   // Step 2 state
   const [household, setHousehold] = useState(null);
