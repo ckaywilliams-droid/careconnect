@@ -56,35 +56,39 @@ export default function ParentOnboarding() {
 
   useEffect(() => {
     (async () => {
-      const u = await base44.auth.me();
-      setUser(u);
-      if (!u || u.app_role !== 'parent') { navigate(createPageUrl('Home')); return; }
-      if (u.onboarding_complete) { navigate(createPageUrl('ParentBookings')); return; }
+      try {
+        const u = await base44.auth.me();
+        setUser(u);
+        if (!u || u.app_role !== 'parent') { navigate(createPageUrl('Home')); return; }
+        if (u.onboarding_complete) { navigate(createPageUrl('ParentBookings')); return; }
 
-      const currentStep = u.onboarding_step || 1;
-      setStep(currentStep < 5 ? currentStep + 1 : 5);
+        const currentStep = u.onboarding_step || 1;
+        setStep(currentStep < 5 ? currentStep + 1 : 5);
 
-      // Load household data
-      const res = await base44.functions.invoke('getParentHousehold');
-      const { households = [], children: c = [], pets: p = [] } = res.data;
-      if (households.length > 0) {
-        const hh = households[0];
-        setHousehold(hh);
-        setHhNickname(hh.nickname || 'My Home');
-        setHhZip(hh.zip_code || '');
-        setHhHasPets(hh.has_pets || false);
-        setAddress({
-          street_address: hh.street_address || '',
-          city: hh.city || '',
-          state: hh.state || '',
-          zip_code: hh.zip_code || '',
-          special_instructions: hh.special_instructions || ''
-        });
-        setHasPetsHouseholds(households.filter(h => h.has_pets));
+        const res = await base44.functions.invoke('getParentHousehold');
+        const { households = [], children: c = [], pets: p = [] } = res.data;
+        if (households.length > 0) {
+          const hh = households[0];
+          setHousehold(hh);
+          setHhNickname(hh.nickname || 'My Home');
+          setHhZip(hh.zip_code || '');
+          setHhHasPets(hh.has_pets || false);
+          setAddress({
+            street_address: hh.street_address || '',
+            city: hh.city || '',
+            state: hh.state || '',
+            zip_code: hh.zip_code || '',
+            special_instructions: hh.special_instructions || ''
+          });
+          setHasPetsHouseholds(households.filter(h => h.has_pets));
+        }
+        setChildren(c);
+        setPets(p);
+      } catch (e) {
+        setError(e.message || 'Failed to load your profile. Please refresh.');
+      } finally {
+        setLoading(false);
       }
-      setChildren(c);
-      setPets(p);
-      setLoading(false);
     })();
   }, []);
 
