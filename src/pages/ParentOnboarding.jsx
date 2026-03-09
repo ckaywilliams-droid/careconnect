@@ -56,9 +56,8 @@ export default function ParentOnboarding() {
         if (u.onboarding_complete) { navigate(createPageUrl('ParentDashboard')); return; }
 
         const res = await base44.functions.invoke('getParentHousehold');
-        const { households = [], children: c = [], pets: p = [] } = res.data;
-        if (households.length > 0) {
-          const hh = households[0];
+        const { household: hh = null, children: c = [], pets: p = [] } = res.data;
+        if (hh) {
           setHousehold(hh);
           setHhNickname(hh.nickname || 'My Home');
           setHhZip(hh.zip_code || '');

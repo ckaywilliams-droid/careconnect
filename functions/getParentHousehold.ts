@@ -14,5 +14,5 @@ Deno.serve(async (req) => {
         base44.asServiceRole.entities.Pet.filter({ parent_id: user.id, is_active: true })
     ]);
 
-    return Response.json({ households: households || [], children: children || [], pets: pets || [] });
+    return Response.json({ household: (households && households[0]) || null, children: children || [], pets: pets || [] });
 });
