@@ -204,8 +204,8 @@ function PersonalInfoSection({ user, onUpdate }) {
       {editing ? (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div><Label>Full name</Label><Input value={form.full_name} disabled className="bg-gray-50" /></div>
-            <div><Label>Email</Label><Input value={form.email} disabled className="bg-gray-50" /></div>
+            <InfoRow label="Full name" value={form.full_name} />
+            <InfoRow label="Email"     value={form.email} />
             <div><Label>Phone</Label><Input value={form.phone} onChange={f('phone')} placeholder="+1 (555) 000-0000" /></div>
             <div><Label>Default zip code</Label><Input value={form.zip_code} onChange={f('zip_code')} /></div>
           </div>
@@ -406,6 +406,15 @@ export default function AccountSettingsTab({ user: userProp }) {
     await loadData();
   };
 
+  const editChild = async (childId, childData, onSuccess) => {
+    setSaving(`child-edit-${childId}`);
+    const res = await base44.functions.invoke('manageChild', { action: 'update', child_id: childId, ...childData });
+    setSaving('');
+    if (res.data?.error) { setFieldError(`child-edit-${childId}`, res.data.error); return; }
+    onSuccess?.();
+    await loadData();
+  };
+
   const addPetToHH = async (hhId, petData) => {
     setSaving(`pet-add-${hhId}`);
     const res = await base44.functions.invoke('managePet', { action: 'create', household_id: hhId, ...petData });
@@ -502,6 +511,7 @@ export default function AccountSettingsTab({ user: userProp }) {
               onDeleteHH={deleteHousehold}
               onAddChild={addChildToHH}
               onDeleteChild={deleteChild}
+              onEditChild={editChild}
               onAddPet={addPetToHH}
               onDeletePet={deletePet}
               clearError={clearError}
@@ -514,10 +524,23 @@ export default function AccountSettingsTab({ user: userProp }) {
 }
 
 // ─── HouseholdCard ────────────────────────────────────────────────────────────
-function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors, onSaveAddress, onSaveSettings, onDeleteHH, onAddChild, onDeleteChild, onAddPet, onDeletePet, clearError }) {
+function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors, onSaveAddress, onSaveSettings, onDeleteHH, onAddChild, onDeleteChild, onEditChild, onAddPet, onDeletePet, clearError }) {
   const [hasPets, setHasPets] = useState(hh.has_pets);
   const [addingChild, setAddingChild] = useState(false);
+  const [editingChild, setEditingChild] = useState(null);
+  const [editChildForm, setEditChildForm] = useState({});
   const [newChild, setNewChild] = useState({ first_name: '', date_of_birth: '', allergies: '', notes: '', special_needs_flag: false });
+
+  const startEditChild = (c) => {
+    setEditingChild(c.id);
+    setEditChildForm({
+      first_name:         c.first_name         || '',
+      date_of_birth:      c.date_of_birth      || '',
+      allergies:          c.allergies          || '',
+      notes:              c.notes              || '',
+      special_needs_flag: c.special_needs_flag || false,
+    });
+  };
   const [addingPet, setAddingPet] = useState(false);
   const [newPet, setNewPet] = useState({ pet_type: '', pet_size: '', pet_temperament: '', pet_name: '', additional_notes: '' });
 
@@ -566,21 +589,49 @@ function HouseholdCard({ hh, children, pets, expanded, onToggle, saving, errors,
           <div>
             <h4 className="font-medium text-gray-800 mb-3 flex items-center gap-2"><Users className="w-4 h-4 text-[#2D6A4F]" />Children</h4>
             <div className="space-y-2 mb-3">
-              {children.map(c => (
-                <div key={c.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 group">
-                  <div className="w-8 h-8 rounded-full bg-[#C36239]/15 flex items-center justify-center text-[#C36239] font-bold text-sm">{c.first_name[0]}</div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-900">{c.first_name} <span className="font-normal text-gray-500">— {calcAge(c.date_of_birth)}</span></p>
-                    <div className="flex gap-1 mt-0.5">
-                      {c.allergies && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Allergies</span>}
-                      {c.special_needs_flag && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Special needs</span>}
+              {children.map(c =>
+                editingChild === c.id ? (
+                  <div key={c.id} className="border border-gray-200 rounded-lg p-3 space-y-2 bg-white">
+                    <Input value={editChildForm.first_name} onChange={e => setEditChildForm(p => ({ ...p, first_name: e.target.value }))} placeholder="Name *" />
+                    <div>
+                      <Input type="date" value={editChildForm.date_of_birth} max={new Date().toISOString().split('T')[0]} onChange={e => setEditChildForm(p => ({ ...p, date_of_birth: e.target.value }))} />
+                      {editChildForm.date_of_birth && <p className="text-xs text-gray-500 mt-0.5">{calcAge(editChildForm.date_of_birth)}</p>}
+                    </div>
+                    <Input value={editChildForm.allergies} onChange={e => setEditChildForm(p => ({ ...p, allergies: e.target.value }))} placeholder="Allergies (optional)" />
+                    <Input value={editChildForm.notes} onChange={e => setEditChildForm(p => ({ ...p, notes: e.target.value }))} placeholder="Notes (optional)" />
+                    <div className="flex items-center gap-2">
+                      <Switch checked={editChildForm.special_needs_flag} onCheckedChange={v => setEditChildForm(p => ({ ...p, special_needs_flag: v }))} />
+                      <span className="text-sm">Special care needs</span>
+                    </div>
+                    {errors[`child-edit-${c.id}`] && <p className="text-xs text-red-500">{errors[`child-edit-${c.id}`]}</p>}
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => onEditChild(c.id, editChildForm, () => setEditingChild(null))} disabled={saving === `child-edit-${c.id}`} className="bg-[#2D6A4F] text-white">
+                        {saving === `child-edit-${c.id}` ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Save'}
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setEditingChild(null)}>Cancel</Button>
                     </div>
                   </div>
-                  <button onClick={() => onDeleteChild(c.id)} className="opacity-0 group-hover:opacity-100 text-red-400 hover:text-red-600">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
+                ) : (
+                  <div key={c.id} className="flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100 group">
+                    <div className="w-8 h-8 rounded-full bg-[#C36239]/15 flex items-center justify-center text-[#C36239] font-bold text-sm">{c.first_name[0]}</div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-900">{c.first_name} <span className="font-normal text-gray-500">— {calcAge(c.date_of_birth)}</span></p>
+                      <div className="flex gap-1 mt-0.5">
+                        {c.allergies && <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">Allergies</span>}
+                        {c.special_needs_flag && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">Special needs</span>}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 opacity-0 group-hover:opacity-100">
+                      <button onClick={() => startEditChild(c)} className="text-gray-400 hover:text-[#C36239]">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => onDeleteChild(c.id)} className="text-red-400 hover:text-red-600">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
             {addingChild ? (
               <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-white">

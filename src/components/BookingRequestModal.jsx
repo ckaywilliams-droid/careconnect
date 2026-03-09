@@ -149,6 +149,22 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
     }
   }, [preselectedSlot]);
 
+  // Pre-populate special requests from household instructions
+  useEffect(() => {
+    const prefillFromHousehold = async () => {
+      try {
+        const res = await base44.functions.invoke('getParentHousehold');
+        const { households = [] } = res.data;
+        if (households.length === 0) return;
+        const hh = households[0];
+        setSpecialRequests(prev => prev || hh.special_instructions || '');
+      } catch {
+        // non-critical — silently skip
+      }
+    };
+    prefillFromHousehold();
+  }, []);
+
   const slotsByDate = useMemo(() => groupSlotsByDate(availabilitySlots), [availabilitySlots]);
   const sortedDates = useMemo(() => Object.keys(slotsByDate).sort(), [slotsByDate]);
   const slotsForDate = selectedDate ? (slotsByDate[selectedDate] || []) : [];
