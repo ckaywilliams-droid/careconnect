@@ -83,7 +83,9 @@ export default function RoleSelection() {
       // Refresh the auth session so the updated app_role + onboarding_complete
       // are reflected in base44.auth.me() before the Layout guard runs.
       await base44.auth.me();
-      navigate(role === 'caregiver' ? createPageUrl('CaregiverProfile') : createPageUrl('FindCaregivers'), { replace: true });
+      if (role === 'parent') navigate(createPageUrl('ParentOnboarding'), { replace: true });
+      else if (role === 'caregiver') navigate(createPageUrl('CaregiverProfile'), { replace: true });
+      else navigate(createPageUrl('AdminDashboard'), { replace: true });
     } catch (err) {
       const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';
       setError(msg);
