@@ -123,6 +123,10 @@ export default function ParentOnboarding() {
       setError('Street address, city, and state are required.'); return;
     }
     setSaving(true);
+    console.log('=== PARENT ONBOARDING ===');
+    console.log('Form data:', { hhNickname, hhZip, hhHasPets, ...address });
+    console.log('User ID:', user?.id);
+    console.log('Attempting to create household');
     try {
       const res = await base44.functions.invoke('manageHousehold', {
         action: household?.id ? 'update' : 'create',

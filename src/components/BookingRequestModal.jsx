@@ -153,7 +153,9 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
   useEffect(() => {
     const prefillFromHousehold = async () => {
       try {
+        console.log('=== BOOKING MODAL ===');
         const res = await base44.functions.invoke('getParentHousehold');
+        console.log('Household data received:', res.data);
         const { households = [] } = res.data;
         if (households.length === 0) return;
         const hh = households[0];
@@ -249,15 +251,19 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
     if (!recaptchaToken) { setError('Please complete the reCAPTCHA verification.'); return; }
 
     setSubmitting(true);
+    const bookingPayload = {
+      availability_slot_id: selectedWindowId,
+      requested_start_time: startTimeVal,
+      requested_end_time: endTimeVal,
+      num_children: numChildren,
+      special_requests: specialRequests || undefined,
+      captcha_token: recaptchaToken,
+    };
+    console.log('=== SUBMIT BOOKING ===');
+    console.log('Selected times:', { start: startTimeVal, end: endTimeVal });
+    console.log('Payload being sent:', bookingPayload);
     try {
-      const res = await base44.functions.invoke('submitBookingRequest', {
-        availability_slot_id: selectedWindowId,
-        requested_start_time: startTimeVal,
-        requested_end_time: endTimeVal,
-        num_children: numChildren,
-        special_requests: specialRequests || undefined,
-        captcha_token: recaptchaToken,
-      });
+      const res = await base44.functions.invoke('submitBookingRequest', bookingPayload);
 
       if (res.data?.success) {
         navigate(createPageUrl('ParentBookings'));

@@ -17,7 +17,10 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
 
   // ── GATE 1: Session valid and role=parent ─────────────────────────────────
+  console.log('=== SUBMIT BOOKING REQUEST START ===');
   const user = await base44.auth.me();
+  console.log('Auth user:', JSON.stringify(user));
+  console.log('User.app_role:', user?.app_role);
   if (!user) {
     return Response.json({ error: 'Unauthorized', gate_failed: 'gate_1_session' }, { status: 401 });
   }
@@ -36,7 +39,10 @@ Deno.serve(async (req) => {
 
   // ── Parse body ────────────────────────────────────────────────────────────
   const body = await req.json();
+  console.log('Request body:', body);
   const { availability_slot_id, num_children, special_requests, captcha_token, requested_start_time, requested_end_time } = body;
+  console.log('Availability slot ID:', availability_slot_id);
+  console.log('Requested times:', { start: requested_start_time, end: requested_end_time });
 
   if (!availability_slot_id || !captcha_token) {
     return Response.json({ error: 'availability_slot_id and captcha_token are required.' }, { status: 400 });
@@ -114,6 +120,7 @@ Deno.serve(async (req) => {
 
   // ── F-056.1: Minimum hours validation ────────────────────────────────────
   const minimumHours = caregiverProfile.minimum_hours || 2;
+  console.log('Duration check:', { durationHours, minHours: minimumHours, meetsMinimum: durationHours >= minimumHours });
   if (durationHours < minimumHours) {
     return Response.json({
       error: `Minimum booking duration is ${minimumHours} hour${minimumHours === 1 ? '' : 's'}. You requested ${durationHours} hour${durationHours === 1 ? '' : 's'}.`,
@@ -184,6 +191,7 @@ Deno.serve(async (req) => {
 
   // ── Create BookingRequest (no slot soft-locking) ──────────────────────────
   let newBooking;
+  console.log('Creating booking with:', { caregiver_id: caregiverProfile.id, parent_id: user.id, start_time: startTimeISO, end_time: endTimeISO });
   try {
     newBooking = await base44.asServiceRole.entities.BookingRequest.create({
       parent_profile_id: parentProfile?.id || user.id,
@@ -201,8 +209,10 @@ Deno.serve(async (req) => {
       is_duplicate_checked: true
     });
   } catch (createErr) {
+    console.log('Error occurred:', createErr.message);
     return Response.json({ error: 'Failed to create booking request. Please try again.' }, { status: 500 });
   }
+  console.log('Booking created with ID:', newBooking.id);
 
   // ── Create MessageThread ──────────────────────────────────────────────────
   try {
