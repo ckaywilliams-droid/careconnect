@@ -154,19 +154,23 @@ export default function ParentOnboarding() {
       setError('Street address, city, and state are required.'); return;
     }
     setSaving(true);
-    const res = await base44.functions.invoke('manageHousehold', {
-      action: 'update',
-      household_id: household?.id,
-      ...address
-    });
-    setSaving(false);
-    if (res.data?.error) { setError(res.data.error); return; }
-    // Re-fetch user to check onboarding_complete
-    const u = await base44.auth.me();
-    if (u.onboarding_complete) {
-      navigate(createPageUrl('ParentBookings'));
-    } else {
-      setError('Profile saved. Please complete any remaining steps.');
+    try {
+      const res = await base44.functions.invoke('manageHousehold', {
+        action: 'update',
+        household_id: household?.id,
+        ...address
+      });
+      if (res.data?.error) { setError(res.data.error); return; }
+      const u = await base44.auth.me();
+      if (u.onboarding_complete) {
+        navigate(createPageUrl('ParentBookings'));
+      } else {
+        setError('Profile saved. Please complete any remaining steps.');
+      }
+    } catch (e) {
+      setError(e.message || 'Failed to save address. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
