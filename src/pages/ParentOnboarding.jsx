@@ -207,6 +207,20 @@ export default function ParentOnboarding() {
       <div className="w-full max-w-xl bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
         {error && <p className="mb-4 text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
+        {completed ? (
+          <div className="text-center py-4">
+            <CheckCircle2 className="w-20 h-20 text-[#2D6A4F] mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">You're all set!</h2>
+            <p className="text-gray-500 mb-8">Your profile is complete. You can now browse and book caregivers.</p>
+            <Button
+              onClick={() => navigate(createPageUrl('ParentBookings'))}
+              className="bg-[#C36239] hover:bg-[#A0522D] text-white px-8"
+            >
+              Go to Dashboard <ArrowRight className="w-4 h-4 ml-1" />
+            </Button>
+          </div>
+        ) : (
+          <>
         {/* Step 1: Email Verified */}
         {step === 1 && (
           <div className="text-center">
