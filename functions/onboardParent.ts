@@ -10,18 +10,12 @@ Deno.serve(async (req) => {
 
     const { parent, children, address } = await req.json();
 
-    // 1. Save extra user fields (first_name, last_name, phone)
-    await base44.auth.updateMe({
-      first_name: parent.first_name,
-      last_name: parent.last_name,
-      phone: parent.phone,
-    });
-
-    // 2. Upsert ParentProfile
+    // 1. Upsert ParentProfile (phone, name, address all stored here — User entity has no phone field)
     const profiles = await base44.asServiceRole.entities.ParentProfile.filter({ user_id: user.id });
     const profileData = {
       user_id: user.id,
       display_name: `${parent.first_name} ${parent.last_name}`,
+      phone: parent.phone,
       address_line_1: address.street,
       city: address.city,
       state: address.state,
