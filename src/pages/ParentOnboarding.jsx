@@ -43,7 +43,7 @@ export default function ParentOnboarding() {
       const res = await base44.functions.invoke('onboardParent', { parent, children, address });
       if (res.data?.error) { setError(res.data.error); setSaving(false); return; }
       await base44.auth.updateMe({ onboarding_complete: true });
-      navigate(createPageUrl('ParentDashboard'));
+      navigate(createPageUrl('ParentBookings'));
     } catch (e) {
       setError(e.message || 'Something went wrong. Please try again.');
       setSaving(false);
