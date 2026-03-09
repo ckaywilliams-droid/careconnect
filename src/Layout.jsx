@@ -76,7 +76,7 @@ export default function Layout({ children, currentPageName }) {
         // F-099 Logic.2: Parent with incomplete onboarding → redirect to onboarding page
         if (!isAdmin && !isVerifyPage && user.app_role === 'parent' && !user.onboarding_complete) {
           if (pageKey !== 'parentonboarding' && pageKey !== 'roleselection' && pageKey !== 'selectrole') {
-            navigate('/ParentOnboarding', { replace: true });
+            navigate(createPageUrl('ParentOnboarding'), { replace: true });
             return;
           }
         }

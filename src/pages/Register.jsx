@@ -40,11 +40,11 @@ export default function Register() {
       const user = await base44.auth.me();
       const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
       if (adminRoles.includes(user.app_role)) {
-        navigate('/AdminDashboard', { replace: true });
+        navigate(createPageUrl('AdminDashboard'), { replace: true });
       } else if (!user.app_role || !user.onboarding_complete) {
-        navigate('/RoleSelection', { replace: true });
+        navigate(createPageUrl('RoleSelection'), { replace: true });
       } else {
-        navigate(user.app_role === 'caregiver' ? '/CaregiverProfile' : '/FindCaregivers', { replace: true });
+        navigate(user.app_role === 'caregiver' ? createPageUrl('CaregiverProfile') : createPageUrl('FindCaregivers'), { replace: true });
       }
     })();
   }, []);

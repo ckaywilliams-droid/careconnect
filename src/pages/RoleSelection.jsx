@@ -46,11 +46,11 @@ export default function RoleSelection() {
         // Already onboarded — redirect to appropriate page
         if (user.onboarding_complete && user.app_role) {
           if (adminRoles.includes(user.app_role)) {
-            navigate('/AdminDashboard', { replace: true });
+            navigate(createPageUrl('AdminDashboard'), { replace: true });
           } else if (user.app_role === 'caregiver') {
-            navigate('/CaregiverProfile', { replace: true });
+            navigate(createPageUrl('CaregiverProfile'), { replace: true });
           } else {
-            navigate('/ParentBookings', { replace: true });
+            navigate(createPageUrl('ParentBookings'), { replace: true });
           }
           return;
         }
