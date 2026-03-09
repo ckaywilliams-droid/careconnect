@@ -125,7 +125,7 @@ export default function ParentOnboarding() {
     setSaving(true);
     try {
       const res = await base44.functions.invoke('manageHousehold', {
-        action: 'update',
+        action: household?.id ? 'update' : 'create',
         household_id: household?.id,
         nickname: hhNickname,
         zip_code: hhZip,
