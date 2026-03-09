@@ -53,7 +53,14 @@ Deno.serve(async (req) => {
       householdId = hh.id;
     }
 
-    // 4. Create Child records
+    // 4. Sync Child records — soft-delete removed ones, create new ones (prevents duplicates on re-submit)
+    const existingChildren = await base44.asServiceRole.entities.Child.filter({ parent_id: user.id, is_active: true });
+
+    // Soft-delete all existing active children first, then recreate from submitted list
+    for (const ec of existingChildren) {
+      await base44.asServiceRole.entities.Child.update(ec.id, { is_active: false });
+    }
+
     for (const child of children) {
       const months = (Date.now() - new Date(child.date_of_birth)) / (1000 * 60 * 60 * 24 * 30.44);
       const age_group = months < 12 ? 'infant' : months < 36 ? 'toddler' : months < 60 ? 'preschool' : months < 156 ? 'school_age' : 'teen';
