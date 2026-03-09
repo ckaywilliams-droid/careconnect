@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
         const household = await base44.asServiceRole.entities.Household.create({
             parent_id: user.id,
             nickname: nickname || 'My Home',
-            zip_code,
+            zip_code: zip_code || '',
             has_pets: has_pets || false,
             pet_count: 0,
             child_count: 0,
