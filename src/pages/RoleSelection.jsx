@@ -77,13 +77,13 @@ export default function RoleSelection() {
         throw new Error(response.data.error);
       }
       if (response.data?.already_complete) {
-        navigate(role === 'caregiver' ? '/CaregiverProfile' : '/ParentBookings', { replace: true });
+        navigate(role === 'caregiver' ? createPageUrl('CaregiverProfile') : createPageUrl('ParentBookings'), { replace: true });
         return;
       }
       // Refresh the auth session so the updated app_role + onboarding_complete
       // are reflected in base44.auth.me() before the Layout guard runs.
       await base44.auth.me();
-      navigate(role === 'caregiver' ? '/CaregiverProfile' : '/FindCaregivers', { replace: true });
+      navigate(role === 'caregiver' ? createPageUrl('CaregiverProfile') : createPageUrl('FindCaregivers'), { replace: true });
     } catch (err) {
       const msg = err?.response?.data?.error || err.message || 'Something went wrong. Please try again.';
       setError(msg);
