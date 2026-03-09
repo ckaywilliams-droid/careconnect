@@ -70,6 +70,10 @@ Deno.serve(async (req) => {
                     completion_pct: 0
                 });
 
+                await base44.asServiceRole.entities.User.update(user.id, {
+                    onboarding_complete: true
+                });
+
             } else if (role === 'parent') {
                 // (6) Create ParentProfile
                 profile = await base44.asServiceRole.entities.ParentProfile.create({
