@@ -65,9 +65,10 @@ export default function Layout({ children, currentPageName }) {
         const isAdmin = adminRoles.includes(user.app_role);
         // Don't redirect if user is on the email verification page
         const isVerifyPage = pageKey === 'verifyemail' || pageKey === 'emailverified';
-        if (!isAdmin && !isVerifyPage && !user.app_role) {
+        const needsRoleSelection = !user.app_role || user.app_role === 'user';
+        if (!isAdmin && !isVerifyPage && needsRoleSelection) {
           if (pageKey !== 'roleselection' && pageKey !== 'selectrole') {
-            navigate('/select-role', { replace: true });
+            navigate('/RoleSelection', { replace: true });
             return;
           }
         }
