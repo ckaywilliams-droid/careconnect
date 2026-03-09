@@ -46,11 +46,6 @@ export default function Layout({ children, currentPageName }) {
   const isPublicPage = PUBLIC_PAGES.includes(pageKey);
 
   useEffect(() => {
-    if (isPublicPage) {
-      setCheckingAuth(false);
-      return;
-    }
-
     (async () => {
       try {
         const authenticated = await base44.auth.isAuthenticated();
