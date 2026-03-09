@@ -11,6 +11,7 @@ export default function VerifyEmail() {
   const location = useLocation();
   const [searchParams] = useSearchParams();
 
+  const navigate = useNavigate();
   const [email, setEmail] = useState(location.state?.email || searchParams.get('email') || '');
 
   // Fallback: fetch email from current user if not passed via navigation
