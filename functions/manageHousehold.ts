@@ -12,7 +12,6 @@ Deno.serve(async (req) => {
     const { action } = body;
 
     if (action === 'create') {
-        // Abuse.1: max 5 active households
         const existing = await base44.entities.Household.filter({ parent_id: user.id, is_active: true });
         if (existing.length >= 5) {
             return Response.json({ error: 'Maximum households reached.' }, { status: 400 });
@@ -21,7 +20,6 @@ Deno.serve(async (req) => {
         const { nickname, zip_code, has_pets, special_instructions } = body;
         if (!zip_code) return Response.json({ error: 'Zip code is required.' }, { status: 400 });
 
-        // Sanitize special_instructions
         const safeInstructions = special_instructions
             ? special_instructions.replace(/<[^>]*>/g, '').substring(0, 250)
             : null;
@@ -34,7 +32,7 @@ Deno.serve(async (req) => {
             pet_count: 0,
             child_count: 0,
             special_instructions: safeInstructions,
-            is_primary: existing.length === 0, // First one is primary
+            is_primary: existing.length === 0,
             is_active: true
         });
 
@@ -46,9 +44,9 @@ Deno.serve(async (req) => {
         const { household_id, nickname, zip_code, street_address, city, state, has_pets, special_instructions, is_primary } = body;
         if (!household_id) return Response.json({ error: 'household_id required.' }, { status: 400 });
 
-        const households = await base44.entities.Household.filter({ id: household_id, parent_id: user.id });
-        if (!households || households.length === 0) return Response.json({ error: 'Not found.' }, { status: 404 });
-        const hh = households[0];
+        // Use get() instead of filter() for single-record lookup
+        const hh = await base44.asServiceRole.entities.Household.get(household_id);
+        if (!hh || hh.parent_id !== user.id) return Response.json({ error: 'Not found.' }, { status: 404 });
 
         const safeInstructions = special_instructions !== undefined
             ? (special_instructions ? special_instructions.replace(/<[^>]*>/g, '').substring(0, 250) : null)
@@ -63,27 +61,36 @@ Deno.serve(async (req) => {
         if (has_pets !== undefined) updateData.has_pets = has_pets;
         if (special_instructions !== undefined) updateData.special_instructions = safeInstructions;
 
-        // F-096 States.2: is_primary transition
+        // F-096 States.2: is_primary transition — run in parallel with update
+        const sideEffects = [];
+
         if (is_primary === true && !hh.is_primary) {
-            const allHouseholds = await base44.asServiceRole.entities.Household.filter({ parent_id: user.id, is_active: true });
-            for (const h of allHouseholds) {
-                if (h.id !== household_id && h.is_primary) {
-                    await base44.asServiceRole.entities.Household.update(h.id, { is_primary: false });
-                }
-            }
+            sideEffects.push(
+                base44.asServiceRole.entities.Household.filter({ parent_id: user.id, is_active: true, is_primary: true })
+                    .then(allPrimary => Promise.all(
+                        allPrimary.filter(h => h.id !== household_id)
+                            .map(h => base44.asServiceRole.entities.Household.update(h.id, { is_primary: false }))
+                    ))
+            );
             updateData.is_primary = true;
         }
 
-        // F-096 Triggers.2: if has_pets toggled to false, soft-delete all pets
+        // F-096 Triggers.2: if has_pets toggled to false, soft-delete all pets in parallel
         if (has_pets === false && hh.has_pets === true) {
-            const pets = await base44.asServiceRole.entities.Pet.filter({ household_id, is_active: true });
-            for (const pet of pets) {
-                await base44.asServiceRole.entities.Pet.update(pet.id, { is_active: false });
-            }
+            sideEffects.push(
+                base44.asServiceRole.entities.Pet.filter({ household_id, is_active: true })
+                    .then(pets => Promise.all(
+                        pets.map(pet => base44.asServiceRole.entities.Pet.update(pet.id, { is_active: false }))
+                    ))
+            );
             updateData.pet_count = 0;
         }
 
-        const updated = await base44.asServiceRole.entities.Household.update(household_id, updateData);
+        // Run the household update and all side effects in parallel
+        const [updated] = await Promise.all([
+            base44.asServiceRole.entities.Household.update(household_id, updateData),
+            ...sideEffects
+        ]);
 
         // F-099 Triggers.3: if address now complete, evaluate onboarding gate
         if (street_address && city && state) {
@@ -98,13 +105,12 @@ Deno.serve(async (req) => {
         const { household_id } = body;
         if (!household_id) return Response.json({ error: 'household_id required.' }, { status: 400 });
 
-        const households = await base44.entities.Household.filter({ id: household_id, parent_id: user.id });
-        if (!households || households.length === 0) return Response.json({ error: 'Not found.' }, { status: 404 });
-        const hh = households[0];
+        const hh = await base44.asServiceRole.entities.Household.get(household_id);
+        if (!hh || hh.parent_id !== user.id) return Response.json({ error: 'Not found.' }, { status: 404 });
 
         // F-096 Edge.2: block if active bookings
         const activeStatuses = ['pending', 'accepted', 'in_progress'];
-        const activeBookings = await base44.asServiceRole.entities.BookingRequest.filter({ household_id, parent_user_id: user.id });
+        const activeBookings = await base44.asServiceRole.entities.BookingRequest.filter({ parent_user_id: user.id });
         const hasActive = (activeBookings || []).some(b => activeStatuses.includes(b.status));
         if (hasActive) {
             return Response.json({ error: 'This household has active bookings. Cancel or complete all active bookings before removing this household.' }, { status: 400 });
@@ -131,23 +137,26 @@ Deno.serve(async (req) => {
 async function evaluateOnboardingGate(base44, user) {
     try {
         if (!user.is_email_verified) return;
-        const households = await base44.asServiceRole.entities.Household.filter({ parent_id: user.id, is_active: true });
+
+        // Fetch households and children in parallel
+        const [households, children] = await Promise.all([
+            base44.asServiceRole.entities.Household.filter({ parent_id: user.id, is_active: true }),
+            base44.asServiceRole.entities.Child.filter({ parent_id: user.id, is_active: true })
+        ]);
+
         if (!households || households.length === 0) return;
-
-        const hasAddressHousehold = households.some(h => h.street_address && h.city && h.state);
-        if (!hasAddressHousehold) return;
-
-        const children = await base44.asServiceRole.entities.Child.filter({ parent_id: user.id, is_active: true });
+        if (!households.some(h => h.street_address && h.city && h.state)) return;
         if (!children || children.length === 0) return;
 
-        // Step 4: for each household with has_pets=true, must have at least one active pet
+        // Check pets for each household that has_pets=true
         const petsHouseholds = households.filter(h => h.has_pets);
-        for (const hh of petsHouseholds) {
-            const pets = await base44.asServiceRole.entities.Pet.filter({ household_id: hh.id, is_active: true });
-            if (!pets || pets.length === 0) return;
+        if (petsHouseholds.length > 0) {
+            const petsResults = await Promise.all(
+                petsHouseholds.map(hh => base44.asServiceRole.entities.Pet.filter({ household_id: hh.id, is_active: true }))
+            );
+            if (petsResults.some(pets => !pets || pets.length === 0)) return;
         }
 
-        // All steps passed
         await base44.asServiceRole.entities.User.update(user.id, {
             onboarding_complete: true,
             onboarding_step: 5
