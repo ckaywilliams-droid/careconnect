@@ -27,7 +27,9 @@ export default function ParentOnboarding() {
   const [completed, setCompleted] = useState(false);
 
   // Household state
+  const householdRef = useRef(null);
   const [household, setHousehold] = useState(null);
+  const setHouseholdSynced = (hh) => { householdRef.current = hh; setHousehold(hh); };
   const [hhNickname, setHhNickname] = useState('My Home');
   const [hhZip, setHhZip] = useState('');
   const [hhHasPets, setHhHasPets] = useState(false);
