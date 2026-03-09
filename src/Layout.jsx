@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { createPageUrl } from "@/utils";
 
 // Pages that never require the onboarding guard
 const PUBLIC_PAGES = [

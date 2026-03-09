@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { Mail, Loader2, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { createPageUrl } from '@/utils';
 
 export default function VerifyEmail() {
   const location = useLocation();
