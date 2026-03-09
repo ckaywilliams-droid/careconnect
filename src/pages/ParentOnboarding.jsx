@@ -133,6 +133,10 @@ export default function ParentOnboarding() {
         ...address
       });
       if (res.data?.error) { setError(res.data.error); return; }
+      if (!household?.id && (res.data?.household || res.data?.id)) {
+        setHousehold(res.data.household ?? res.data);
+      }
+      await base44.auth.updateMe({ onboarding_complete: true });
       setCompleted(true);
     } catch (e) {
       setError(e.message || 'Failed to save. Please try again.');
