@@ -61,7 +61,7 @@ export default function ParentOnboarding() {
         console.log("household result", res);
         const { household: hh = null, children: c = [], pets: p = [] } = res.data;
         if (hh) {
-          setHousehold(hh);
+          setHouseholdSynced(hh);
           setHhNickname(hh.nickname || 'My Home');
           setHhZip(hh.zip_code || '');
           setHhHasPets(hh.has_pets || false);
@@ -79,7 +79,7 @@ export default function ParentOnboarding() {
             nickname: 'My Home'
           });
           const newHousehold = createRes.data.household ?? createRes.data;
-          setHousehold(newHousehold);
+          setHouseholdSynced(newHousehold);
         }
         setChildren(c);
         setPets(p);
@@ -138,17 +138,18 @@ export default function ParentOnboarding() {
     console.log('User ID:', user?.id);
     console.log('Attempting to create household');
     try {
+      const hh = householdRef.current;
       const res = await base44.functions.invoke('manageHousehold', {
-        action: household?.id ? 'update' : 'create',
-        household_id: household?.id,
+        action: hh?.id ? 'update' : 'create',
+        household_id: hh?.id,
         nickname: hhNickname,
         zip_code: hhZip,
         has_pets: hhHasPets,
         ...address
       });
       if (res.data?.error) { setError(res.data.error); return; }
-      if (!household?.id && (res.data?.household || res.data?.id)) {
-        setHousehold(res.data.household ?? res.data);
+      if (!hh?.id && (res.data?.household || res.data?.id)) {
+        setHouseholdSynced(res.data.household ?? res.data);
       }
       await base44.auth.updateMe({ onboarding_complete: true });
       setCompleted(true);
