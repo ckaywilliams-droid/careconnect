@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createPageUrl } from "@/utils";
+import NotificationBell from "@/components/NotificationBell";
 
 // Pages that never require the onboarding guard
 const PUBLIC_PAGES = [
@@ -99,7 +100,8 @@ export default function Layout({ children, currentPageName }) {
   return (
     <>
       {!checkingAuth && currentUser && (
-        <div className="flex justify-end p-4 bg-white border-b border-[#E5E2DC] shadow-sm">
+        <div className="flex justify-end items-center gap-2 p-4 bg-white border-b border-[#E5E2DC] shadow-sm">
+          <NotificationBell user={currentUser} />
           <Button variant="ghost" onClick={handleLogout}>
             Sign Out
           </Button>
