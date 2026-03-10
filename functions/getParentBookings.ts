@@ -5,7 +5,6 @@ Deno.serve(async (req) => {
 
   const user = await base44.auth.me();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  if (user.app_role !== 'parent') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
     // Filter by parent_user_id directly — no profile lookup needed
