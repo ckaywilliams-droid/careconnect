@@ -28,12 +28,12 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Only parents may submit booking requests.', gate_failed: 'gate_1_role' }, { status: 403 });
   }
 
-  // ── GATE 2: email_verified ────────────────────────────────────────────────
-  if (!user.email_verified) {
+  // ── GATE 2: onboarding complete ───────────────────────────────────────────
+  if (!user.onboarding_complete) {
     return Response.json({
-      error: 'Please verify your email address before requesting a booking.',
-      gate_failed: 'gate_2_email_unverified',
-      action: 'resend_verification'
+      error: 'Please complete onboarding before requesting a booking.',
+      gate_failed: 'gate_2_onboarding_incomplete',
+      action: 'complete_onboarding'
     }, { status: 403 });
   }
 
