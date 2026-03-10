@@ -14,7 +14,7 @@ const PUBLIC_PAGES = [
   'suspendedaccount', 'adminlogin', 'adminfirstlogin',
   'admindashboard', 'adminusers', 'adminroles', 'admindisputedashboard',
   'moderationqueue', 'submitevidence', 'disputedetail',
-  'parentbookings', 'parentonboarding'
+  'parentbookings', 'parentonboarding', 'bookingsuccess'
 ];
 
 
