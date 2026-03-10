@@ -315,6 +315,7 @@ ${baseUrl}/ParentBookings
     start_time: requested_start_time,
     end_time: requested_end_time,
     duration_hours: durationHours,
-    hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0
+    hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0,
+    parent_user_id: userEntity.id
   }, { status: 201 });
 });

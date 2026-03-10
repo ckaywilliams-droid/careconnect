@@ -226,7 +226,9 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
       const res = await base44.functions.invoke('submitBookingRequest', bookingPayload);
 
       if (res.data?.success) {
-        navigate(createPageUrl('ParentBookings'));
+        const bookingData = res.data;
+        const successUrl = `${createPageUrl('BookingSuccess')}?id=${bookingData.booking_request_id}&cg=${encodeURIComponent(bookingData.caregiver_name)}&date=${bookingData.slot_date}`;
+        navigate(successUrl);
       }
     } catch (err) {
       const errData = err.response?.data;
