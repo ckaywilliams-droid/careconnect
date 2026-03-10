@@ -5,12 +5,12 @@ Deno.serve(async (req) => {
 
   const user = await base44.auth.me();
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  if (user.app_role !== 'parent') return Response.json({ error: 'Forbidden' }, { status: 403 });
+  if (user.app_role !== 'caregiver') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
-    // Filter by parent_user_id directly — no profile lookup needed
+    // Filter by caregiver_user_id directly — no profile lookup needed
     const bookings = await base44.asServiceRole.entities.BookingRequest.filter(
-      { parent_user_id: user.id }
+      { caregiver_user_id: user.id }
     );
 
     // Sort by created_date descending in-memory
@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ bookings }, { status: 200 });
   } catch (err) {
-    console.error('getParentBookings error:', err.message);
+    console.error('getCaregiverBookings error:', err.message);
     return Response.json({ error: err.message, bookings: [] }, { status: 500 });
   }
 });
