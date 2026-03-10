@@ -12,10 +12,10 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
 
   const body = await req.json();
-  const { booking_request_id, parent_user_id, caregiver_user_id, caregiver_profile_id } = body;
+  const { booking_request_id, parent_user_id, caregiver_user_id } = body;
 
-  if (!booking_request_id || !parent_user_id || !caregiver_user_id || !caregiver_profile_id) {
-    return Response.json({ error: 'booking_request_id, parent_user_id, caregiver_user_id, caregiver_profile_id are required.' }, { status: 400 });
+  if (!booking_request_id || !parent_user_id || !caregiver_user_id) {
+    return Response.json({ error: 'booking_request_id, parent_user_id, caregiver_user_id are required.' }, { status: 400 });
   }
 
   // Check for existing thread (idempotency guard)
@@ -28,7 +28,6 @@ Deno.serve(async (req) => {
     booking_id: booking_request_id,
     parent_user_id,
     caregiver_user_id,
-    caregiver_profile_id,
     is_active: true,
     is_flagged: false,
     is_deleted: false
