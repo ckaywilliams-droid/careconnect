@@ -180,13 +180,22 @@ Deno.serve(async (req) => {
     console.log('Created ParentProfile:', parentProfile.id);
   }
 
+  // ── Fetch User entity to get proper database-level ID for relation field ──
+  const userEntityRecords = await base44.asServiceRole.entities.User.filter({ id: user.id });
+  const userEntity = userEntityRecords[0];
+  console.log('Auth user.id:', user.id, '| User entity.id:', userEntity?.id);
+
+  if (!userEntity) {
+    return Response.json({ error: 'User record not found.', gate_failed: 'gate_user_entity' }, { status: 404 });
+  }
+
   // ── Create BookingRequest (no slot soft-locking) ──────────────────────────
   let newBooking;
   console.log('Creating booking with:', { caregiver_id: caregiverProfile.id, parent_id: user.id, start_time: startTimeISO, end_time: endTimeISO });
   try {
     newBooking = await base44.asServiceRole.entities.BookingRequest.create({
       parent_profile_id: parentProfile.id,
-      parent_user_id: user.id,
+      parent_user_id: userEntity.id,
       caregiver_profile_id: caregiverProfile.id,
       caregiver_user_id: caregiverProfile.user_id,
       availability_slot_id: slot.id,
@@ -204,6 +213,8 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Failed to create booking request. Please try again.' }, { status: 500 });
   }
   console.log('Booking created with ID:', newBooking.id);
+  console.log('Saved booking parent_user_id:', newBooking.parent_user_id);
+  console.log('Expected:', userEntity.id);
 
   // ── In-app notification → caregiver ──────────────────────────────────────
   const durationHoursDisplay = (reqEndMins - reqStartMins) / 60;
