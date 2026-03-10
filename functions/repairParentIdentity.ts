@@ -49,6 +49,15 @@ Deno.serve(async (req) => {
     }, { status: 409 });
   }
 
+  // ── Ambiguous state check ─────────────────────────────────────────────────
+  if (alreadyCorrect && orphans.length === 1) {
+    return Response.json({
+      error: 'Ambiguous state: a correct profile already exists alongside an orphan. Manual review required.',
+      orphaned_profiles_found: 1,
+      orphan_ids: [orphans[0].id]
+    }, { status: 409 });
+  }
+
   // ── Repair sequence ───────────────────────────────────────────────────────
   const orphan = orphans[0];
   const oldId = orphan.user_id;
