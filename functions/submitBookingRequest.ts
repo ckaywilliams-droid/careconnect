@@ -195,7 +195,7 @@ Deno.serve(async (req) => {
   try {
     newBooking = await base44.asServiceRole.entities.BookingRequest.create({
       parent_profile_id: parentProfile.id,
-      parent_user_id: userEntity.id,
+      parent_user_id: user.id, // Use Auth ID to match dashboard filter
       caregiver_profile_id: caregiverProfile.id,
       caregiver_user_id: caregiverProfile.user_id,
       availability_slot_id: slot.id,
