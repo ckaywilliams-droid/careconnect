@@ -24,14 +24,19 @@ Deno.serve(async (req) => {
     return Response.json({ success: true, thread_id: existing[0].id, already_existed: true }, { status: 200 });
   }
 
-  const thread = await base44.asServiceRole.entities.MessageThread.create({
-    booking_id: booking_request_id,
-    parent_user_id,
-    caregiver_user_id,
-    is_active: true,
-    is_flagged: false,
-    is_deleted: false
-  });
+  try {
+    const thread = await base44.asServiceRole.entities.MessageThread.create({
+      booking_id: booking_request_id,
+      parent_user_id,
+      caregiver_user_id,
+      is_active: true,
+      is_flagged: false,
+      is_deleted: false
+    });
 
-  return Response.json({ success: true, thread_id: thread.id }, { status: 201 });
+    return Response.json({ success: true, thread_id: thread.id }, { status: 201 });
+  } catch (err) {
+    console.error('MessageThread create failed:', err.message, JSON.stringify(err));
+    return Response.json({ error: 'Thread creation failed', detail: err.message }, { status: 500 });
+  }
 });
