@@ -65,8 +65,17 @@ Deno.serve(async (req) => {
 
   // ── Layer 3: Step 2 — Optimistic-lock slot update: soft_locked → booked ──
   // F-077 Access.2: UPDATE WHERE version_number=[read_version] AND status='soft_locked'
-  const slots = await base44.asServiceRole.entities.AvailabilitySlot.filter({ id: booking.availability_slot_id });
+  // ── Fetch supporting records (used by notification + emails) ─────────────
+  const [slots, parentUsers, caregiverUsers, cgProfiles] = await Promise.all([
+    base44.asServiceRole.entities.AvailabilitySlot.filter({ id: booking.availability_slot_id }),
+    base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id }),
+    base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id }),
+    base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id })
+  ]);
   const slot = slots[0];
+  const parentUser = parentUsers[0];
+  const caregiverUser2 = caregiverUsers[0];
+  const cgProfile = cgProfiles[0];
 
   if (!slot) {
     // Critical: booking accepted but slot not found — alert (Layer 8 handled separately)

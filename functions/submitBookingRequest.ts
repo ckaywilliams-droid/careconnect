@@ -205,6 +205,17 @@ Deno.serve(async (req) => {
   }
   console.log('Booking created with ID:', newBooking.id);
 
+  // ── In-app notification → caregiver ──────────────────────────────────────
+  const durationHoursDisplay = (reqEndMins - reqStartMins) / 60;
+  await base44.functions.invoke('createNotification', {
+    user_id: caregiverProfile.user_id,
+    type: 'booking_request_received',
+    title: 'New Booking Request',
+    message: `You have a new booking request for ${slot.slot_date}, ${requested_start_time}–${requested_end_time} (${durationHoursDisplay}h). Please accept or decline within 24 hours.`,
+    booking_request_id: newBooking.id,
+    action_url: '/CaregiverProfile'
+  }).catch(() => {});
+
   // ── Create MessageThread ──────────────────────────────────────────────────
   try {
     await base44.functions.invoke('createMessageThread', {
