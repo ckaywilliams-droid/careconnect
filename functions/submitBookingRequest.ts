@@ -170,14 +170,22 @@ Deno.serve(async (req) => {
 
   // ── Fetch parent profile ──────────────────────────────────────────────────
   const parentProfiles = await base44.asServiceRole.entities.ParentProfile.filter({ user_id: user.id });
-  const parentProfile = parentProfiles[0];
+  let parentProfile = parentProfiles[0];
+
+  if (!parentProfile) {
+    console.log('ParentProfile not found, auto-creating for user:', user.id);
+    parentProfile = await base44.asServiceRole.entities.ParentProfile.create({
+      user_id: user.id
+    });
+    console.log('Created ParentProfile:', parentProfile.id);
+  }
 
   // ── Create BookingRequest (no slot soft-locking) ──────────────────────────
   let newBooking;
   console.log('Creating booking with:', { caregiver_id: caregiverProfile.id, parent_id: user.id, start_time: startTimeISO, end_time: endTimeISO });
   try {
     newBooking = await base44.asServiceRole.entities.BookingRequest.create({
-      parent_profile_id: parentProfile?.id || user.id,
+      parent_profile_id: parentProfile.id,
       parent_user_id: user.id,
       caregiver_profile_id: caregiverProfile.id,
       caregiver_user_id: caregiverProfile.user_id,
