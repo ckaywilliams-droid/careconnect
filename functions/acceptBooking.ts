@@ -120,20 +120,18 @@ Deno.serve(async (req) => {
     }, { status: 200 });
   }
 
+  // ── In-app notification → parent ─────────────────────────────────────────
+  await base44.functions.invoke('createNotification', {
+    user_id: booking.parent_user_id,
+    type: 'booking_accepted',
+    title: 'Booking Confirmed!',
+    message: `${cgProfile?.display_name || 'Your caregiver'} has accepted your booking request.`,
+    booking_request_id,
+    action_url: '/ParentBookings'
+  }).catch(() => {});
+
   // ── Layer 4: Transactional emails ────────────────────────────────────────
   const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
-
-  // Fetch parent user email
-  const parentUsers = await base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id });
-  const parentUser = parentUsers[0];
-
-  // Fetch caregiver user email
-  const caregiverUsers = await base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id });
-  const caregiverUser2 = caregiverUsers[0];
-
-  // Fetch caregiver profile for display name
-  const cgProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
-  const cgProfile = cgProfiles[0];
 
   const start = new Date(booking.start_time);
   const dateStr = start.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });

@@ -111,12 +111,23 @@ Deno.serve(async (req) => {
     }, { status: 500 });
   }
 
-  // ── Layer 4: Transactional email — notify caregiver of cancellation ──────
+  // ── Fetch supporting records (used by notification + emails) ─────────────
   const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
   const caregiverUserArr = await base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id });
   const caregiverUserObj = caregiverUserArr[0];
   const cgProfileArr = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
   const cgProfileObj = cgProfileArr[0];
+
+  // ── In-app notification → caregiver ──────────────────────────────────────
+  const cancelDateStr = new Date(booking.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  await base44.functions.invoke('createNotification', {
+    user_id: booking.caregiver_user_id,
+    type: 'booking_cancelled_by_parent',
+    title: 'Booking Cancelled',
+    message: `A booking for ${cancelDateStr} has been cancelled by the parent. The time slot is now available again.`,
+    booking_request_id,
+    action_url: '/CaregiverProfile'
+  }).catch(() => {});
 
   if (caregiverUserObj) {
     const dateStr = new Date(booking.start_time).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });

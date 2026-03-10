@@ -75,12 +75,22 @@ Deno.serve(async (req) => {
     }
   }
 
-  // ── Layer 4: Transactional email — notify parent of decline ─────────────
+  // ── Fetch supporting records (used by notification + emails) ─────────────
   const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
   const parentUsers = await base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id });
   const parentUser = parentUsers[0];
   const cgProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
   const cgProfile = cgProfiles[0];
+
+  // ── In-app notification → parent ─────────────────────────────────────────
+  await base44.functions.invoke('createNotification', {
+    user_id: booking.parent_user_id,
+    type: 'booking_declined',
+    title: 'Booking Not Available',
+    message: `${cgProfile?.display_name || 'The caregiver'} was unable to accept your booking request. You can search for another caregiver.`,
+    booking_request_id,
+    action_url: '/FindCaregivers'
+  }).catch(() => {});
 
   if (parentUser) {
     const body = `
