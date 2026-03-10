@@ -11,8 +11,6 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Calendar, Users, AlertCircle, Loader2, Clock, AlertTriangle, ArrowRight, Minus, Plus } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
-const RECAPTCHA_SITE_KEY = '6LfjY4EsAAAAAPp3xz-1_E4TOxFfr0tEutE5qp-j';
-
 // ── Time helpers ──────────────────────────────────────────────────────────────
 function timeToMins(t) {
   const [h, m] = t.split(':').map(Number);
@@ -104,41 +102,6 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [conflictAlternatives, setConflictAlternatives] = useState([]);
-  const [recaptchaToken, setRecaptchaToken] = useState('');
-  const recaptchaRef = useRef(null);
-
-  // reCAPTCHA script
-  useEffect(() => {
-    if (document.getElementById('recaptcha-script')) return;
-    const script = document.createElement('script');
-    script.id = 'recaptcha-script';
-    script.src = 'https://www.google.com/recaptcha/api.js';
-    script.async = true;
-    script.defer = true;
-    document.head.appendChild(script);
-  }, []);
-
-  useEffect(() => {
-    const renderWidget = () => {
-      if (window.grecaptcha && recaptchaRef.current && !recaptchaRef.current.dataset.rendered) {
-        recaptchaRef.current.dataset.rendered = 'true';
-        window.grecaptcha.render(recaptchaRef.current, {
-          sitekey: RECAPTCHA_SITE_KEY,
-          callback: (token) => setRecaptchaToken(token),
-          'expired-callback': () => setRecaptchaToken(''),
-        });
-      }
-    };
-    if (window.grecaptcha) {
-      renderWidget();
-    } else {
-      const interval = setInterval(() => {
-        if (window.grecaptcha) { clearInterval(interval); renderWidget(); }
-      }, 200);
-      return () => clearInterval(interval);
-    }
-  }, []);
-
   // Sync preselectedSlot changes
   useEffect(() => {
     if (preselectedSlot?.slot_date) {
@@ -240,7 +203,7 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
     return ((durationHours * profile.hourly_rate_cents) / 100).toFixed(2);
   }, [durationHours, profile.hourly_rate_cents]);
 
-  const canSubmit = selectedWindowId && startTimeVal && endTimeVal && numChildren >= 1 && recaptchaToken;
+  const canSubmit = selectedWindowId && startTimeVal && endTimeVal && numChildren >= 1;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -248,8 +211,6 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
 
     if (!selectedWindowId) { setError('Please select an availability window.'); return; }
     if (!startTimeVal) { setError('Please select a start time.'); return; }
-    if (!recaptchaToken) { setError('Please complete the reCAPTCHA verification.'); return; }
-
     setSubmitting(true);
     const bookingPayload = {
       availability_slot_id: selectedWindowId,
@@ -257,7 +218,6 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
       requested_end_time: endTimeVal,
       num_children: numChildren,
       special_requests: specialRequests || undefined,
-      captcha_token: recaptchaToken,
     };
     console.log('=== SUBMIT BOOKING ===');
     console.log('Selected times:', { start: startTimeVal, end: endTimeVal });
@@ -286,8 +246,6 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
     setSelectedWindowId(slot.id);
     setStartTimeVal('');
     setDurationHours(minHours);
-    setRecaptchaToken('');
-    if (window.grecaptcha) window.grecaptcha.reset();
     setStep('form');
     setError(null);
   };
@@ -483,11 +441,6 @@ export default function BookingRequestModal({ profile, availabilitySlots, presel
                 rows={3}
                 className="resize-none"
               />
-            </div>
-
-            {/* reCAPTCHA */}
-            <div>
-              <div ref={recaptchaRef} />
             </div>
 
             {/* Submit */}
