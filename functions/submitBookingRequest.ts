@@ -213,8 +213,7 @@ Deno.serve(async (req) => {
       caregiver_user_id: caregiverProfile.user_id
     });
   } catch (threadErr) {
-    await base44.asServiceRole.entities.BookingRequest.update(newBooking.id, { is_deleted: true }).catch(() => {});
-    return Response.json({ error: 'Failed to create booking thread. Please try again.' }, { status: 500 });
+    console.error('Thread creation failed (non-fatal):', threadErr.message);
   }
 
   // ── Transactional emails ──────────────────────────────────────────────────
