@@ -202,8 +202,7 @@ Deno.serve(async (req) => {
     await base44.functions.invoke('createMessageThread', {
       booking_request_id: newBooking.id,
       parent_user_id: user.id,
-      caregiver_user_id: caregiverProfile.user_id,
-      caregiver_profile_id: caregiverProfile.id
+      caregiver_user_id: caregiverProfile.user_id
     });
   } catch (threadErr) {
     await base44.asServiceRole.entities.BookingRequest.update(newBooking.id, { is_deleted: true }).catch(() => {});
