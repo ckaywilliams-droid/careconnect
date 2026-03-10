@@ -40,12 +40,12 @@ Deno.serve(async (req) => {
   // ── Parse body ────────────────────────────────────────────────────────────
   const body = await req.json();
   console.log('Request body:', body);
-  const { availability_slot_id, num_children, special_requests, captcha_token, requested_start_time, requested_end_time } = body;
+  const { availability_slot_id, num_children, special_requests, requested_start_time, requested_end_time } = body;
   console.log('Availability slot ID:', availability_slot_id);
   console.log('Requested times:', { start: requested_start_time, end: requested_end_time });
 
-  if (!availability_slot_id || !captcha_token) {
-    return Response.json({ error: 'availability_slot_id and captcha_token are required.' }, { status: 400 });
+  if (!availability_slot_id) {
+    return Response.json({ error: 'availability_slot_id is required.' }, { status: 400 });
   }
   if (!requested_start_time || !requested_end_time) {
     return Response.json({ error: 'requested_start_time and requested_end_time are required.' }, { status: 400 });
@@ -60,23 +60,6 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Special requests must be 500 characters or less.' }, { status: 400 });
   }
 
-  // ── GATE 3: reCAPTCHA v2 — server-side verification ──────────────────────
-  const recaptchaSecret = Deno.env.get('RECAPTCHA_SECRET_KEY');
-  if (!recaptchaSecret) {
-    console.error('RECAPTCHA_SECRET_KEY env var not set');
-    return Response.json({ error: 'Server configuration error.', gate_failed: 'gate_3_captcha_misconfigured' }, { status: 500 });
-  }
-
-  const verifyForm = new URLSearchParams();
-  verifyForm.set('secret', recaptchaSecret);
-  verifyForm.set('response', captcha_token);
-
-  const recaptchaRes = await fetch('https://www.google.com/recaptcha/api/siteverify', { method: 'POST', body: verifyForm });
-  const recaptchaData = await recaptchaRes.json();
-
-  if (!recaptchaData.success) {
-    return Response.json({ error: 'Please complete the verification check.', gate_failed: 'gate_3_captcha_failed' }, { status: 400 });
-  }
 
   // ── Fetch slot ────────────────────────────────────────────────────────────
   const slots = await base44.asServiceRole.entities.AvailabilitySlot.filter({ id: availability_slot_id });
