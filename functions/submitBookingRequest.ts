@@ -214,7 +214,7 @@ Deno.serve(async (req) => {
   }
   console.log('Booking created with ID:', newBooking.id);
   console.log('Saved booking parent_user_id:', newBooking.parent_user_id);
-  console.log('Expected:', userEntity.id);
+  console.log('Expected (Auth ID):', user.id);
 
   // ── In-app notification → caregiver ──────────────────────────────────────
   const durationHoursDisplay = (reqEndMins - reqStartMins) / 60;
