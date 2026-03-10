@@ -180,22 +180,14 @@ Deno.serve(async (req) => {
     console.log('Created ParentProfile:', parentProfile.id);
   }
 
-  // ── Fetch User entity to get proper database-level ID for relation field ──
-  const userEntityRecords = await base44.asServiceRole.entities.User.filter({ id: user.id });
-  const userEntity = userEntityRecords[0];
-  console.log('Auth user.id:', user.id, '| User entity.id:', userEntity?.id);
-
-  if (!userEntity) {
-    return Response.json({ error: 'User record not found.', gate_failed: 'gate_user_entity' }, { status: 404 });
-  }
-
   // ── Create BookingRequest (no slot soft-locking) ──────────────────────────
+  // We use 'user.id' from auth.me() as the single source of truth for identity
   let newBooking;
   console.log('Creating booking with:', { caregiver_id: caregiverProfile.id, parent_id: user.id, start_time: startTimeISO, end_time: endTimeISO });
   try {
     newBooking = await base44.asServiceRole.entities.BookingRequest.create({
       parent_profile_id: parentProfile.id,
-      parent_user_id: user.id, // Use Auth ID to match dashboard filter
+      parent_user_id: user.id, // ALIGNMENT: Matches Dashboard & RLS
       caregiver_profile_id: caregiverProfile.id,
       caregiver_user_id: caregiverProfile.user_id,
       availability_slot_id: slot.id,

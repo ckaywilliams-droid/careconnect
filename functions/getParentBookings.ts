@@ -22,10 +22,22 @@ Deno.serve(async (req) => {
     );
   }
 
-  // Filter in memory
+  // Bulletproof Filtering and Sorting
   const bookings = all
-    .filter(b => b.parent_user_id === user.id && b.is_deleted !== true)
-    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+    .filter(b => {
+      // 1. Must exist and have a parent_user_id
+      if (!b || !b.parent_user_id) return false;
+      // 2. Must match the current Auth ID (user.id)
+      if (b.parent_user_id !== user.id) return false;
+      // 3. Must not be deleted
+      return b.is_deleted !== true;
+    })
+    .sort((a, b) => {
+      // 4. Safely handle missing or malformed dates to prevent 500 crashes
+      const dateA = a.created_date ? new Date(a.created_date).getTime() : 0;
+      const dateB = b.created_date ? new Date(b.created_date).getTime() : 0;
+      return dateB - dateA; // Descending: Newest first
+    });
 
   console.log('getParentBookings: matched', bookings.length, 'bookings');
 
