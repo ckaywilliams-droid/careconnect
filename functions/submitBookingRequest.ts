@@ -183,27 +183,50 @@ Deno.serve(async (req) => {
   // ── Create BookingRequest (no slot soft-locking) ──────────────────────────
   // We use 'user.id' from auth.me() as the single source of truth for identity
   let newBooking;
+  console.log('=== DEEP INSPECTION: PRE-CREATE ===');
   console.log('Creating booking with:', { caregiver_id: caregiverProfile.id, parent_id: user.id, start_time: startTimeISO, end_time: endTimeISO });
+  
+  const bookingPayload = {
+    parent_profile_id: parentProfile.id,
+    parent_user_id: user.id, // ALIGNMENT: Matches Dashboard & RLS
+    caregiver_profile_id: caregiverProfile.id,
+    caregiver_user_id: caregiverProfile.user_id,
+    availability_slot_id: slot.id,
+    status: 'pending',
+    start_time: startTimeISO,
+    end_time: endTimeISO,
+    num_children: numChildrenInt,
+    special_requests: special_requests ? special_requests.replace(/<[^>]*>/g, '').slice(0, 500) : null,
+    hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0,
+    platform_fee_pct_snapshot: 0,
+    is_duplicate_checked: true
+  };
+  console.log('Full payload:', JSON.stringify(bookingPayload, null, 2));
+  
   try {
-    newBooking = await base44.asServiceRole.entities.BookingRequest.create({
-      parent_profile_id: parentProfile.id,
-      parent_user_id: user.id, // ALIGNMENT: Matches Dashboard & RLS
-      caregiver_profile_id: caregiverProfile.id,
-      caregiver_user_id: caregiverProfile.user_id,
-      availability_slot_id: slot.id,
-      status: 'pending',
-      start_time: startTimeISO,
-      end_time: endTimeISO,
-      num_children: numChildrenInt,
-      special_requests: special_requests ? special_requests.replace(/<[^>]*>/g, '').slice(0, 500) : null,
-      hourly_rate_snapshot: caregiverProfile.hourly_rate_cents || 0,
-      platform_fee_pct_snapshot: 0,
-      is_duplicate_checked: true
-    });
+    console.log('Calling base44.asServiceRole.entities.BookingRequest.create()...');
+    newBooking = await base44.asServiceRole.entities.BookingRequest.create(bookingPayload);
+    console.log('=== DEEP INSPECTION: POST-CREATE ===');
+    console.log('Create call returned successfully');
+    console.log('newBooking type:', typeof newBooking);
+    console.log('newBooking is null?', newBooking === null);
+    console.log('newBooking is undefined?', newBooking === undefined);
+    console.log('newBooking value:', JSON.stringify(newBooking, null, 2));
   } catch (createErr) {
-    console.log('Error occurred:', createErr.message);
-    return Response.json({ error: 'Failed to create booking request. Please try again.' }, { status: 500 });
+    console.log('=== DEEP INSPECTION: CREATE ERROR ===');
+    console.log('Error type:', createErr.constructor.name);
+    console.log('Error message:', createErr.message);
+    console.log('Error stack:', createErr.stack);
+    console.log('Full error object:', JSON.stringify(createErr, Object.getOwnPropertyNames(createErr), 2));
+    return Response.json({ error: 'Failed to create booking request. Please try again.', details: createErr.message }, { status: 500 });
   }
+  
+  if (!newBooking || !newBooking.id) {
+    console.log('=== DEEP INSPECTION: EMPTY RESPONSE ===');
+    console.log('Create returned but booking is empty or missing ID');
+    return Response.json({ error: 'Booking creation returned empty response' }, { status: 500 });
+  }
+  
   console.log('Booking created with ID:', newBooking.id);
   console.log('Saved booking parent_user_id:', newBooking.parent_user_id);
   console.log('Expected (Auth ID):', user.id);
