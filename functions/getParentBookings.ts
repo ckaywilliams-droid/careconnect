@@ -14,6 +14,23 @@ Deno.serve(async (req) => {
     const all = await base44.asServiceRole.entities.BookingRequest.filter({});
 
     console.log('getParentBookings: total bookings in system =', all.length);
+    
+    // Get the 3 most recent bookings for detailed inspection
+    const recentBookings = all.slice(0, 3);
+    console.log('=== RECENT BOOKINGS (RAW) ===');
+    recentBookings.forEach((b, i) => {
+      console.log(`Booking ${i + 1}:`, {
+        id: b.id,
+        parent_profile_id: b.parent_profile_id,
+        parent_user_id: b.parent_user_id,
+        caregiver_profile_id: b.caregiver_profile_id,
+        caregiver_user_id: b.caregiver_user_id,
+        status: b.status,
+        is_deleted: b.is_deleted,
+        created_date: b.created_date
+      });
+    });
+    
     console.log('[DEBUG] Sample IDs in DB:', all.slice(0, 3).map(b => b.parent_user_id));
 
     // If DB has records but none match, log actual stored parent_user_id values
