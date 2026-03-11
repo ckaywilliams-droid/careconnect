@@ -137,7 +137,7 @@ function ClosedBanner({ bookingStatus }) {
   );
 }
 
-export default function MessageThread({ booking, currentUser }) {
+export default function MessageThread({ booking, currentUser, otherPartyName: otherPartyNameProp }) {
   const [thread, setThread] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -154,33 +154,50 @@ export default function MessageThread({ booking, currentUser }) {
     setError(null);
     try {
       const threads = await base44.entities.MessageThread.filter({ booking_id: booking.id });
-      const t = threads[0];
-      if (!t) { setLoading(false); return; }
+      let t = threads[0];
+
+      if (!t) {
+        const terminalStatuses = ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired'];
+        if (terminalStatuses.includes(booking.status)) {
+          setLoading(false);
+          return;
+        }
+        t = await base44.entities.MessageThread.create({
+          booking_id: booking.id,
+          parent_user_id: booking.parent_user_id,
+          caregiver_user_id: booking.caregiver_user_id,
+          is_active: true,
+        });
+      }
       setThread(t);
 
       const msgs = await base44.entities.Message.filter({ thread_id: t.id });
       const sorted = [...msgs].sort((a, b) => new Date(a.sent_at || a.created_date) - new Date(b.sent_at || b.created_date));
       setMessages(sorted);
 
-      // Fetch other party's name
-      const otherPartyId = booking.parent_user_id === currentUser.id ? booking.caregiver_user_id : booking.parent_user_id;
-      const isOtherPartyCaregiver = otherPartyId === booking.caregiver_user_id;
-      
-      if (isOtherPartyCaregiver) {
-        const profiles = await base44.entities.CaregiverProfile.filter({ user_id: otherPartyId });
-        if (profiles[0]?.display_name) {
-          setOtherPartyName(profiles[0].display_name);
-        } else {
-          const users = await base44.entities.User.filter({ id: otherPartyId });
-          setOtherPartyName(users[0]?.full_name || 'Caregiver');
-        }
+      // Use provided name or fetch other party's name
+      if (otherPartyNameProp) {
+        setOtherPartyName(otherPartyNameProp);
       } else {
-        const profiles = await base44.entities.ParentProfile.filter({ user_id: otherPartyId });
-        if (profiles[0]?.display_name) {
-          setOtherPartyName(profiles[0].display_name);
+        const otherPartyId = booking.parent_user_id === currentUser.id ? booking.caregiver_user_id : booking.parent_user_id;
+        const isOtherPartyCaregiver = otherPartyId === booking.caregiver_user_id;
+        
+        if (isOtherPartyCaregiver) {
+          const profiles = await base44.entities.CaregiverProfile.filter({ user_id: otherPartyId });
+          if (profiles[0]?.display_name) {
+            setOtherPartyName(profiles[0].display_name);
+          } else {
+            const users = await base44.entities.User.filter({ id: otherPartyId });
+            setOtherPartyName(users[0]?.full_name || 'Caregiver');
+          }
         } else {
-          const users = await base44.entities.User.filter({ id: otherPartyId });
-          setOtherPartyName(users[0]?.full_name || 'Parent');
+          const profiles = await base44.entities.ParentProfile.filter({ user_id: otherPartyId });
+          if (profiles[0]?.display_name) {
+            setOtherPartyName(profiles[0].display_name);
+          } else {
+            const users = await base44.entities.User.filter({ id: otherPartyId });
+            setOtherPartyName(users[0]?.full_name || 'Parent');
+          }
         }
       }
     } catch (err) {
@@ -270,8 +287,7 @@ export default function MessageThread({ booking, currentUser }) {
 
   if (!thread) return (
     <div className="py-8 text-center text-sm text-gray-400">
-      <p className="mb-2">No conversation thread found for this booking.</p>
-      <p className="text-xs">The conversation will start when the booking is accepted.</p>
+      Messaging is not available for this booking.
     </div>
   );
 

@@ -94,19 +94,24 @@ export default function MessagingTab({ user, profile }) {
 
       setThreads(sorted);
 
-      // Batch-fetch all data needed for previews
+      // Batch-fetch all data needed for previews with scoped queries
       const threadIds = sorted.map(t => t.id);
       const bookingIds = sorted.map(t => t.booking_id).filter(Boolean);
       const parentUserIds = [...new Set(sorted.map(t => t.parent_user_id))];
 
-      // Fix #1: Use user-scoped role and filter server-side with id__in
       const [allMessages, allBookings, allParentProfiles, allParentUsers] = await Promise.all([
-        base44.entities.Message.filter({}), // Will be filtered client-side by thread_id
+        threadIds.length > 0 
+          ? base44.entities.Message.filter({ thread_id__in: threadIds })
+          : Promise.resolve([]),
         bookingIds.length > 0 
           ? base44.entities.BookingRequest.filter({ id__in: bookingIds })
           : Promise.resolve([]),
-        base44.entities.ParentProfile.filter({}), // Will be filtered client-side by user_id
-        base44.entities.User.filter({}) // Will be filtered client-side by id
+        parentUserIds.length > 0
+          ? base44.entities.ParentProfile.filter({ user_id__in: parentUserIds })
+          : Promise.resolve([]),
+        parentUserIds.length > 0
+          ? base44.entities.User.filter({ id__in: parentUserIds })
+          : Promise.resolve([])
       ]);
 
       // Build bookings map
@@ -239,7 +244,11 @@ export default function MessagingTab({ user, profile }) {
                 </p>
               </CardHeader>
               <CardContent>
-                <MessageThread booking={selectedBooking} currentUser={user} />
+                <MessageThread 
+                  booking={selectedBooking} 
+                  currentUser={user}
+                  otherPartyName={previewData[selectedThread.id]?.parentName}
+                />
               </CardContent>
             </Card>
           ) : (
