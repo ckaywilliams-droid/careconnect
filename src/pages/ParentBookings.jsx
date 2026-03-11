@@ -414,7 +414,7 @@ export default function ParentBookings() {
           <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
             <DialogHeader className="px-4 pt-4 pb-2 border-b border-gray-100 flex-shrink-0">
               <DialogTitle className="text-base">
-                Conversation \u2014 {cgProfiles[threadModal.booking.caregiver_profile_id]?.display_name || 'Caregiver'}
+                Conversation &mdash; {cgProfiles[threadModal.booking.caregiver_profile_id]?.display_name || 'Caregiver'}
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-hidden p-4">
