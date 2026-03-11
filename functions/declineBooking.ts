@@ -25,7 +25,18 @@ Deno.serve(async (req) => {
   const bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
   const booking = bookings[0];
   if (!booking) return Response.json({ error: 'Not found.' }, { status: 404 });
-  if (booking.caregiver_user_id !== user.id) return Response.json({ error: 'Not found.' }, { status: 404 });
+  
+  // Ownership check with fallback to CaregiverProfile.user_id
+  if (booking.caregiver_user_id && booking.caregiver_user_id !== user.id) {
+    return Response.json({ error: 'Not found.' }, { status: 404 });
+  }
+  if (!booking.caregiver_user_id) {
+    // Fallback: verify via caregiver_profile_id
+    const cgProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+    if (!cgProfiles[0] || cgProfiles[0].user_id !== user.id) {
+      return Response.json({ error: 'Not found.' }, { status: 404 });
+    }
+  }
 
   // ── Layer 3: State machine gate ───────────────────────────────────────────
   if (booking.status !== 'pending') {
