@@ -190,8 +190,11 @@ export default function ParentBookings() {
   const { data: bookings = [], isLoading: bookingsLoading } = useQuery({
     queryKey: ['parent-bookings', user?.id],
     queryFn: async () => {
-      const res = await base44.functions.invoke('getParentBookings', {});
-      return res.data?.bookings ?? [];
+      const list = await base44.entities.BookingRequest.filter(
+        { parent_user_id: user.id },
+        '-created_date'
+      );
+      return list;
     },
     enabled: !!user,
     refetchInterval: 30000
