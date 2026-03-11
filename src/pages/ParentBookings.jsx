@@ -87,7 +87,7 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
           </p>
           <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
             <Clock className="w-3.5 h-3.5" />
-            {format(start, 'h:mm a')} \u2013 {format(end, 'h:mm a')}
+            {format(start, 'h:mm a')} – {format(end, 'h:mm a')}
           </p>
           <p className="text-sm text-gray-500 mt-0.5 flex items-center gap-1">
             <Users className="w-3.5 h-3.5" />
