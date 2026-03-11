@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import ProfileTab from '@/components/caregiver/ProfileTab';
 import AvailabilityTab from '@/components/caregiver/AvailabilityTab';
 import BookingsTab from '@/components/caregiver/BookingsTab';
+import MessagingTab from '@/components/caregiver/MessagingTab';
 import SettingsTab from '@/components/caregiver/SettingsTab';
 
 /**
@@ -270,10 +271,11 @@ export default function CaregiverProfile() {
       {/* Tabbed Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-grid">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-grid">
             <TabsTrigger value="profile">My Profile</TabsTrigger>
             <TabsTrigger value="availability">Availability</TabsTrigger>
             <TabsTrigger value="bookings">Bookings</TabsTrigger>
+            <TabsTrigger value="messages">Messages</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
@@ -295,6 +297,10 @@ export default function CaregiverProfile() {
 
           <TabsContent value="bookings" className="space-y-6">
             <BookingsTab user={user} profile={profile} />
+          </TabsContent>
+
+          <TabsContent value="messages" className="space-y-6">
+            <MessagingTab user={user} profile={profile} />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">

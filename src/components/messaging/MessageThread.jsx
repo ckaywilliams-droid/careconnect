@@ -200,15 +200,20 @@ export default function MessageThread({ booking, currentUser }) {
       // Replace optimistic message with real one
       await loadThread();
     } catch (err) {
-      // Remove optimistic message
-      setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
-      const errMsg = err.response?.data?.error || 'Your message could not be sent.';
+      // Don't remove the optimistic message - keep it so user can retry
+      const errMsg = err.response?.data?.error || 'Your message could not be sent. Please try again.';
       if (err.response?.status === 409) {
         // Thread was closed
         setThread(prev => ({ ...prev, is_active: false }));
         setSendError('This conversation has been closed.');
+        // Only remove optimistic message if thread is closed
+        setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
       } else {
+        // Keep the draft in the input field so user can edit and retry
+        setInputValue(sentValue);
         setSendError(errMsg);
+        // Remove optimistic message from display
+        setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
       }
     } finally {
       setSending(false);
