@@ -125,12 +125,15 @@ export default function BookingsTab({ user, profile }) {
   const [loading, setLoading] = useState(false);
 
   const { data: bookings = [], isLoading } = useQuery({
-    queryKey: ['caregiver-bookings', user?.id],
+    queryKey: ['caregiver-bookings', profile?.id],
     queryFn: async () => {
-      const res = await base44.functions.invoke('getCaregiverBookings', {});
-      return res.data.bookings || [];
+      if (!profile) return [];
+      return await base44.entities.BookingRequest.filter(
+        { caregiver_profile_id: profile.id },
+        '-created_date'
+      );
     },
-    enabled: !!user,
+    enabled: !!profile,
     refetchInterval: 30000
   });
 
