@@ -31,7 +31,14 @@ Deno.serve(async (req) => {
   const bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
   const booking = bookings[0];
   if (!booking) return Response.json({ error: 'Not found.' }, { status: 404 });
-  if (booking.caregiver_user_id !== user.id) return Response.json({ error: 'Not found.' }, { status: 404 });
+
+  // Ownership check: match on caregiver_user_id, or fall back to caregiver_profile_id → profile.user_id
+  let isOwner = booking.caregiver_user_id === user.id;
+  if (!isOwner && booking.caregiver_profile_id) {
+    const ownerProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+    isOwner = ownerProfiles[0]?.user_id === user.id;
+  }
+  if (!isOwner) return Response.json({ error: 'Not found.' }, { status: 404 });
 
   if (booking.status !== 'accepted') {
     return Response.json({ error: `Cancellation requests can only be submitted for accepted bookings. Current status: ${booking.status}.`, current_status: booking.status }, { status: 409 });
