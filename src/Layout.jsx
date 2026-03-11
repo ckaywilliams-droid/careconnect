@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createPageUrl } from "@/utils";
 import NotificationBell from "@/components/NotificationBell";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 
 // Pages that never require the onboarding guard
 const PUBLIC_PAGES = [
@@ -108,6 +109,7 @@ export default function Layout({ children, currentPageName }) {
         </div>
       )}
       {children}
+      <SonnerToaster />
     </>
   );
 }

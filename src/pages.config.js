@@ -53,6 +53,7 @@ import AdminDisputeDashboard from './pages/AdminDisputeDashboard';
 import AdminFirstLogin from './pages/AdminFirstLogin';
 import AdminRoles from './pages/AdminRoles';
 import AdminUsers from './pages/AdminUsers';
+import BookingSuccess from './pages/BookingSuccess';
 import CaregiverAvailability from './pages/CaregiverAvailability';
 import CaregiverProfile from './pages/CaregiverProfile';
 import DisputeDetail from './pages/DisputeDetail';
@@ -70,7 +71,6 @@ import RoleSelection from './pages/RoleSelection';
 import SubmitEvidence from './pages/SubmitEvidence';
 import SuspendedAccount from './pages/SuspendedAccount';
 import VerifyEmail from './pages/VerifyEmail';
-import BookingSuccess from './pages/BookingSuccess';
 import __Layout from './Layout.jsx';
 
 
@@ -81,6 +81,7 @@ export const PAGES = {
     "AdminFirstLogin": AdminFirstLogin,
     "AdminRoles": AdminRoles,
     "AdminUsers": AdminUsers,
+    "BookingSuccess": BookingSuccess,
     "CaregiverAvailability": CaregiverAvailability,
     "CaregiverProfile": CaregiverProfile,
     "DisputeDetail": DisputeDetail,
@@ -98,7 +99,6 @@ export const PAGES = {
     "SubmitEvidence": SubmitEvidence,
     "SuspendedAccount": SuspendedAccount,
     "VerifyEmail": VerifyEmail,
-    "BookingSuccess": BookingSuccess,
 }
 
 export const pagesConfig = {
