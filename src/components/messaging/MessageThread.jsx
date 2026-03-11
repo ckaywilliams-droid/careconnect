@@ -48,7 +48,7 @@ function MessageBody({ content, isFiltered, isRemoved }) {
   if (isRemoved) {
     return <p className="italic text-gray-400 text-sm">This message has been removed for violating platform guidelines.</p>;
   }
-  if (!isFiltered || !content) {
+  if (!isFiltered) {
     return <p className="text-sm whitespace-pre-wrap break-words">{content}</p>;
   }
   // Split on [Contact info hidden] and replace each segment
@@ -70,7 +70,7 @@ function MessageBody({ content, isFiltered, isRemoved }) {
 function MessageBubble({ message, isMine, onFlag }) {
   const [hovered, setHovered] = useState(false);
   const isRemoved = message.is_deleted;
-  const isFiltered = message.deletion_reason === 'filtered'; // stored in deletion_reason as marker
+  const isFiltered = message.deletion_reason === 'filtered' && !!message.body_original;
 
   return (
     <div
@@ -94,7 +94,7 @@ function MessageBubble({ message, isMine, onFlag }) {
             ? 'bg-[#C36239] text-white'
             : 'bg-white border border-gray-200'
         }`}>
-          <MessageBody content={message.content} isFiltered={!!message.body_original || isFiltered} isRemoved={isRemoved} />
+          <MessageBody content={message.content} isFiltered={isFiltered} isRemoved={isRemoved} />
         </div>
 
         {/* Timestamp + read receipt + flag button */}
@@ -147,6 +147,7 @@ export default function MessageThread({ booking, currentUser }) {
   const [sendError, setSendError] = useState(null);
   const [confirmBanner, setConfirmBanner] = useState(null);
   const [flagModal, setFlagModal] = useState(null); // { message }
+  const [otherPartyName, setOtherPartyName] = useState('');
   const bottomRef = useRef(null);
 
   const loadThread = async () => {
@@ -160,7 +161,29 @@ export default function MessageThread({ booking, currentUser }) {
       const msgs = await base44.entities.Message.filter({ thread_id: t.id });
       const sorted = [...msgs].sort((a, b) => new Date(a.sent_at || a.created_date) - new Date(b.sent_at || b.created_date));
       setMessages(sorted);
-    } catch {
+
+      // Fetch other party's name
+      const otherPartyId = booking.parent_user_id === currentUser.id ? booking.caregiver_user_id : booking.parent_user_id;
+      const isOtherPartyCaregiver = otherPartyId === booking.caregiver_user_id;
+      
+      if (isOtherPartyCaregiver) {
+        const profiles = await base44.entities.CaregiverProfile.filter({ user_id: otherPartyId });
+        if (profiles[0]?.display_name) {
+          setOtherPartyName(profiles[0].display_name);
+        } else {
+          const users = await base44.entities.User.filter({ id: otherPartyId });
+          setOtherPartyName(users[0]?.full_name || 'Caregiver');
+        }
+      } else {
+        const profiles = await base44.entities.ParentProfile.filter({ user_id: otherPartyId });
+        if (profiles[0]?.display_name) {
+          setOtherPartyName(profiles[0].display_name);
+        } else {
+          const users = await base44.entities.User.filter({ id: otherPartyId });
+          setOtherPartyName(users[0]?.full_name || 'Parent');
+        }
+      }
+    } catch (err) {
       setError('Unable to load this conversation.');
     } finally {
       setLoading(false);
@@ -198,7 +221,13 @@ export default function MessageThread({ booking, currentUser }) {
         content: sentValue
       });
       // Replace optimistic message with real one
-      await loadThread();
+      try {
+        await loadThread();
+      } catch (loadErr) {
+        // If reload fails, remove optimistic and show error
+        setMessages(prev => prev.filter(m => m.id !== optimisticMsg.id));
+        setSendError('Message sent but unable to refresh. Please reload the page.');
+      }
     } catch (err) {
       // Don't remove the optimistic message - keep it so user can retry
       const errMsg = err.response?.data?.error || 'Your message could not be sent. Please try again.';
@@ -240,11 +269,13 @@ export default function MessageThread({ booking, currentUser }) {
   );
 
   if (!thread) return (
-    <div className="py-8 text-center text-sm text-gray-400">No conversation thread found for this booking.</div>
+    <div className="py-8 text-center text-sm text-gray-400">
+      <p className="mb-2">No conversation thread found for this booking.</p>
+      <p className="text-xs">The conversation will start when the booking is accepted.</p>
+    </div>
   );
 
   const isClosed = !thread.is_active;
-  const otherPartyId = booking.parent_user_id === currentUser.id ? booking.caregiver_user_id : booking.parent_user_id;
 
   return (
     <div className="flex flex-col h-full max-h-[600px] bg-white rounded-xl border border-gray-200 overflow-hidden">
@@ -263,7 +294,12 @@ export default function MessageThread({ booking, currentUser }) {
         {messages.map(msg => (
           <MessageBubble
             key={msg.id}
-            message={{ ...msg, sender_initial: msg.sender_user_id === currentUser.id ? 'You'[0] : '?' }}
+            message={{ 
+              ...msg, 
+              sender_initial: msg.sender_user_id === currentUser.id 
+                ? currentUser.full_name?.[0] || 'Y'
+                : otherPartyName?.[0] || '?'
+            }}
             isMine={msg.sender_user_id === currentUser.id}
             onFlag={(m) => setFlagModal({ message: m })}
           />

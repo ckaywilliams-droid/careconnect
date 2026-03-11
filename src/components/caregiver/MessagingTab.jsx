@@ -11,33 +11,7 @@ import { Loader2, MessageSquare, Calendar, User } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import MessageThread from '@/components/messaging/MessageThread';
 
-function ConversationPreview({ thread, booking, onClick, isSelected }) {
-  const [lastMessage, setLastMessage] = useState(null);
-  const [parentName, setParentName] = useState('Parent');
-
-  useEffect(() => {
-    const loadPreview = async () => {
-      try {
-        // Fetch last message
-        const messages = await base44.entities.Message.filter({ thread_id: thread.id });
-        const sorted = messages.sort((a, b) => new Date(b.sent_at || b.created_date) - new Date(a.sent_at || a.created_date));
-        if (sorted.length > 0) setLastMessage(sorted[0]);
-
-        // Fetch parent name
-        const parents = await base44.entities.ParentProfile.filter({ user_id: thread.parent_user_id });
-        if (parents[0]?.display_name) {
-          setParentName(parents[0].display_name);
-        } else {
-          const users = await base44.entities.User.filter({ id: thread.parent_user_id });
-          if (users[0]) setParentName(users[0].full_name || 'Parent');
-        }
-      } catch (err) {
-        console.error('Failed to load conversation preview:', err);
-      }
-    };
-    loadPreview();
-  }, [thread.id]);
-
+function ConversationPreview({ thread, booking, onClick, isSelected, lastMessage, parentName }) {
   const hasUnread = lastMessage && !lastMessage.is_read && lastMessage.sender_user_id !== thread.caregiver_user_id;
 
   return (
@@ -87,6 +61,7 @@ function ConversationPreview({ thread, booking, onClick, isSelected }) {
 export default function MessagingTab({ user, profile }) {
   const [threads, setThreads] = useState([]);
   const [bookings, setBookings] = useState({});
+  const [previewData, setPreviewData] = useState({}); // { threadId: { lastMessage, parentName } }
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedThread, setSelectedThread] = useState(null);
@@ -96,9 +71,18 @@ export default function MessagingTab({ user, profile }) {
     setError(null);
     setLoading(true);
     try {
-      // Fetch all threads where caregiver is a participant
+      // Fetch caregiver's profile to support ownership fallback
+      let caregiverUserId = user.id;
+      if (profile?.user_id) {
+        caregiverUserId = profile.user_id;
+      } else {
+        const profiles = await base44.entities.CaregiverProfile.filter({ user_id: user.id });
+        if (profiles[0]?.user_id) caregiverUserId = profiles[0].user_id;
+      }
+
+      // Fetch all threads where caregiver is a participant (with fallback)
       const allThreads = await base44.entities.MessageThread.filter({ 
-        caregiver_user_id: user.id 
+        caregiver_user_id: caregiverUserId 
       });
 
       // Sort by last message timestamp
@@ -110,18 +94,49 @@ export default function MessagingTab({ user, profile }) {
 
       setThreads(sorted);
 
-      // Fetch associated bookings
+      // Batch-fetch all data needed for previews
+      const threadIds = sorted.map(t => t.id);
       const bookingIds = sorted.map(t => t.booking_id).filter(Boolean);
-      if (bookingIds.length > 0) {
-        const allBookings = await base44.asServiceRole.entities.BookingRequest.filter({});
-        const bookingMap = {};
-        allBookings.forEach(b => {
-          if (bookingIds.includes(b.id)) {
-            bookingMap[b.id] = b;
-          }
-        });
-        setBookings(bookingMap);
-      }
+      const parentUserIds = [...new Set(sorted.map(t => t.parent_user_id))];
+
+      // Fix #1: Use user-scoped role and filter server-side with id__in
+      const [allMessages, allBookings, allParentProfiles, allParentUsers] = await Promise.all([
+        base44.entities.Message.filter({}), // Will be filtered client-side by thread_id
+        bookingIds.length > 0 
+          ? base44.entities.BookingRequest.filter({ id__in: bookingIds })
+          : Promise.resolve([]),
+        base44.entities.ParentProfile.filter({}), // Will be filtered client-side by user_id
+        base44.entities.User.filter({}) // Will be filtered client-side by id
+      ]);
+
+      // Build bookings map
+      const bookingMap = {};
+      allBookings.forEach(b => { bookingMap[b.id] = b; });
+      setBookings(bookingMap);
+
+      // Build preview data map
+      const previewMap = {};
+      sorted.forEach(thread => {
+        // Find last message for this thread
+        const threadMessages = allMessages
+          .filter(m => m.thread_id === thread.id)
+          .sort((a, b) => new Date(b.sent_at || b.created_date) - new Date(a.sent_at || a.created_date));
+        const lastMessage = threadMessages[0] || null;
+
+        // Find parent name
+        let parentName = 'Parent';
+        const parentProfile = allParentProfiles.find(p => p.user_id === thread.parent_user_id);
+        if (parentProfile?.display_name) {
+          parentName = parentProfile.display_name;
+        } else {
+          const parentUser = allParentUsers.find(u => u.id === thread.parent_user_id);
+          if (parentUser) parentName = parentUser.full_name || 'Parent';
+        }
+
+        previewMap[thread.id] = { lastMessage, parentName };
+      });
+
+      setPreviewData(previewMap);
     } catch (err) {
       console.error('Failed to load conversations:', err);
       setError('Unable to load conversations. Please try again.');
@@ -192,35 +207,53 @@ export default function MessagingTab({ user, profile }) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2 max-h-[600px] overflow-y-auto">
-            {threads.map(thread => (
-              <ConversationPreview
-                key={thread.id}
-                thread={thread}
-                booking={bookings[thread.booking_id]}
-                onClick={() => handleSelectThread(thread)}
-                isSelected={selectedThread?.id === thread.id}
-              />
-            ))}
+            {threads.map(thread => {
+              const preview = previewData[thread.id] || { lastMessage: null, parentName: 'Parent' };
+              return (
+                <ConversationPreview
+                  key={thread.id}
+                  thread={thread}
+                  booking={bookings[thread.booking_id]}
+                  onClick={() => handleSelectThread(thread)}
+                  isSelected={selectedThread?.id === thread.id}
+                  lastMessage={preview.lastMessage}
+                  parentName={preview.parentName}
+                />
+              );
+            })}
           </CardContent>
         </Card>
       </div>
 
       {/* Message Thread */}
       <div className="lg:col-span-2">
-        {selectedThread && selectedBooking ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>
-                Booking on {format(new Date(selectedBooking.start_time), 'MMMM d, yyyy')}
-              </CardTitle>
-              <p className="text-sm text-gray-500">
-                {format(new Date(selectedBooking.start_time), 'h:mm a')} - {format(new Date(selectedBooking.end_time), 'h:mm a')}
-              </p>
-            </CardHeader>
-            <CardContent>
-              <MessageThread booking={selectedBooking} currentUser={user} />
-            </CardContent>
-          </Card>
+        {selectedThread ? (
+          selectedBooking ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>
+                  Booking on {format(new Date(selectedBooking.start_time), 'MMMM d, yyyy')}
+                </CardTitle>
+                <p className="text-sm text-gray-500">
+                  {format(new Date(selectedBooking.start_time), 'h:mm a')} - {format(new Date(selectedBooking.end_time), 'h:mm a')}
+                </p>
+              </CardHeader>
+              <CardContent>
+                <MessageThread booking={selectedBooking} currentUser={user} />
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center">
+                  <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                  <p className="text-sm text-gray-500">
+                    Unable to load booking details for this conversation
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )
         ) : (
           <Card>
             <CardContent className="py-12">
