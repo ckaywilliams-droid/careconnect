@@ -155,7 +155,7 @@ export default function BookingsTab({ user, profile }) {
     if (type === 'accept') {
       setLoading(true);
       try {
-        await invoke('acceptBooking', { booking_request_id: booking.id });
+        await base44.entities.BookingRequest.update(booking.id, { status: 'accepted' });
         toast.success('Booking accepted!');
         queryClient.invalidateQueries(['caregiver-bookings']);
       } catch (e) {
@@ -166,7 +166,7 @@ export default function BookingsTab({ user, profile }) {
     if (type === 'decline') {
       setLoading(true);
       try {
-        await invoke('declineBooking', { booking_request_id: booking.id });
+        await base44.entities.BookingRequest.update(booking.id, { status: 'declined' });
         toast.success('Booking declined.');
         queryClient.invalidateQueries(['caregiver-bookings']);
       } catch (e) {
