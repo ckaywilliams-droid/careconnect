@@ -31,7 +31,12 @@ Deno.serve(async (req) => {
   const booking = bookings[0];
   if (!booking) return Response.json({ error: 'Not found.' }, { status: 404 });
 
-  const isCaregiver = user.app_role === 'caregiver' && booking.caregiver_user_id === user.id;
+  let isCaregiverOwner = booking.caregiver_user_id === user.id;
+  if (!isCaregiverOwner && booking.caregiver_profile_id) {
+    const ownerProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+    isCaregiverOwner = ownerProfiles[0]?.user_id === user.id;
+  }
+  const isCaregiver = user.app_role === 'caregiver' && isCaregiverOwner;
   const isParent = user.app_role === 'parent' && booking.parent_user_id === user.id;
   if (!isCaregiver && !isParent) return Response.json({ error: 'Not found.' }, { status: 404 });
 
@@ -46,8 +51,7 @@ Deno.serve(async (req) => {
   const now = new Date();
 
   if (now < windowOpen) {
-    const minutesUntilOpen = Math.ceil((windowOpen - now) / (1000 * 60));
-    return Response.json({ error: `Check-in opens 30 minutes before your booking. Please wait ${minutesUntilOpen} more minutes.` }, { status: 409 });
+    return Response.json({ error: 'Check-in opens 30 minutes before your booking.' }, { status: 409 });
   }
   if (now > windowClose) {
     return Response.json({ error: 'The check-in window has passed. This booking has been flagged for no-show review.' }, { status: 409 });
