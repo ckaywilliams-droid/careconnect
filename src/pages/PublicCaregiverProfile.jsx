@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 dayjs.extend(customParseFormat);
@@ -108,6 +108,14 @@ export default function PublicCaregiverProfile() {
       fetchProfile();
     }
   }, [slug]);
+
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!loading && profile && location.hash === '#book') {
+      setShowBookingModal(true);
+    }
+  }, [loading, profile, location.hash]);
 
   if (loading) {
     return (
