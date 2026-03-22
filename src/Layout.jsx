@@ -102,16 +102,6 @@ export default function Layout({ children, currentPageName }) {
     <>
       {!checkingAuth && currentUser && (
         <div className="flex justify-end items-center gap-2 p-4 bg-white border-b border-[#E5E2DC] shadow-sm">
-          {currentUser?.app_role === 'parent' && (
-            <>
-              <Button variant="ghost" onClick={() => navigate(createPageUrl('Home'))}>
-                Home
-              </Button>
-              <Button variant="ghost" onClick={() => navigate(createPageUrl('FindCaregivers'))}>
-                Find a Caregiver
-              </Button>
-            </>
-          )}
           <NotificationBell user={currentUser} />
           <Button variant="ghost" onClick={handleLogout}>
             Sign Out
