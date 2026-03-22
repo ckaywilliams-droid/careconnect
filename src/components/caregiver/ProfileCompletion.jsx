@@ -5,40 +5,44 @@ import { CheckCircle2, Circle, Lock } from 'lucide-react';
 
 export default function ProfileCompletion({ profile }) {
     const completionPct = profile?.completion_pct || 0;
+    const storageKey = `profileCompleteBanner_${profile?.id}`;
+
+    const [showBanner, setShowBanner] = useState(() => {
+        if (typeof window === 'undefined' || !profile?.id) return false;
+        return localStorage.getItem(`profileCompleteBanner_${profile?.id}`) !== 'dismissed';
+    });
+
+    // HARD GATE: never render if profile is missing or already published
+    if (!profile) return null;
+    if (profile.is_published) return null;
+
+    // Reset dismissal if completion drops below 100% again
+    useEffect(() => {
+        if (completionPct < 100) {
+            localStorage.removeItem(storageKey);
+            setShowBanner(true);
+        }
+    }, [completionPct]);
+
+    // Auto-dismiss after 60 seconds, then persist
+    useEffect(() => {
+        if (completionPct === 100 && showBanner) {
+            const timer = setTimeout(() => {
+                setShowBanner(false);
+                localStorage.setItem(storageKey, 'dismissed');
+            }, 60000);
+            return () => clearTimeout(timer);
+        }
+    }, [completionPct, showBanner]);
 
     // Determine which fields are complete
     const fields = [
-        {
-            label: 'Profile photo',
-            completed: !!profile?.profile_photo_url,
-            icon: 'photo'
-        },
-        {
-            label: 'About me',
-            completed: !!profile?.bio && profile.bio.trim().length > 0,
-            icon: 'about'
-        },
-        {
-            label: 'Hourly rate',
-            completed: !!profile?.hourly_rate_cents && profile.hourly_rate_cents > 0,
-            icon: 'rate'
-        },
-        {
-            label: 'Services offered',
-            completed: !!profile?.services_offered && profile.services_offered.split(',').some(s => s.trim()),
-            icon: 'services'
-        },
-        {
-            label: 'Age groups',
-            completed: !!profile?.age_groups && profile.age_groups.split(',').some(g => g.trim()),
-            icon: 'ages'
-        },
-        {
-            label: 'Background verified',
-            completed: profile?.is_verified === true,
-            icon: 'verified',
-            locked: true
-        }
+        { label: 'Profile photo', completed: !!profile?.profile_photo_url, icon: 'photo' },
+        { label: 'About me', completed: !!profile?.bio && profile.bio.trim().length > 0, icon: 'about' },
+        { label: 'Hourly rate', completed: !!profile?.hourly_rate_cents && profile.hourly_rate_cents > 0, icon: 'rate' },
+        { label: 'Services offered', completed: !!profile?.services_offered && profile.services_offered.split(',').some(s => s.trim()), icon: 'services' },
+        { label: 'Age groups', completed: !!profile?.age_groups && profile.age_groups.split(',').some(g => g.trim()), icon: 'ages' },
+        { label: 'Background verified', completed: profile?.is_verified === true, icon: 'verified', locked: true }
     ];
 
     const getProgressColor = () => {
@@ -53,21 +57,8 @@ export default function ProfileCompletion({ profile }) {
         return 'from-green-50 to-green-100';
     };
 
-    const [showBanner, setShowBanner] = useState(true);
-
-    useEffect(() => {
-        if (completionPct === 100 && !profile?.is_published) {
-            setShowBanner(true);
-            const timer = setTimeout(() => setShowBanner(false), 60000);
-            return () => clearTimeout(timer);
-        }
-    }, [completionPct, profile?.is_published]);
-
-    if (completionPct === 100 && (!showBanner || profile?.is_published)) {
-        return null;
-    }
-
     if (completionPct === 100) {
+        if (!showBanner) return null;
         return (
             <div className={`bg-gradient-to-r ${getProgressBarColor()} border border-green-200 rounded-lg p-6 text-center`}>
                 <h3 className="text-lg font-semibold text-green-900 mb-2">
@@ -90,10 +81,7 @@ export default function ProfileCompletion({ profile }) {
                             <h3 className="font-semibold text-sm">Profile Completion</h3>
                             <span className="text-sm font-bold">{completionPct}%</span>
                         </div>
-                        <Progress 
-                            value={completionPct} 
-                            className="h-2"
-                        />
+                        <Progress value={completionPct} className="h-2" />
                     </div>
 
                     {/* Checklist */}
@@ -111,9 +99,7 @@ export default function ProfileCompletion({ profile }) {
                                     {field.label}
                                 </span>
                                 {field.locked && !field.completed && (
-                                    <span className="text-xs text-slate-400 ml-auto">
-                                        Set by admin
-                                    </span>
+                                    <span className="text-xs text-slate-400 ml-auto">Set by admin</span>
                                 )}
                             </div>
                         ))}
