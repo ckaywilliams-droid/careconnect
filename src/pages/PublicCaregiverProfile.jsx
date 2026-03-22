@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
@@ -16,6 +19,10 @@ import { format, parseISO } from 'date-fns';
 export default function PublicCaregiverProfile() {
   const [searchParams] = useSearchParams();
   const slug = searchParams.get('slug');
+  const rawDate = searchParams.get('date');
+  const preselectedDate = rawDate && dayjs(rawDate, 'YYYY-MM-DD', true).isValid()
+    ? dayjs(rawDate).toDate()
+    : null;
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [certifications, setCertifications] = useState([]);
@@ -447,6 +454,7 @@ export default function PublicCaregiverProfile() {
           <CardContent>
             <PublicCaregiverAvailability
               openSlots={availabilitySlots}
+              preselectedDate={preselectedDate}
               onSelectSlotForBooking={(date) => {
                 setPreselectedSlot({ slot_date: format(date, 'yyyy-MM-dd') });
                 setShowBookingModal(true);
