@@ -50,7 +50,6 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
   const [certifications, setCertifications] = useState([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [uploadingCert, setUploadingCert] = useState(false);
-  const [showCompletionBanner, setShowCompletionBanner] = useState(true);
 
   useEffect(() => {
     if (profile) {
@@ -119,6 +118,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
     },
     onSuccess: (updatedProfile) => {
       onProfileUpdate(updatedProfile);
+      queryClient.invalidateQueries(['caregiverProfile', profile.id]);
       toast.success(updatedProfile.is_published ? 'Profile published!' : 'Profile unpublished');
     },
     onError: (error) => {
@@ -217,13 +217,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
     return Math.round((completed / fields.length) * 100);
   };
 
-  useEffect(() => {
-    if (profile?.completion_pct === 100 && !profile?.is_published) {
-      setShowCompletionBanner(true);
-      const timer = setTimeout(() => setShowCompletionBanner(false), 60000);
-      return () => clearTimeout(timer);
-    }
-  }, [profile?.completion_pct, profile?.is_published]);
+
 
   const certStatusConfig = {
     pending: { icon: Clock, color: 'text-yellow-600', bg: 'bg-yellow-100', label: 'Pending Review' },
@@ -251,7 +245,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
       <ProfileCompletion profile={profile} />
 
       {/* Profile Publish Control — only shown when not yet published */}
-      {profile.completion_pct === 100 && !profile.is_published && showCompletionBanner && (
+      {profile.completion_pct === 100 && !profile.is_published && (
         <Card className="border-green-200 bg-green-50">
           <CardHeader>
             <div className="flex items-center justify-between">
