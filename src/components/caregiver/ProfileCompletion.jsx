@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, Circle, Lock } from 'lucide-react';
@@ -52,6 +52,20 @@ export default function ProfileCompletion({ profile }) {
         if (completionPct < 100) return 'from-amber-50 to-amber-100';
         return 'from-green-50 to-green-100';
     };
+
+    const [showBanner, setShowBanner] = useState(true);
+
+    useEffect(() => {
+        if (completionPct === 100 && !profile?.is_published) {
+            setShowBanner(true);
+            const timer = setTimeout(() => setShowBanner(false), 60000);
+            return () => clearTimeout(timer);
+        }
+    }, [completionPct, profile?.is_published]);
+
+    if (completionPct === 100 && (!showBanner || profile?.is_published)) {
+        return null;
+    }
 
     if (completionPct === 100) {
         return (
