@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, MapPin, Star, AlertCircle, Edit2, Copy, Check } from 'lucide-react';
+import { CheckCircle2, MapPin, Star, AlertCircle, Edit2, Copy, Check, Home } from 'lucide-react';
 import ReviewsSection from '@/components/ReviewsSection';
 import BookingRequestModal from '@/components/BookingRequestModal';
 import ReportUserModal from '@/components/messaging/ReportUserModal';
@@ -267,6 +267,16 @@ export default function PublicCaregiverProfile() {
             )}
           </div>
         </div>
+
+        {/* Home Button */}
+        <Button
+          size="icon"
+          className="absolute top-4 left-4 bg-white hover:bg-gray-100 text-[#C36239] shadow-lg"
+          onClick={() => navigate(createPageUrl('Home'))}
+          title="Back to Home"
+        >
+          <Home className="w-4 h-4" />
+        </Button>
 
         {/* Edit Button (if own profile) */}
         {isOwnProfile && (
