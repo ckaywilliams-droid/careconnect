@@ -464,7 +464,7 @@ export default function FindCaregivers() {
                                             key={caregiver.id}
                                             caregiver={caregiver}
                                             user={user}
-                                            requestedDate={filters.date}
+                                            requestedDate={searchParams.get('date') || filters.date}
                                         />
                                     ))}
                                 </div>
