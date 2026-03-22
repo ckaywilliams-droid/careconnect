@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { addMonths, startOfMonth, endOfMonth, eachDayOfInterval, isBefore, isToday, format, startOfDay } from 'date-fns';
@@ -12,8 +12,16 @@ function endOfDay(date) {
   return end;
 }
 
-export default function PublicCaregiverAvailability({ openSlots, onSelectSlotForBooking }) {
-  const [currentMonth, setCurrentMonth] = useState(new Date());
+export default function PublicCaregiverAvailability({ openSlots, onSelectSlotForBooking, preselectedDate }) {
+  const [currentMonth, setCurrentMonth] = useState(preselectedDate || new Date());
+  const hasInitialized = useRef(false);
+
+  useEffect(() => {
+    if (preselectedDate && !hasInitialized.current) {
+      setCurrentMonth(preselectedDate);
+      hasInitialized.current = true;
+    }
+  }, [preselectedDate]);
 
   const canGoBack = !isBefore(currentMonth, addMonths(startOfMonth(new Date()), 1));
   const canGoForward = isBefore(currentMonth, addMonths(new Date(), 6));
