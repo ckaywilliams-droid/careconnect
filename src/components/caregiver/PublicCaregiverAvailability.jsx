@@ -91,7 +91,7 @@ export default function PublicCaregiverAvailability({ openSlots, onSelectSlotFor
               <CalendarDayCell
                 key={dateStr}
                 date={day}
-                slots={daySlots}
+                slots={isPastDay ? [] : daySlots}
                 isToday={isToday(day)}
                 isPast={isPastDay}
                 preselectedDate={preselectedDate}
