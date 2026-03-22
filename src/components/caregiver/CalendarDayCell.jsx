@@ -1,9 +1,11 @@
 import React from 'react';
 import { format, isToday } from 'date-fns';
+import dayjs from 'dayjs';
 import { cn } from '@/lib/utils';
 import { CheckCircle2, Clock, Lock, XCircle } from 'lucide-react';
 
-export default function CalendarDayCell({ date, slots, isToday: isTodayDay, isPast, onSelect }) {
+export default function CalendarDayCell({ date, slots, isToday: isTodayDay, isPast, onSelect, preselectedDate }) {
+  const isSelected = preselectedDate && dayjs(date).isSame(dayjs(preselectedDate), 'day');
   // F-058 Logic.1: Status color and icon based on slot status and is_blocked
   const getSlotDisplay = (slot) => {
     if (slot.is_blocked) {
@@ -38,7 +40,8 @@ export default function CalendarDayCell({ date, slots, isToday: isTodayDay, isPa
         isPast
           ? 'bg-muted/50 border-transparent cursor-default'
           : 'bg-white border-border hover:bg-accent cursor-pointer',
-        isTodayDay && 'ring-2 ring-primary ring-offset-0 border-primary'
+        isTodayDay && 'ring-2 ring-primary ring-offset-0 border-primary',
+        isSelected && 'ring-2 ring-[#C36239] bg-orange-50'
       )}
     >
       {/* F-056 Logic.3: Blocked day diagonal stripe pattern */}

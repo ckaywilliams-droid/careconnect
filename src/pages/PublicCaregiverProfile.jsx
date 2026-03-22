@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 dayjs.extend(customParseFormat);
@@ -24,6 +24,7 @@ export default function PublicCaregiverProfile() {
     ? dayjs(rawDate).toDate()
     : null;
   const navigate = useNavigate();
+  const location = useLocation();
   const [profile, setProfile] = useState(null);
   const [certifications, setCertifications] = useState([]);
   const [availabilitySlots, setAvailabilitySlots] = useState([]);
@@ -36,7 +37,9 @@ export default function PublicCaregiverProfile() {
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportBanner, setReportBanner] = useState(false);
-  const [preselectedSlot, setPreselectedSlot] = useState(null);
+  const [preselectedSlot, setPreselectedSlot] = useState(
+    preselectedDate ? { slot_date: dayjs(preselectedDate).format('YYYY-MM-DD') } : null
+  );
   const [bookableSlots, setBookableSlots] = useState([]);
 
   useEffect(() => {
@@ -106,6 +109,13 @@ export default function PublicCaregiverProfile() {
       fetchProfile();
     }
   }, [slug]);
+
+  // Auto-open booking modal when navigated with #book hash
+  useEffect(() => {
+    if (!loading && profile && location.hash === '#book') {
+      setShowBookingModal(true);
+    }
+  }, [loading, profile, location.hash]);
 
   if (loading) {
     return (
