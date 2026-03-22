@@ -319,9 +319,15 @@ export default function ParentBookings() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-4xl mx-auto px-4 py-6">
-          <h1 className="text-2xl font-bold text-gray-900">My Account</h1>
-          <p className="text-sm text-gray-500 mt-1">Manage your bookings and household profile</p>
+        <div className="max-w-4xl mx-auto px-4 py-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">My Account</h1>
+            <p className="text-sm text-gray-500 mt-1">Manage your bookings and household profile</p>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={() => navigate(createPageUrl('Home'))}>Home</Button>
+            <Button variant="ghost" onClick={() => navigate(createPageUrl('FindCaregivers'))}>Find a Caregiver</Button>
+          </div>
         </div>
       </div>
 
