@@ -94,7 +94,6 @@ export default function PublicCaregiverAvailability({ openSlots, onSelectSlotFor
                 slots={daySlots}
                 isToday={isToday(day)}
                 isPast={isPastDay}
-                preselectedDate={preselectedDate}
                 onSelect={() => {
                   if (!isPastDay && daySlots.length > 0) {
                     onSelectSlotForBooking(day);
