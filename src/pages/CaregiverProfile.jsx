@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Loader2, Copy, Check, ExternalLink, Pencil, Save, X } from 'lucide-react';
+import { AlertTriangle, Loader2, Copy, Check, ExternalLink, Pencil, Save, X, Home } from 'lucide-react';
 import { toast } from 'sonner';
 import ProfileTab from '@/components/caregiver/ProfileTab';
 import AvailabilityTab from '@/components/caregiver/AvailabilityTab';
@@ -168,13 +168,23 @@ export default function CaregiverProfile() {
       <div className="bg-white border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {profile?.display_name ? `Welcome, ${profile.display_name}` : 'My Dashboard'}
-              </h1>
-              <p className="text-sm text-gray-600 mt-1">
-                Manage your profile, availability, and bookings
-              </p>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/')}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                <Home className="w-4 h-4 mr-2" /> Home
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {profile?.display_name ? `Welcome, ${profile.display_name}` : 'My Dashboard'}
+                </h1>
+                <p className="text-sm text-gray-600 mt-1">
+                  Manage your profile, availability, and bookings
+                </p>
+              </div>
             </div>
             {profile && (
               <div className="flex items-center gap-2 flex-wrap">
