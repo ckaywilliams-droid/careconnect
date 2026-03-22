@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Star, MapPin, CheckCircle, Clock } from 'lucide-react';
+import dayjs from 'dayjs';
 import { createPageUrl } from '@/utils';
 import { base44 } from '@/api/base44Client';
 
@@ -74,21 +75,24 @@ export default function CaregiverCard({ caregiver, user, requestedDate }) {
     const rate = formatRate(caregiver.hourly_rate);
     const slots = caregiver.available_slots || [];
 
-    const profileUrl = caregiver.slug
-        ? `${createPageUrl('PublicCaregiverProfile')}?slug=${caregiver.slug}`
-        : '#';
+    const buildProfileUrl = (hash = '') => {
+        if (!caregiver.slug) return '#';
+        const params = new URLSearchParams({ slug: caregiver.slug });
+        if (requestedDate) params.set('date', dayjs(requestedDate).format('YYYY-MM-DD'));
+        return `${createPageUrl('PublicCaregiverProfile')}?${params.toString()}${hash}`;
+    };
 
     const isCaregiver = user?.app_role === 'caregiver';
     const isParent = user?.app_role === 'parent';
     const isUnverifiedParent = isParent && user?.email_verified === false;
 
-    const goToProfile = () => navigate(profileUrl);
+    const goToProfile = () => navigate(buildProfileUrl());
     const goToProfileBook = (e) => {
         e.stopPropagation();
         if (!user) {
             base44.auth.redirectToLogin(window.location.href);
         } else {
-            navigate(profileUrl + '#book');
+            navigate(buildProfileUrl('#book'));
         }
     };
 
