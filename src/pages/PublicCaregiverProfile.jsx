@@ -36,7 +36,9 @@ export default function PublicCaregiverProfile() {
   const [hasPendingRequest, setHasPendingRequest] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportBanner, setReportBanner] = useState(false);
-  const [preselectedSlot, setPreselectedSlot] = useState(null);
+  const [preselectedSlot, setPreselectedSlot] = useState(
+    preselectedDate ? { slot_date: dayjs(preselectedDate).format('YYYY-MM-DD') } : null
+  );
   const [bookableSlots, setBookableSlots] = useState([]);
 
   useEffect(() => {
