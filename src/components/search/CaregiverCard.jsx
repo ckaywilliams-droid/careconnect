@@ -92,7 +92,9 @@ export default function CaregiverCard({ caregiver, user, requestedDate }) {
         if (!user) {
             base44.auth.redirectToLogin(window.location.href);
         } else {
-            navigate(buildProfileUrl('#book'));
+            const url = buildProfileUrl('');
+            const sep = url.includes('?') ? '&' : '?';
+            navigate(url + sep + 'action=book');
         }
     };
 
