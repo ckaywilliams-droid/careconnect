@@ -126,11 +126,8 @@ export default function EmptyState({ variant, filters, onClearFilter, onClearAll
             <div className="flex flex-col items-center text-center py-16 px-6 bg-white rounded-2xl border border-dashed border-gray-200">
                 <Illustration icon={Search} />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    No caregivers have joined yet
+                    Search for caregivers near you
                 </h3>
-                <p className="text-sm text-gray-500 max-w-xs">
-                    We're just getting started. Check back soon as we grow our caregiver community.
-                </p>
             </div>
         );
     }
