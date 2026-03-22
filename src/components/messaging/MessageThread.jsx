@@ -235,6 +235,7 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
     try {
       const res = await base44.functions.invoke('sendMessage', {
         thread_id: thread.id,
+        booking_id: booking.id,
         content: sentValue
       });
       // Replace optimistic message with real one

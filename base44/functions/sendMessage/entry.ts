@@ -5,7 +5,7 @@
  * F-088 Audit.2: Message send events logged (no body content in log).
  */
 
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 
 // F-089 Data.3: Redaction patterns
 const REDACTION_PATTERNS = [
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json();
-  const { thread_id, content } = body;
+  const { thread_id, booking_id, content } = body;
 
   if (!thread_id) return Response.json({ error: 'thread_id is required.' }, { status: 400 });
 
@@ -56,8 +56,16 @@ Deno.serve(async (req) => {
   if (trimmed.length > 2000) return Response.json({ error: 'Message cannot exceed 2,000 characters.' }, { status: 400 });
 
   // Fetch thread — F-088 Errors.3: 404 for not-found or access denied
-  const threads = await base44.asServiceRole.entities.MessageThread.filter({ id: thread_id });
-  const thread = threads[0];
+  // Use booking_id (a data field) for reliable filtering; fall back to listing all and matching thread_id
+  let thread = null;
+  if (booking_id) {
+    const threads = await base44.asServiceRole.entities.MessageThread.filter({ booking_id });
+    thread = threads.find(t => t.id === thread_id) || threads[0];
+  } else {
+    // fallback: list recent threads and find by id
+    const threads = await base44.asServiceRole.entities.MessageThread.list('-created_date', 200);
+    thread = threads.find(t => t.id === thread_id);
+  }
   if (!thread) return Response.json({ error: 'Not found.' }, { status: 404 });
 
   // Access check: must be a party to this thread
