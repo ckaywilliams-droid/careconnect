@@ -318,7 +318,7 @@ export default function SearchFilters({ filters, onChange, onReset, activeCount 
                 className="w-full bg-[#C36239] hover:bg-[#75290F] text-white"
                 onClick={() => onChange({ ...filters, _trigger: Date.now() })}
             >
-                Apply Filters
+                Search
             </Button>
         </div>
     );
