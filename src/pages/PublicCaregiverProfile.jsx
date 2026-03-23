@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
-dayjs.extend(customParseFormat);
+
 import { base44 } from '@/api/base44Client';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
@@ -14,14 +12,14 @@ import ReviewsSection from '@/components/ReviewsSection';
 import BookingRequestModal from '@/components/BookingRequestModal';
 import ReportUserModal from '@/components/messaging/ReportUserModal';
 import PublicCaregiverAvailability from '@/components/caregiver/PublicCaregiverAvailability';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, parse, isValid } from 'date-fns';
 
 export default function PublicCaregiverProfile() {
   const [searchParams] = useSearchParams();
   const slug = searchParams.get('slug');
   const rawDate = searchParams.get('date');
-  const preselectedDate = rawDate && dayjs(rawDate, 'YYYY-MM-DD', true).isValid()
-    ? dayjs(rawDate).toDate()
+  const preselectedDate = rawDate && isValid(parse(rawDate, 'yyyy-MM-dd', new Date()))
+    ? parseISO(rawDate)
     : null;
   const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -37,7 +35,7 @@ export default function PublicCaregiverProfile() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportBanner, setReportBanner] = useState(false);
   const [preselectedSlot, setPreselectedSlot] = useState(
-    preselectedDate ? { slot_date: dayjs(preselectedDate).format('YYYY-MM-DD') } : null
+    preselectedDate ? { slot_date: format(preselectedDate, 'yyyy-MM-dd') } : null
   );
   const [bookableSlots, setBookableSlots] = useState([]);
 
