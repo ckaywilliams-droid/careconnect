@@ -70,6 +70,10 @@ Deno.serve(async (req) => {
 
   // Access check: must be a party to this thread
   const isParty = thread.parent_user_id === user.id || thread.caregiver_user_id === user.id;
+  console.log('thread.parent_user_id:', thread.parent_user_id);
+  console.log('thread.caregiver_user_id:', thread.caregiver_user_id);
+  console.log('user.id:', user.id);
+  console.log('isParty:', isParty);
   if (!isParty) return Response.json({ error: 'Not found.' }, { status: 404 });
 
   // F-088 States.1: thread must be open
