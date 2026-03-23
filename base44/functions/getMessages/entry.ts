@@ -17,8 +17,7 @@ Deno.serve(async (req) => {
     }
 
     // Use asServiceRole to look up the MessageThread
-    const threads = await base44.asServiceRole.entities.MessageThread.filter({ id: thread_id });
-    const thread = threads[0];
+    const thread = await base44.asServiceRole.entities.MessageThread.get(thread_id);
 
     if (!thread) {
       return Response.json({ error: 'Thread not found.' }, { status: 404 });
@@ -27,7 +26,14 @@ Deno.serve(async (req) => {
     // Verify the calling user is a participant
     const isParticipant = thread.parent_user_id === user.id || thread.caregiver_user_id === user.id;
     if (!isParticipant) {
-      return Response.json({ error: 'Access denied.' }, { status: 403 });
+      return Response.json({
+        error: 'Not found.',
+        debug: {
+          thread_parent_user_id: thread.parent_user_id,
+          thread_caregiver_user_id: thread.caregiver_user_id,
+          auth_user_id: user.id
+        }
+      }, { status: 404 });
     }
 
     // Use asServiceRole to fetch all Message records for this thread

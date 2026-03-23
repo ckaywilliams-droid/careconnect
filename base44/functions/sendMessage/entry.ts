@@ -55,17 +55,8 @@ Deno.serve(async (req) => {
   if (!trimmed) return Response.json({ error: 'Your message cannot be empty.' }, { status: 400 });
   if (trimmed.length > 2000) return Response.json({ error: 'Message cannot exceed 2,000 characters.' }, { status: 400 });
 
-  // Fetch thread — F-088 Errors.3: 404 for not-found or access denied
-  // Use booking_id (a data field) for reliable filtering; fall back to listing all and matching thread_id
-  let thread = null;
-  if (booking_id) {
-    const threads = await base44.asServiceRole.entities.MessageThread.filter({ booking_id });
-    thread = threads.find(t => t.id === thread_id) || threads[0];
-  } else {
-    // fallback: list recent threads and find by id
-    const threads = await base44.asServiceRole.entities.MessageThread.list('-created_date', 200);
-    thread = threads.find(t => t.id === thread_id);
-  }
+  // Fetch thread by primary key
+  const thread = await base44.asServiceRole.entities.MessageThread.get(thread_id);
   if (!thread) return Response.json({ error: 'Not found.' }, { status: 404 });
 
   // Access check: must be a party to this thread
