@@ -6,7 +6,7 @@
  * F-088 Audit.1: Thread creation logged.
  */
 
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);

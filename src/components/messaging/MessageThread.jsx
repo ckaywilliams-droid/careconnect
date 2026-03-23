@@ -162,12 +162,18 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
           setLoading(false);
           return;
         }
-        t = await base44.entities.MessageThread.create({
-          booking_id: booking.id,
+        // RLS blocks direct create — use backend function instead
+        const res = await base44.functions.invoke('createMessageThread', {
+          booking_request_id: booking.id,
           parent_user_id: booking.parent_user_id,
           caregiver_user_id: booking.caregiver_user_id,
-          is_active: true,
         });
+        const newThreads = await base44.entities.MessageThread.filter({ booking_id: booking.id });
+        t = newThreads[0];
+        if (!t) {
+          setLoading(false);
+          return;
+        }
       }
       setThread(t);
 
