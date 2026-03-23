@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Star, MapPin, CheckCircle, Clock } from 'lucide-react';
-import dayjs from 'dayjs';
+import { format } from 'date-fns';
 import { createPageUrl } from '@/utils';
 import { base44 } from '@/api/base44Client';
 
@@ -78,7 +78,7 @@ export default function CaregiverCard({ caregiver, user, requestedDate }) {
     const buildProfileUrl = (hash = '') => {
         if (!caregiver.slug) return '#';
         const params = new URLSearchParams({ slug: caregiver.slug });
-        if (requestedDate) params.set('date', dayjs(requestedDate).format('YYYY-MM-DD'));
+        if (requestedDate) params.set('date', format(new Date(requestedDate), 'yyyy-MM-dd'));
         return `${createPageUrl('PublicCaregiverProfile')}?${params.toString()}${hash}`;
     };
 
