@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
     const thread = await base44.asServiceRole.entities.MessageThread.get(thread_id);
 
     if (!thread) {
-      return Response.json({ error: 'Thread not found.' }, { status: 404 });
+      return Response.json({ error: 'Thread not found.', debug: { thread_id_received: thread_id } }, { status: 404 });
     }
 
     // Verify the calling user is a participant
