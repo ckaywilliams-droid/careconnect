@@ -177,8 +177,8 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
       }
       setThread(t);
 
-      const msgs = await base44.entities.Message.filter({ thread_id: t.id });
-      const sorted = [...msgs].sort((a, b) => new Date(a.sent_at || a.created_date) - new Date(b.sent_at || b.created_date));
+      const res = await base44.functions.invoke('getMessages', { thread_id: t.id });
+      const sorted = (res.data?.messages || []).sort((a, b) => new Date(a.sent_at || a.created_date) - new Date(b.sent_at || b.created_date));
       setMessages(sorted);
 
       // Use provided name or fetch other party's name
