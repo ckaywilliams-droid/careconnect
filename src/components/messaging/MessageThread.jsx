@@ -162,11 +162,10 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
           setLoading(false);
           return;
         }
-        t = await base44.entities.MessageThread.create({
+        t = await base44.functions.invoke('createMessageThread', {
           booking_id: booking.id,
           parent_user_id: booking.parent_user_id,
           caregiver_user_id: booking.caregiver_user_id,
-          is_active: true,
         });
       }
       setThread(t);
