@@ -1,14 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, momentLocalizer } from 'react-big-calendar';
-import moment from 'moment';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import SlotDetailPanel from '@/components/availability/SlotDetailPanel';
-
-const localizer = momentLocalizer(moment);
+import AvailabilityCalendar from '@/components/caregiver/AvailabilityCalendar';
 
 export default function CaregiverAvailability() {
   const [user, setUser] = useState(null);
