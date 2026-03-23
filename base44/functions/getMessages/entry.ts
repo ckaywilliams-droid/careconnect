@@ -17,7 +17,8 @@ Deno.serve(async (req) => {
     }
 
     // Use asServiceRole to look up the MessageThread
-    const thread = await base44.asServiceRole.entities.MessageThread.get(thread_id);
+    const threads = await base44.asServiceRole.entities.MessageThread.filter({ id: thread_id });
+    const thread = threads[0];
 
     if (!thread) {
       return Response.json({ error: 'Thread not found.', debug: { thread_id_received: thread_id } }, { status: 404 });
