@@ -62,15 +62,13 @@ Deno.serve(async (req) => {
 
 
   // ── Fetch slot ────────────────────────────────────────────────────────────
-  const slots = await base44.asServiceRole.entities.AvailabilitySlot.filter({ id: availability_slot_id });
-  const slot = slots[0];
+  const slot = await base44.asServiceRole.entities.AvailabilitySlot.get(availability_slot_id);
   if (!slot) {
     return Response.json({ error: 'This availability window no longer exists.', gate_failed: 'gate_6_slot_not_found' }, { status: 409 });
   }
 
   // ── Fetch CaregiverProfile ────────────────────────────────────────────────
-  const caregiverProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: slot.caregiver_profile_id });
-  const caregiverProfile = caregiverProfiles[0];
+  const caregiverProfile = await base44.asServiceRole.entities.CaregiverProfile.get(slot.caregiver_profile_id);
   if (!caregiverProfile) {
     return Response.json({ error: 'This caregiver is no longer available.', gate_failed: 'gate_4_profile_not_found' }, { status: 409 });
   }
@@ -81,8 +79,7 @@ Deno.serve(async (req) => {
   }
 
   // ── GATE 5: caregiver User not suspended ──────────────────────────────────
-  const caregiverUsers = await base44.asServiceRole.entities.User.filter({ id: caregiverProfile.user_id });
-  const caregiverUser = caregiverUsers[0];
+  const caregiverUser = await base44.asServiceRole.entities.User.get(caregiverProfile.user_id);
   if (caregiverUser?.is_suspended) {
     return Response.json({ error: 'This caregiver is no longer available.', gate_failed: 'gate_5_caregiver_suspended' }, { status: 409 });
   }

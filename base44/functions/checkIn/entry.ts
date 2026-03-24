@@ -27,8 +27,7 @@ Deno.serve(async (req) => {
   const { booking_request_id } = body;
   if (!booking_request_id) return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
 
-  const bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
-  const booking = bookings[0];
+  const booking = await base44.asServiceRole.entities.BookingRequest.get(booking_request_id);
   if (!booking) return Response.json({ error: 'Not found.' }, { status: 404 });
 
   let isCaregiverOwner = booking.caregiver_user_id === user.id;
