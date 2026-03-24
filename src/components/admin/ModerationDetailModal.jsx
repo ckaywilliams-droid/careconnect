@@ -45,8 +45,8 @@ export default function ModerationDetailModal({ open, onOpenChange, flag, curren
   const [showEscalateConfirm, setShowEscalateConfirm] = useState(false);
   const [escalationNote, setEscalationNote] = useState('');
 
-  const canRemove = ['trust_admin', 'super_admin'].includes(currentAdmin.role);
-  const canEscalate = currentAdmin.role !== 'super_admin'; // super_admin can't escalate further
+  const canRemove = ['trust_admin', 'super_admin'].includes(currentAdmin.app_role);
+  const canEscalate = currentAdmin.app_role !== 'super_admin'; // super_admin can't escalate further
 
   const handleApprove = async () => {
     setLoading(true);
@@ -321,7 +321,7 @@ export default function ModerationDetailModal({ open, onOpenChange, flag, curren
                       Escalate
                     </h3>
                     <p className="text-sm text-gray-600 mb-3">
-                      Cannot resolve. Escalate to {currentAdmin.role === 'support_admin' ? 'trust_admin' : 'super_admin'}.
+                      Cannot resolve. Escalate to {currentAdmin.app_role === 'support_admin' ? 'trust_admin' : 'super_admin'}.
                     </p>
                     
                     {!showEscalateConfirm ? (

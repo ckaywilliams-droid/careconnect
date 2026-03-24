@@ -55,7 +55,7 @@ export default function AdminFirstLogin() {
 
         // Check if user is admin
         const adminRoles = ['support_admin', 'trust_admin', 'super_admin'];
-        if (!adminRoles.includes(currentUser.role)) {
+        if (!adminRoles.includes(currentUser.app_role)) {
           navigate('/');
           return;
         }

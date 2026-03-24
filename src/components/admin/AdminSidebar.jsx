@@ -98,7 +98,7 @@ export default function AdminSidebar({ user, mobileOpen, setMobileOpen, pendingC
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{user.full_name || user.email}</p>
               <Badge variant="outline" className="text-xs mt-1">
-                {user.role.replace('_', ' ')}
+                {user.app_role?.replace('_', ' ')}
               </Badge>
             </div>
           </div>

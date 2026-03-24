@@ -26,10 +26,10 @@ export default function VerificationQueueSection({ user }) {
       
       return profilesWithUsers;
     },
-    enabled: !!user && ['trust_admin', 'super_admin'].includes(user.role)
+    enabled: !!user && ['trust_admin', 'super_admin'].includes(user.app_role)
   });
 
-  if (!['trust_admin', 'super_admin'].includes(user?.role)) {
+  if (!['trust_admin', 'super_admin'].includes(user?.app_role)) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">Access denied. Trust Admin or Super Admin role required.</p>

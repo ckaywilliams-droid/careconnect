@@ -36,8 +36,8 @@ export default function ModerationDetailPanel({ item, currentAdmin, onSuccess })
   const [showFullContent, setShowFullContent] = useState(false);
 
   // F-040 Access.2: Action visibility
-  const canRemove = ['trust_admin', 'super_admin'].includes(currentAdmin.role);
-  const canEscalate = currentAdmin.role !== 'super_admin';
+  const canRemove = ['trust_admin', 'super_admin'].includes(currentAdmin.app_role);
+  const canEscalate = currentAdmin.app_role !== 'super_admin';
 
   const isResolved = item.status === 'resolved';
 

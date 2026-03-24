@@ -162,7 +162,7 @@ export default function DisputeDetail() {
     );
   }
 
-  const canIssueRuling = user && ['trust_admin', 'super_admin'].includes(user.role);
+  const canIssueRuling = user && ['trust_admin', 'super_admin'].includes(user.app_role);
 
   return (
     <div className="min-h-screen bg-gray-50">

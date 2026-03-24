@@ -15,10 +15,10 @@ export default function ModerationQueueSection({ user }) {
   const { data: flaggedContent = [], isLoading } = useQuery({
     queryKey: ['admin-flagged-content'],
     queryFn: () => base44.entities.FlaggedContent.filter({ status: 'pending' }),
-    enabled: !!user && ['trust_admin', 'super_admin'].includes(user.role)
+    enabled: !!user && ['trust_admin', 'super_admin'].includes(user.app_role)
   });
 
-  if (!['trust_admin', 'super_admin'].includes(user?.role)) {
+  if (!['trust_admin', 'super_admin'].includes(user?.app_role)) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600">Access denied. Trust Admin or Super Admin role required.</p>

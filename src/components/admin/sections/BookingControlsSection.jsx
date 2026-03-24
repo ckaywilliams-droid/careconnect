@@ -33,7 +33,7 @@ export default function BookingControlsSection({ user }) {
       
       return bookingsWithDetails;
     },
-    enabled: !!user && user.role === 'super_admin'
+    enabled: !!user && user.app_role === 'super_admin'
   });
 
   const cancelMutation = useMutation({
@@ -50,7 +50,7 @@ export default function BookingControlsSection({ user }) {
     }
   });
 
-  if (user?.role !== 'super_admin') {
+  if (user?.app_role !== 'super_admin') {
     return (
       <div className="text-center py-12">
         <Alert variant="destructive" className="max-w-md mx-auto">

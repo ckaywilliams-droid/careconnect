@@ -15,10 +15,10 @@ export default function AuditLogSection({ user }) {
       const actionLogs = await base44.entities.AdminActionLog.list('-created_date', 50);
       return actionLogs;
     },
-    enabled: !!user && user.role === 'super_admin'
+    enabled: !!user && user.app_role === 'super_admin'
   });
 
-  if (user?.role !== 'super_admin') {
+  if (user?.app_role !== 'super_admin') {
     return (
       <div className="text-center py-12">
         <Alert variant="destructive" className="max-w-md mx-auto">
