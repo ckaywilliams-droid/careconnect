@@ -65,8 +65,8 @@ function CancellationRequestBanner({ booking, onRespond }) {
 
 function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
   const cgProfile = cgProfiles[booking.caregiver_profile_id];
-  const start = new Date(booking.start_time);
-  const end = new Date(booking.end_time);
+  const start = new Date(booking.start_time.slice(0, 19));
+  const end = new Date(booking.end_time.slice(0, 19));
   const isPast = start < new Date();
 
   return (
