@@ -35,8 +35,8 @@ function StatusBadge({ status }) {
 }
 
 function BookingCard({ booking, onAction }) {
-  const start = new Date(booking.start_time.slice(0, 19));
-  const end = new Date(booking.end_time.slice(0, 19));
+  const start = new Date(booking.start_time);
+  const end = new Date(booking.end_time);
   const isPast = start < new Date();
 
   return (
@@ -157,7 +157,7 @@ export default function BookingsTab({ user, profile }) {
       try {
         await base44.entities.BookingRequest.update(booking.id, { status: 'accepted' });
         toast.success('Booking accepted!');
-        queryClient.invalidateQueries(['caregiver-bookings']);
+        queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
         toast.error(e.response?.data?.error || 'Failed to accept booking');
       } finally { setLoading(false); }
@@ -168,7 +168,7 @@ export default function BookingsTab({ user, profile }) {
       try {
         await base44.entities.BookingRequest.update(booking.id, { status: 'declined' });
         toast.success('Booking declined.');
-        queryClient.invalidateQueries(['caregiver-bookings']);
+        queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
         toast.error(e.response?.data?.error || 'Failed to decline booking');
       } finally { setLoading(false); }
@@ -179,7 +179,7 @@ export default function BookingsTab({ user, profile }) {
       try {
         const res = await invoke('checkIn', { booking_request_id: booking.id });
         toast.success(res.step === 'both_confirmed' ? 'Check-in confirmed! Session started.' : 'Arrival recorded. Waiting for parent.');
-        queryClient.invalidateQueries(['caregiver-bookings']);
+        queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
         toast.error(e.response?.data?.error || 'Check-in failed');
       } finally { setLoading(false); }
@@ -190,7 +190,7 @@ export default function BookingsTab({ user, profile }) {
       try {
         const res = await invoke('checkOut', { booking_request_id: booking.id });
         toast.success(res.step === 'both_confirmed' ? 'Session completed!' : 'Session marked complete. Waiting for parent confirmation.');
-        queryClient.invalidateQueries(['caregiver-bookings']);
+        queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
         toast.error(e.response?.data?.error || 'Check-out failed');
       } finally { setLoading(false); }
@@ -215,7 +215,7 @@ export default function BookingsTab({ user, profile }) {
         await invoke('reportNoShow', { booking_request_id: modal.booking.id, description: noShowDesc });
         toast.success('No-show report submitted.');
       }
-      queryClient.invalidateQueries(['caregiver-bookings']);
+      queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       setModal(null);
     } catch (e) {
       toast.error(e.response?.data?.error || 'Action failed');
