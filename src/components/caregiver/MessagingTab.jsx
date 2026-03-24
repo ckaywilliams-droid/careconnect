@@ -35,7 +35,7 @@ function ConversationPreview({ thread, booking, onClick, isSelected, lastMessage
             <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
               <Calendar className="w-3 h-3" />
               <span>
-                {format(new Date(booking.start_time), 'MMM d, yyyy • h:mm a')}
+                {format(new Date(booking.start_time.slice(0, 19)), 'MMM d, yyyy • h:mm a')}
               </span>
             </div>
           )}
@@ -237,10 +237,10 @@ export default function MessagingTab({ user, profile }) {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  Booking on {format(new Date(selectedBooking.start_time), 'MMMM d, yyyy')}
+                  Booking on {format(new Date(selectedBooking.start_time.slice(0, 19)), 'MMMM d, yyyy')}
                 </CardTitle>
                 <p className="text-sm text-gray-500">
-                  {format(new Date(selectedBooking.start_time), 'h:mm a')} - {format(new Date(selectedBooking.end_time), 'h:mm a')}
+                  {format(new Date(selectedBooking.start_time.slice(0, 19)), 'h:mm a')} - {format(new Date(selectedBooking.end_time.slice(0, 19)), 'h:mm a')}
                 </p>
               </CardHeader>
               <CardContent>
