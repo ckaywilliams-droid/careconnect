@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 
 export default function Home() {
   const navigate = useNavigate();
+  const { user, isLoadingAuth } = useAuth();
   const [featuredCaregivers, setFeaturedCaregivers] = useState([]);
   const [verifiedCount, setVerifiedCount] = useState(0);
   const [location, setLocation] = useState('');
