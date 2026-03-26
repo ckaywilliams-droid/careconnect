@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -9,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   CheckCircle, XCircle, Calendar, Clock, Users, AlertTriangle,
-  Loader2, Flag, ChevronRight
+  Loader2, Flag, ChevronRight, ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -107,6 +108,11 @@ function BookingCard({ booking, onAction }) {
             <CheckCircle className="w-4 h-4 mr-1" /> Mark as Complete
           </Button>
         ) : null}
+        <Button size="sm" variant="ghost" asChild>
+          <Link to={`/bookings/${booking.id}`}>
+            View Details <ExternalLink className="w-3.5 h-3.5 ml-1" />
+          </Link>
+        </Button>
       </div>
     </div>
   );

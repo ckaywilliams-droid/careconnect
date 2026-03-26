@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Calendar, Clock, Users, XCircle, Flag,
-  AlertTriangle, Loader2, CheckCircle, ArrowRight, Star
+  AlertTriangle, Loader2, CheckCircle, ArrowRight, Star, ExternalLink
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -154,6 +154,12 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
             </a>
           </Button>
         )}
+        {/* View booking details */}
+        <Button size="sm" variant="ghost" asChild>
+          <Link to={`/bookings/${booking.id}`}>
+            View Details <ExternalLink className="w-3.5 h-3.5 ml-1" />
+          </Link>
+        </Button>
       </div>
     </div>
   );
