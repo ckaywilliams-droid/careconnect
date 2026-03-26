@@ -174,25 +174,14 @@ export default function BookingsTab({ user, profile }) {
       } finally { setLoading(false); }
       return;
     }
-    if (type === 'check_in') {
+    if (type === 'mark_complete') {
       setLoading(true);
       try {
-        const res = await invoke('checkIn', { booking_request_id: booking.id, utc_offset_minutes: new Date().getTimezoneOffset() });
-        toast.success(res.step === 'both_confirmed' ? 'Check-in confirmed! Session started.' : 'Arrival recorded. Waiting for parent.');
+        await invoke('markSessionComplete', { booking_request_id: booking.id });
+        toast.success('Session marked as complete!');
         queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
-        toast.error(e.response?.data?.error || 'Check-in failed');
-      } finally { setLoading(false); }
-      return;
-    }
-    if (type === 'check_out') {
-      setLoading(true);
-      try {
-        const res = await invoke('checkOut', { booking_request_id: booking.id });
-        toast.success(res.step === 'both_confirmed' ? 'Session completed!' : 'Session marked complete. Waiting for parent confirmation.');
-        queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
-      } catch (e) {
-        toast.error(e.response?.data?.error || 'Check-out failed');
+        toast.error(e.response?.data?.error || 'Failed to mark complete');
       } finally { setLoading(false); }
       return;
     }

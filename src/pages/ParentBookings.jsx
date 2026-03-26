@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
-  Calendar, Clock, Users, LogIn, LogOut, XCircle, Flag,
+  Calendar, Clock, Users, XCircle, Flag,
   AlertTriangle, Loader2, CheckCircle, ArrowRight, Star
 } from 'lucide-react';
 import { format } from 'date-fns';
@@ -99,33 +99,21 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-2 mt-3">
-        {/* Cancel pending or accepted */}
-        {(booking.status === 'pending' || booking.status === 'accepted') && (
+        {/* Cancel pending or accepted (only before session starts) */}
+        {(booking.status === 'pending' || (booking.status === 'accepted' && !isPast)) && (
           <Button size="sm" variant="outline" onClick={() => onAction('cancel', booking)}>
             <XCircle className="w-4 h-4 mr-1" /> Cancel Request
           </Button>
         )}
-        {/* Check-in confirmation */}
-        {booking.status === 'accepted' && (
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => onAction('check_in', booking)}>
-            <LogIn className="w-4 h-4 mr-1" /> Confirm Check-In
-          </Button>
+        {/* Awaiting completion notice after session end time */}
+        {booking.status === 'accepted' && new Date() >= end && (
+          <div className="w-full mb-2 p-3 bg-blue-50 rounded-lg flex items-start gap-2 text-sm text-blue-800">
+            <Flag className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            <span>Your session has ended. Awaiting caregiver to mark it complete.</span>
+          </div>
         )}
-        {/* Check-out confirmation */}
-        {booking.status === 'in_progress' && (
-          <>
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => onAction('check_out', booking)}>
-              <LogOut className="w-4 h-4 mr-1" /> Confirm Check-Out
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onAction('report_no_show', booking)}>
-              <Flag className="w-4 h-4 mr-1" /> Report Issue
-            </Button>
-          </>
-        )}
-        {/* Report no-show after booking was supposed to start */}
-        {booking.status === 'accepted' && isPast && (
+        {/* Report No-Show — available 15 min after start_time */}
+        {booking.status === 'accepted' && new Date() >= new Date(start.getTime() + 15 * 60 * 1000) && (
           <Button size="sm" variant="outline" onClick={() => onAction('report_no_show', booking)}>
             <Flag className="w-4 h-4 mr-1" /> Report No-Show
           </Button>
@@ -225,9 +213,9 @@ export default function ParentBookings() {
   const reviewedBookingIds = new Set(existingReviews.map(r => r.booking_request_id));
 
   const filterMap = {
-    active:    b => ['pending', 'accepted', 'in_progress', 'cancellation_requested_by_caregiver'].includes(b.status),
+    active:    b => ['pending', 'accepted', 'cancellation_requested_by_caregiver'].includes(b.status),
     completed: b => ['completed'].includes(b.status),
-    cancelled: b => ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired', 'no_show_reported', 'under_review', 'resolved'].includes(b.status),
+    cancelled: b => ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired', 'no_show_reported', 'under_review', 'resolved', 'in_progress'].includes(b.status),
   };
 
   const invoke = async (fnName, payload) => {
@@ -236,29 +224,6 @@ export default function ParentBookings() {
   };
 
   const handleAction = async (type, booking, extra) => {
-    if (type === 'check_in') {
-      setSubmitting(true);
-      try {
-        const res = await invoke('checkIn', { booking_request_id: booking.id });
-        toast.success(res.step === 'both_confirmed' ? 'Session started!' : res.message || 'Check-in recorded.');
-        // Fix: React Query v5 requires object form for invalidateQueries
-        queryClient.invalidateQueries({ queryKey: ['parent-bookings'] });
-      } catch (e) {
-        toast.error(e.response?.data?.error || 'Check-in failed');
-      } finally { setSubmitting(false); }
-      return;
-    }
-    if (type === 'check_out') {
-      setSubmitting(true);
-      try {
-        const res = await invoke('checkOut', { booking_request_id: booking.id });
-        toast.success(res.step === 'both_confirmed' ? 'Session complete! Thank you.' : res.message || 'Check-out recorded.');
-        queryClient.invalidateQueries({ queryKey: ['parent-bookings'] });
-      } catch (e) {
-        toast.error(e.response?.data?.error || 'Check-out failed');
-      } finally { setSubmitting(false); }
-      return;
-    }
     if (type === 'review_cancel') {
       setSubmitting(true);
       try {
