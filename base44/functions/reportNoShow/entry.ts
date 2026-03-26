@@ -33,9 +33,6 @@ Deno.serve(async (req) => {
   const isParent = user.app_role === 'parent' && booking.parent_user_id === user.id;
   if (!isCaregiver && !isParent) return Response.json({ error: 'Not found.' }, { status: 404 });
 
-  if (booking.status === 'in_progress') {
-    return Response.json({ error: 'Your session is in progress. If there is an issue, use the check-out dispute flow.', current_status: booking.status }, { status: 409 });
-  }
   if (booking.status !== 'accepted') {
     return Response.json({ error: `No-show reporting is only available for accepted bookings. Current status: ${booking.status}.`, current_status: booking.status }, { status: 409 });
   }
