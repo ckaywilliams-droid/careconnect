@@ -11,10 +11,11 @@
  * Window: (start_time - 30min) to (start_time + 15min) — server wall-clock
  */
 
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
+  try {
 
   // ── Layer 2: Access gates ─────────────────────────────────────────────────
   const user = await base44.auth.me();
@@ -24,7 +25,7 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json();
-  const { booking_request_id } = body;
+  const { booking_request_id, utc_offset_minutes = 0 } = body;
   if (!booking_request_id) return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
 
   const booking = await base44.asServiceRole.entities.BookingRequest.get(booking_request_id);
@@ -32,8 +33,8 @@ Deno.serve(async (req) => {
 
   let isCaregiverOwner = booking.caregiver_user_id === user.id;
   if (!isCaregiverOwner && booking.caregiver_profile_id) {
-    const ownerProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
-    isCaregiverOwner = ownerProfiles[0]?.user_id === user.id;
+    const cgProfile = await base44.asServiceRole.entities.CaregiverProfile.get(booking.caregiver_profile_id);
+    isCaregiverOwner = cgProfile?.user_id === user.id;
   }
   const isCaregiver = user.app_role === 'caregiver' && isCaregiverOwner;
   const isParent = user.app_role === 'parent' && booking.parent_user_id === user.id;
@@ -44,10 +45,12 @@ Deno.serve(async (req) => {
   }
 
   // ── Layer 2: Check-in window gate ────────────────────────────────────────
-  const bookingStart = new Date(booking.start_time);
-  const windowOpen = new Date(bookingStart.getTime() - 30 * 60 * 1000);
+  // Use naïve-UTC frame: strip Z so stored "15:00Z" is treated as local 15:00.
+  // Adjust real-UTC 'now' by client's utc_offset_minutes to match the same frame.
+  const bookingStart = new Date(booking.start_time.slice(0, 19));
+  const windowOpen  = new Date(bookingStart.getTime() - 30 * 60 * 1000);
   const windowClose = new Date(bookingStart.getTime() + 15 * 60 * 1000);
-  const now = new Date();
+  const now = new Date(Date.now() - utc_offset_minutes * 60000);
 
   if (now < windowOpen) {
     return Response.json({ error: 'Check-in opens 30 minutes before your booking.' }, { status: 409 });
@@ -158,5 +161,10 @@ Deno.serve(async (req) => {
       status: 'in_progress',
       check_in_time: now.toISOString()
     }, { status: 200 });
+  }
+
+  } catch (err) {
+    console.error('checkIn unhandled error:', err?.message);
+    return Response.json({ error: 'An unexpected error occurred. Please try again.' }, { status: 500 });
   }
 });
