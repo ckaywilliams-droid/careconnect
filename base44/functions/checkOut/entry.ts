@@ -26,7 +26,8 @@ Deno.serve(async (req) => {
   const { booking_request_id } = body;
   if (!booking_request_id) return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
 
-  const booking = await base44.asServiceRole.entities.BookingRequest.get(booking_request_id);
+  const _bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
+  const booking = _bookings[0];
   if (!booking) return Response.json({ error: 'Not found.' }, { status: 404 });
 
   const isCaregiver = user.app_role === 'caregiver' && booking.caregiver_user_id === user.id;
@@ -79,7 +80,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
     }
 
-    const verifyRecord = await base44.asServiceRole.entities.BookingRequest.get(booking_request_id);
+    const _verifyRecords = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
+    const verifyRecord = _verifyRecords[0];
     if (!verifyRecord || verifyRecord.status !== 'completed') {
       return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
     }

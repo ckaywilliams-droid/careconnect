@@ -28,12 +28,14 @@ Deno.serve(async (req) => {
   const { booking_request_id, utc_offset_minutes = 0 } = body;
   if (!booking_request_id) return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
 
-  const booking = await base44.asServiceRole.entities.BookingRequest.get(booking_request_id);
+  const _bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
+  const booking = _bookings[0];
   if (!booking) return Response.json({ error: 'Not found.' }, { status: 404 });
 
   let isCaregiverOwner = booking.caregiver_user_id === user.id;
   if (!isCaregiverOwner && booking.caregiver_profile_id) {
-    const cgProfile = await base44.asServiceRole.entities.CaregiverProfile.get(booking.caregiver_profile_id);
+    const _cgProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+    const cgProfile = _cgProfiles[0];
     isCaregiverOwner = cgProfile?.user_id === user.id;
   }
   const isCaregiver = user.app_role === 'caregiver' && isCaregiverOwner;

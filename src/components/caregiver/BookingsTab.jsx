@@ -177,7 +177,7 @@ export default function BookingsTab({ user, profile }) {
     if (type === 'check_in') {
       setLoading(true);
       try {
-        const res = await invoke('checkIn', { booking_request_id: booking.id });
+        const res = await invoke('checkIn', { booking_request_id: booking.id, utc_offset_minutes: new Date().getTimezoneOffset() });
         toast.success(res.step === 'both_confirmed' ? 'Check-in confirmed! Session started.' : 'Arrival recorded. Waiting for parent.');
         queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
