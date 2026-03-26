@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
     caregiver_user_id: caregiverProfile.user_id
   });
   const activeBookings = allCaregiverBookings.filter(b =>
-    ['pending', 'accepted', 'in_progress'].includes(b.status)
+    ['pending', 'accepted'].includes(b.status)
   );
 
   const hasConflict = activeBookings.some(b =>
