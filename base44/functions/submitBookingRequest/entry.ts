@@ -118,9 +118,12 @@ Deno.serve(async (req) => {
     }, { status: 400 });
   }
 
-  // ── Build ISO datetimes ───────────────────────────────────────────────────
-  const startTimeISO = new Date(`${slot.slot_date}T${requested_start_time}:00`).toISOString();
-  const endTimeISO = new Date(`${slot.slot_date}T${requested_end_time}:00`).toISOString();
+  // ── Build datetimes — stored as naive local time (no UTC conversion) ────────
+  // Do NOT call .toISOString() here: that converts to UTC and causes a timezone
+  // shift when displayed in the browser (e.g. 3 PM stored as 15:00Z displays as
+  // 11 AM in EDT). Store the wall-clock string so display is always correct.
+  const startTimeISO = `${slot.slot_date}T${requested_start_time}:00`;
+  const endTimeISO = `${slot.slot_date}T${requested_end_time}:00`;
 
   // ── GATE 7: Rate limit — max 5 per parent per hour ────────────────────────
   const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
