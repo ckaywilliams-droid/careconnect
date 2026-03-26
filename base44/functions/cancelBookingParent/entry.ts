@@ -34,9 +34,6 @@ Deno.serve(async (req) => {
   if (booking.status === 'cancellation_requested_by_caregiver') {
     return Response.json({ error: 'You have a pending cancellation request from the caregiver. Please respond to it first.', current_status: booking.status }, { status: 409 });
   }
-  if (booking.status === 'in_progress') {
-    return Response.json({ error: 'Your booking session is in progress and cannot be cancelled. Please contact support if there is an issue.', current_status: booking.status }, { status: 409 });
-  }
   if (booking.status !== 'pending' && booking.status !== 'accepted') {
     return Response.json({ error: `This booking cannot be cancelled in its current state (${booking.status}).`, current_status: booking.status }, { status: 409 });
   }
