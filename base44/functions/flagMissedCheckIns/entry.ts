@@ -22,17 +22,15 @@ Deno.serve(async (req) => {
   }
 
   const now = new Date();
-  // Window closed = start_time + 15min has passed
-  const windowCutoff = new Date(now.getTime() - 15 * 60 * 1000);
   const results = { flagged: 0, errors: [] };
 
   const acceptedBookings = await base44.asServiceRole.entities.BookingRequest.filter({ status: 'accepted' });
 
-  // Only target bookings whose check-in window is now fully closed
+  // Flag bookings that ended more than 24 hours ago and were never completed
   const missed = acceptedBookings.filter(b => {
-    const startTime = new Date(b.start_time);
-    const windowClose = new Date(startTime.getTime() + 15 * 60 * 1000);
-    return windowClose < now;
+    const endTime = new Date(b.end_time.slice(0, 19));
+    const gracePeriodEnd = new Date(endTime.getTime() + 24 * 60 * 60 * 1000);
+    return gracePeriodEnd < now;
   });
 
   for (const booking of missed) {
@@ -59,7 +57,7 @@ Deno.serve(async (req) => {
     await base44.asServiceRole.entities.ReviewCase.create({
       booking_request_id: booking.id,
       case_type: 'no_show',
-      notes: `Auto-flagged: check-in window closed at ${new Date(new Date(booking.start_time).getTime() + 15 * 60 * 1000).toISOString()} without mutual check-in confirmation.`,
+      notes: `Auto-flagged: session end time passed ${new Date(new Date(booking.end_time).getTime() + 24 * 60 * 60 * 1000).toISOString()} without caregiver marking complete.`,
       ruling: 'pending'
     }).catch(() => {});
 
