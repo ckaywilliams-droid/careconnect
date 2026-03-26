@@ -102,7 +102,7 @@ function BookingCard({ booking, onAction }) {
             Session ended — please mark as complete
           </p>
         )}
-        {((booking.status === 'accepted' && isAfterEnd) || booking.status === 'in_progress') ? (
+        {booking.status === 'accepted' && isAfterEnd ? (
           <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={() => onAction('mark_complete', booking)}>
             <CheckCircle className="w-4 h-4 mr-1" /> Mark as Complete
@@ -150,7 +150,15 @@ export default function BookingsTab({ user, profile }) {
 
   const invoke = async (fnName, payload) => {
     const res = await base44.functions.invoke(fnName, payload);
-    return res.data;
+    // base44.functions.invoke resolves even on 4xx — detect and throw
+    const body = res?.data ?? res;
+    if (body?.error || (res?.status && res.status >= 400)) {
+      const err = new Error(body?.error || `${fnName} failed`);
+      err.data = body;
+      err.status = res?.status;
+      throw err;
+    }
+    return body;
   };
 
   const handleAction = async (type, booking) => {
@@ -179,11 +187,18 @@ export default function BookingsTab({ user, profile }) {
     if (type === 'mark_complete') {
       setLoading(true);
       try {
+        // Proactive auth check — token may have expired during a long session
+        const currentUser = await base44.auth.me();
+        if (!currentUser) {
+          toast.error('Your session has expired. Please reload the page to re-authenticate.');
+          setLoading(false);
+          return;
+        }
         await invoke('markSessionComplete', { booking_request_id: booking.id });
         toast.success('Session marked as complete!');
         queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
-        toast.error(e.response?.data?.error || 'Failed to mark complete');
+        toast.error(e.data?.error || e.message || 'Failed to mark complete');
       } finally { setLoading(false); }
       return;
     }
@@ -209,7 +224,7 @@ export default function BookingsTab({ user, profile }) {
       queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       setModal(null);
     } catch (e) {
-      toast.error(e.response?.data?.error || 'Action failed');
+      toast.error(e.data?.error || e.message || 'Action failed');
     } finally { setLoading(false); }
   };
 
