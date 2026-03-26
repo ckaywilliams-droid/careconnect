@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   CheckCircle, XCircle, Calendar, Clock, Users, AlertTriangle,
-  Loader2, LogIn, LogOut, Flag, ChevronRight
+  Loader2, Flag, ChevronRight
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -22,7 +22,7 @@ const STATUS_CONFIG = {
   cancelled_by_caregiver:               { label: 'Cancelled by You',     color: 'bg-gray-100 text-gray-700' },
   cancellation_requested_by_caregiver:  { label: 'Cancel Requested',     color: 'bg-orange-100 text-orange-800' },
   expired:                              { label: 'Expired',              color: 'bg-gray-100 text-gray-500' },
-  in_progress:                          { label: 'In Progress',          color: 'bg-blue-100 text-blue-800' },
+
   completed:                            { label: 'Completed',            color: 'bg-emerald-100 text-emerald-800' },
   no_show_reported:                     { label: 'No-Show Review',       color: 'bg-red-100 text-red-800' },
   under_review:                         { label: 'Under Review',         color: 'bg-purple-100 text-purple-800' },
@@ -37,7 +37,9 @@ function StatusBadge({ status }) {
 function BookingCard({ booking, onAction }) {
   const start = new Date(booking.start_time.slice(0, 19));
   const end = new Date(booking.end_time.slice(0, 19));
-  const isPast = start < new Date();
+  const now = new Date();
+  const isPast = start < now;
+  const isAfterEnd = end < now;
 
   return (
     <div className="border border-gray-200 rounded-xl p-4 bg-white hover:border-gray-300 transition-colors">
@@ -89,28 +91,22 @@ function BookingCard({ booking, onAction }) {
             Request Cancellation
           </Button>
         )}
-        {booking.status === 'accepted' && (
-          <Button size="sm" className="bg-blue-600 hover:bg-blue-700 text-white"
-            onClick={() => onAction('check_in', booking)}>
-            <LogIn className="w-4 h-4 mr-1" /> Check In
-          </Button>
-        )}
-        {booking.status === 'in_progress' && (
-          <>
-            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              onClick={() => onAction('check_out', booking)}>
-              <LogOut className="w-4 h-4 mr-1" /> Check Out
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => onAction('report_no_show', booking)}>
-              <Flag className="w-4 h-4 mr-1" /> Report Issue
-            </Button>
-          </>
-        )}
         {booking.status === 'accepted' && isPast && (
           <Button size="sm" variant="outline" onClick={() => onAction('report_no_show', booking)}>
             <Flag className="w-4 h-4 mr-1" /> Report No-Show
           </Button>
         )}
+        {booking.status === 'accepted' && isAfterEnd && (
+          <p className="text-xs text-amber-600 font-medium w-full mt-1">
+            Session ended — please mark as complete
+          </p>
+        )}
+        {((booking.status === 'accepted' && isAfterEnd) || booking.status === 'in_progress') ? (
+          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => onAction('mark_complete', booking)}>
+            <CheckCircle className="w-4 h-4 mr-1" /> Mark as Complete
+          </Button>
+        ) : null}
       </div>
     </div>
   );
@@ -139,7 +135,7 @@ export default function BookingsTab({ user, profile }) {
 
   const filterMap = {
     needs_action: b => ['pending', 'cancellation_requested_by_caregiver'].includes(b.status),
-    upcoming:     b => ['accepted', 'in_progress'].includes(b.status),
+    upcoming:     b => ['accepted'].includes(b.status),
     completed:    b => ['completed'].includes(b.status),
     cancelled:    b => ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired', 'no_show_reported', 'under_review', 'resolved'].includes(b.status),
   };
