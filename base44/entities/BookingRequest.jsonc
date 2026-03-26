@@ -1,0 +1,191 @@
+{
+  "name": "BookingRequest",
+  "type": "object",
+  "rls": {
+    "create": false,
+    "read": {
+      "$or": [
+        {
+          "data.parent_user_id": "{{user.id}}",
+          "user_condition": {
+            "data.app_role": "parent"
+          }
+        },
+        {
+          "user_condition": {
+            "data.app_role": "caregiver"
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.parent_user_id": "{{user.id}}",
+          "user_condition": {
+            "data.app_role": "parent"
+          }
+        },
+        {
+          "user_condition": {
+            "data.app_role": "caregiver"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "user_condition": {
+        "data.app_role": "super_admin"
+      }
+    }
+  },
+  "properties": {
+    "parent_profile_id": {
+      "type": "string",
+      "description": "F-074 Data.1: Relation to ParentProfile. The parent requesting the booking. Required."
+    },
+    "parent_user_id": {
+      "type": "string",
+      "description": "F-074 Data.1: Relation to User. Denormalized for RLS queries. Required."
+    },
+    "caregiver_profile_id": {
+      "type": "string",
+      "description": "F-074 Data.1: Relation to CaregiverProfile. The caregiver being booked. Required."
+    },
+    "caregiver_user_id": {
+      "type": "string",
+      "description": "F-074 Data.1: Relation to User. Denormalized for RLS queries. Required."
+    },
+    "availability_slot_id": {
+      "type": "string",
+      "description": "F-074 Data.1: Relation to AvailabilitySlot. The specific slot being requested. Required."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "accepted",
+        "declined",
+        "cancelled_by_parent",
+        "cancelled_by_caregiver",
+        "cancellation_requested_by_caregiver",
+        "expired",
+        "in_progress",
+        "completed",
+        "no_show_reported",
+        "under_review",
+        "resolved"
+      ],
+      "default": "pending",
+      "description": "F-076 Data.2 (Addendum): Full 12-state machine enum. Terminal states: declined, cancelled_by_parent, cancelled_by_caregiver, expired, completed, resolved. All transitions are Automation-only \u2014 no direct client write permitted."
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "F-074 Data.1: Booking start datetime. Derived server-side from the linked AvailabilitySlot \u2014 not client-supplied. Required."
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "F-074 Data.1: Booking end datetime. Derived server-side from the linked AvailabilitySlot \u2014 not client-supplied. Required."
+    },
+    "num_children": {
+      "type": "number",
+      "description": "F-074 Data.1: Number of children. Integer, min 1, max 10. Required."
+    },
+    "special_requests": {
+      "type": "string",
+      "description": "F-074 Data.1, Logic.3: Optional parent notes to caregiver. Max 500 chars. Sanitised on write (strip HTML/script tags). Visible only to caregiver and admin."
+    },
+    "hourly_rate_snapshot": {
+      "type": "number",
+      "description": "F-074 Data.1 / F-081 Data.1: Integer cents. Copied from CaregiverProfile.hourly_rate_cents at BookingRequest creation time. Immutable after creation. Used for all payment calculations."
+    },
+    "platform_fee_pct_snapshot": {
+      "type": "number",
+      "description": "F-081 Data.1: Integer (percentage \u00d7 100, e.g. 1500 = 15.00%). Copied from system config at creation time. Immutable after creation. 0 at MVP."
+    },
+    "stripe_payment_intent_id": {
+      "type": "string",
+      "description": "F-081 Data.1: Stripe PaymentIntent ID. Nullable \u2014 populated post-MVP when payment is captured. Writable by Stripe webhook handler Automation only."
+    },
+    "stripe_transfer_id": {
+      "type": "string",
+      "description": "F-081 Data.1: Stripe Transfer ID. Nullable \u2014 populated post-MVP when payout is released. Writable by Stripe webhook handler Automation only."
+    },
+    "address_revealed_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "F-081 Data.1: Timestamp when parent address was revealed to caregiver. Nullable \u2014 post-MVP feature."
+    },
+    "cancellation_requested_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "F-076 Addendum Data.1: Timestamp when caregiver submitted cancellation request. Nullable."
+    },
+    "cancellation_response_deadline": {
+      "type": "string",
+      "format": "date-time",
+      "description": "F-076 Addendum Data.1: cancellation_requested_at + 24h. Parent must respond by this time. Nullable."
+    },
+    "cancellation_reason": {
+      "type": "string",
+      "description": "F-078 Logic.3 / F-085 Data.1: Cancellation reason text. Max 500 chars. Required for caregiver requests (min 10 chars). Optional for parent cancellations. Admin-only at MVP."
+    },
+    "cancellation_response_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "F-086 Data.1: Timestamp when parent approved or denied the caregiver cancellation request. Nullable."
+    },
+    "cancelled_by": {
+      "type": "string",
+      "enum": [
+        "parent",
+        "caregiver",
+        "admin"
+      ],
+      "description": "F-076 Addendum Data.1: Which party initiated the cancellation. Nullable \u2014 only set when booking is in a cancelled terminal state."
+    },
+    "check_in_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "F-080 Data.1: Timestamp when both parties confirmed check-in. Nullable \u2014 set when status transitions to in_progress."
+    },
+    "check_out_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "F-081R Data.1: Timestamp when both parties confirmed checkout. Nullable \u2014 set when status transitions to completed."
+    },
+    "review_status": {
+      "type": "string",
+      "enum": [
+        "none",
+        "pending",
+        "resolved"
+      ],
+      "default": "none",
+      "description": "F-076 Addendum Data.1: Admin review status for under_review and no_show_reported cases. none = no review, pending = review open, resolved = admin ruled."
+    },
+    "is_duplicate_checked": {
+      "type": "boolean",
+      "default": false,
+      "description": "F-075: Flag indicating duplicate prevention check was performed at the data layer."
+    },
+    "is_deleted": {
+      "type": "boolean",
+      "default": false,
+      "description": "F-017: Soft delete flag."
+    }
+  },
+  "required": [
+    "parent_profile_id",
+    "parent_user_id",
+    "caregiver_profile_id",
+    "caregiver_user_id",
+    "availability_slot_id",
+    "start_time",
+    "end_time",
+    "num_children",
+    "hourly_rate_snapshot"
+  ]
+}
