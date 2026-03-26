@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { createPageUrl } from '@/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,73 +14,58 @@ export default function Home() {
   const navigate = useNavigate();
   const [featuredCaregivers, setFeaturedCaregivers] = useState([]);
   const [verifiedCount, setVerifiedCount] = useState(0);
-  const [user, setUser] = useState(null);
-  const [authChecked, setAuthChecked] = useState(false);
   const [location, setLocation] = useState('');
   const [date, setDate] = useState('');
   const [heroImageUrl, setHeroImageUrl] = useState('https://images.unsplash.com/photo-1531983412531-1f49a365ffed?w=1600');
   const [showHeroUpload, setShowHeroUpload] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  // Redirect incomplete parent onboarding
   useEffect(() => {
-    // Redirect incomplete parent onboarding to ParentOnboarding
-    (async () => {
-      try {
-        const currentUser = await base44.auth.me();
-        if (currentUser?.app_role === 'parent' && !currentUser?.onboarding_complete) {
-          navigate(createPageUrl('ParentOnboarding'), { replace: true });
-          return;
-        }
-      } catch {
-        // Not authenticated, continue
-      }
-    })();
-    loadData();
-  }, [navigate]);
+    if (!isLoadingAuth && user?.app_role === 'parent' && !user?.onboarding_complete) {
+      navigate(createPageUrl('ParentOnboarding'), { replace: true });
+    }
+  }, [user, isLoadingAuth, navigate]);
 
-  const loadData = async () => {
-    try {
-      // Check if user is authenticated (but don't block page if not)
-      try {
-        const currentUser = await base44.auth.me();
-        setUser(currentUser);
-      } catch {
-        // User not authenticated - this is fine for public page
-        setUser(null);
-      } finally {
-        setAuthChecked(true);
-      }
-
+  // Load public page data (no auth required)
+  useEffect(() => {
+    const loadData = async () => {
       // Load hero image URL from AppSettings
       try {
-        const appSettings = await base44.entities.AppSettings.filter(
-          { key: 'hero_image_url' }
-        );
+        const appSettings = await base44.entities.AppSettings.filter({ key: 'hero_image_url' });
         if (appSettings.length > 0 && appSettings[0].value) {
           setHeroImageUrl(appSettings[0].value);
         }
-      } catch {
-        // Fall back to default
+      } catch (err) {
+        // Fall back to default hero image — non-critical
+        console.warn('Could not load hero image setting:', err?.message);
       }
 
-      // Load featured caregivers (verified, published, limit 4)
-      const caregivers = await base44.entities.CaregiverProfile.filter(
-        { is_verified: true, is_published: true },
-        '-average_rating',
-        4
-      );
-      setFeaturedCaregivers(caregivers);
+      // Load featured caregivers (public, no auth needed)
+      try {
+        const caregivers = await base44.entities.CaregiverProfile.filter(
+          { is_verified: true, is_published: true },
+          '-average_rating',
+          4
+        );
+        setFeaturedCaregivers(caregivers);
+      } catch (err) {
+        console.warn('Could not load featured caregivers:', err?.message);
+      }
 
       // Get total verified caregiver count for trust signals
-      const allVerified = await base44.entities.CaregiverProfile.filter(
-        { is_verified: true, is_published: true }
-      );
-      setVerifiedCount(allVerified.length);
-    } catch (err) {
-      console.error('Error loading data:', err);
-      setAuthChecked(true);
-    }
-  };
+      try {
+        const allVerified = await base44.entities.CaregiverProfile.filter(
+          { is_verified: true, is_published: true }
+        );
+        setVerifiedCount(allVerified.length);
+      } catch (err) {
+        console.warn('Could not load caregiver count:', err?.message);
+      }
+    };
+
+    loadData();
+  }, []);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -175,11 +161,9 @@ export default function Home() {
                 Find a Caregiver
               </Link>
               
-              {!authChecked ? (
-                // Loading state
+              {isLoadingAuth ? (
                 <div className="h-9 w-32 bg-gray-200 animate-pulse rounded"></div>
               ) : user ? (
-               // Authenticated - show role-based dashboard link
                user.app_role === 'parent' ? (
                  <div className="flex items-center gap-2">
                    <Button variant="ghost" onClick={() => navigate(createPageUrl('ParentBookings'))} className="text-gray-700 hover:text-[#C36239]">
@@ -202,7 +186,6 @@ export default function Home() {
                  </Button>
                )
               ) : (
-                // Unauthenticated - show Sign In and Register Now
                 <>
                   <Button
                     variant="ghost"
