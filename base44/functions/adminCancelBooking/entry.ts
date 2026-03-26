@@ -7,7 +7,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const TERMINAL_STATES = ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired', 'completed', 'resolved'];
-const SLOT_RELEASE_STATES = ['accepted', 'in_progress', 'cancellation_requested_by_caregiver'];
+const SLOT_RELEASE_STATES = ['accepted', 'cancellation_requested_by_caregiver'];
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
@@ -58,7 +58,7 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'The booking status has changed. Please refresh and review the current state.' }, { status: 409 });
   }
 
-  // (5) Slot reopen if booking was in accepted/in_progress/cancellation_requested
+  // (5) Slot reopen if booking was in accepted/cancellation_requested
   if (SLOT_RELEASE_STATES.includes(previousStatus) && booking.availability_slot_id) {
     const slots = await base44.asServiceRole.entities.AvailabilitySlot.filter({ id: booking.availability_slot_id });
     const slot = slots[0];
