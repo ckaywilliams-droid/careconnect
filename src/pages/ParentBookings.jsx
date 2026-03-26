@@ -28,7 +28,7 @@ const STATUS_CONFIG = {
   cancelled_by_caregiver:               { label: 'Cancelled by Caregiver',color: 'bg-gray-100 text-gray-600' },
   cancellation_requested_by_caregiver:  { label: '\u26a0 Cancel Requested',    color: 'bg-orange-100 text-orange-800' },
   expired:                              { label: 'Expired',               color: 'bg-gray-100 text-gray-500' },
-  in_progress:                          { label: 'In Progress',           color: 'bg-blue-100 text-blue-800' },
+
   completed:                            { label: 'Completed',             color: 'bg-emerald-100 text-emerald-800' },
   no_show_reported:                     { label: 'Under Review',          color: 'bg-red-100 text-red-800' },
   under_review:                         { label: 'Under Review',          color: 'bg-purple-100 text-purple-800' },
@@ -65,9 +65,22 @@ function CancellationRequestBanner({ booking, onRespond }) {
 
 function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
   const cgProfile = cgProfiles[booking.caregiver_profile_id];
-  const start = new Date(booking.start_time.slice(0, 19));
-  const end = new Date(booking.end_time.slice(0, 19));
-  const isPast = start < new Date();
+  let start, end, now, isPast, isAfterEnd, isNoShowVisible;
+  try {
+    start = new Date(booking.start_time.slice(0, 19));
+    end = new Date(booking.end_time.slice(0, 19));
+    now = new Date();
+    isPast = start < now;
+    isAfterEnd = end < now;
+    isNoShowVisible = now > new Date(start.getTime() + 15 * 60 * 1000);
+  } catch (e) {
+    start = new Date();
+    end = new Date();
+    now = new Date();
+    isPast = false;
+    isAfterEnd = false;
+    isNoShowVisible = false;
+  }
 
   return (
     <div className="border border-gray-200 rounded-xl p-4 bg-white hover:border-gray-300 transition-colors">
@@ -105,18 +118,20 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
             <XCircle className="w-4 h-4 mr-1" /> Cancel Request
           </Button>
         )}
-        {/* Awaiting completion notice after session end time */}
-        {booking.status === 'accepted' && new Date() >= end && (
-          <div className="w-full mb-2 p-3 bg-blue-50 rounded-lg flex items-start gap-2 text-sm text-blue-800">
-            <Flag className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            <span>Your session has ended. Awaiting caregiver to mark it complete.</span>
-          </div>
-        )}
         {/* Report No-Show — available 15 min after start_time */}
-        {booking.status === 'accepted' && new Date() >= new Date(start.getTime() + 15 * 60 * 1000) && (
+        {booking.status === 'accepted' && isNoShowVisible && (
           <Button size="sm" variant="outline" onClick={() => onAction('report_no_show', booking)}>
             <Flag className="w-4 h-4 mr-1" /> Report No-Show
           </Button>
+        )}
+        {booking.status === 'accepted' && isNoShowVisible && (
+          <p className="text-xs text-gray-400 w-full">Did the caregiver not arrive? Use "Report No-Show" above.</p>
+        )}
+        {booking.status === 'accepted' && !isNoShowVisible && isPast && (
+          <p className="text-xs text-gray-400 w-full">The "Report No-Show" button will appear 15 minutes after the session start time.</p>
+        )}
+        {booking.status === 'accepted' && isAfterEnd && (
+          <p className="text-xs text-amber-600 font-medium w-full mt-1">Session ended — awaiting caregiver confirmation</p>
         )}
         {/* Leave a review for completed bookings */}
         {booking.status === 'completed' && !reviewed && (
@@ -215,7 +230,7 @@ export default function ParentBookings() {
   const filterMap = {
     active:    b => ['pending', 'accepted', 'cancellation_requested_by_caregiver'].includes(b.status),
     completed: b => ['completed'].includes(b.status),
-    cancelled: b => ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired', 'no_show_reported', 'under_review', 'resolved', 'in_progress'].includes(b.status),
+    cancelled: b => ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired', 'no_show_reported', 'under_review', 'resolved'].includes(b.status),
   };
 
   const invoke = async (fnName, payload) => {
