@@ -178,8 +178,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
   };
 
   const handleSave = () => {
-    const completion_pct = computeCompletionPct({ ...formData, is_verified: profile.is_verified });
-    updateProfileMutation.mutate({ ...formData, completion_pct });
+    updateProfileMutation.mutate({ ...formData });
   };
 
   const handleCancel = () => {
