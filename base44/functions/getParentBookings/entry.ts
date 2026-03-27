@@ -11,11 +11,13 @@ Deno.serve(async (req) => {
 
     console.log('[getParentBookings] Fetching bookings for parent_user_id:', user.id);
 
-    const bookings = await base44.asServiceRole.entities.BookingRequest.filter(
-      { parent_user_id: user.id, is_deleted: false },
+    const allForParent = await base44.asServiceRole.entities.BookingRequest.filter(
+      { parent_user_id: user.id },
       '-created_date',
       100
     );
+
+    const bookings = allForParent.filter(b => b.is_deleted !== true);
 
     console.log('[getParentBookings] matched', bookings.length, 'bookings');
 
