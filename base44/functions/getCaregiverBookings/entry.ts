@@ -8,15 +8,33 @@ Deno.serve(async (req) => {
   if (user.app_role !== 'caregiver') return Response.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
-    // Filter by caregiver_user_id directly — no profile lookup needed
-    const bookings = await base44.asServiceRole.entities.BookingRequest.filter(
-      { caregiver_user_id: user.id }
+    // DEBUG: identify correct user id field vs. stored caregiver_user_id
+    console.log('[getCaregiverBookings] full user object:', JSON.stringify(user, null, 2));
+    const sample = await base44.asServiceRole.entities.BookingRequest.filter({});
+    const recentSample = sample
+      .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime())
+      .slice(0, 5);
+    console.log('[getCaregiverBookings] sample caregiver_user_id values in DB:',
+      recentSample.map(b => ({ id: b.id, caregiver_user_id: b.caregiver_user_id }))
+    );
+    console.log('[getCaregiverBookings] user.id =', user.id,
+      '| user._id =', user._id,
+      '| user.entity_id =', user.entity_id
     );
 
-    // Sort by created_date descending in-memory
-    bookings.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+    // Fallback chain: prefer entity ID properties over auth JWT subject
+    const userId = user._id || user.entity_id || user.id;
 
-    return Response.json({ bookings }, { status: 200 });
+    const allForCaregiver = await base44.asServiceRole.entities.BookingRequest.filter(
+      { caregiver_user_id: userId }
+    );
+
+    const bookings = allForCaregiver
+      .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime());
+
+    console.log('[getCaregiverBookings] matched', bookings.length, 'bookings for userId:', userId);
+
+    return Response.json({ bookings, debug: { matched: bookings.length, user_id: userId } }, { status: 200 });
   } catch (err) {
     console.error('getCaregiverBookings error:', err.message);
     return Response.json({ error: err.message, bookings: [] }, { status: 500 });
