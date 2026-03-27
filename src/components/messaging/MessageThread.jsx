@@ -200,8 +200,15 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
   };
 
   useEffect(() => {
+    if (!booking?.id) {
+      console.error('[MessageThread] useEffect fired but booking.id is undefined — skipping load. booking =', booking);
+      setError('Invalid booking: missing record ID.');
+      setLoading(false);
+      return;
+    }
+    console.log('[MessageThread] useEffect: loading thread for booking.id =', booking.id);
     loadThread();
-  }, [booking.id]);
+  }, [booking?.id]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
