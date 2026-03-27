@@ -20,8 +20,12 @@ Deno.serve(async (req) => {
   console.log(`[getOrCreateMessageThread] Looking up booking ${booking_id} for user ${user.id}`);
 
   // Fetch booking via service role to bypass RLS
-  const bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_id });
-  const booking = bookings[0];
+  let booking = null;
+  try {
+    booking = await base44.asServiceRole.entities.BookingRequest.get(booking_id);
+  } catch (e) {
+    booking = null;
+  }
 
   if (!booking) {
     console.error(`[getOrCreateMessageThread] Booking not found: ${booking_id}`);
