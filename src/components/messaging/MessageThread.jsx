@@ -153,35 +153,14 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
   const loadThread = async () => {
     setError(null);
     try {
-      const threads = await base44.entities.MessageThread.filter({ booking_id: booking.id });
-      let t = threads[0];
-
+      // Use service-role backend function to bypass RLS and self-heal missing threads
+      const threadRes = await base44.functions.invoke('getOrCreateMessageThread', {
+        booking_id: booking.id,
+      });
+      const t = threadRes.data?.thread || null;
       if (!t) {
-        const terminalStatuses = ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired'];
-        if (terminalStatuses.includes(booking.status)) {
-          setLoading(false);
-          return;
-        }
-        // RLS blocks direct create — use backend function instead
-        const res = await base44.functions.invoke('createMessageThread', {
-          booking_request_id: booking.id,
-          parent_user_id: booking.parent_user_id,
-          caregiver_user_id: booking.caregiver_user_id,
-        });
-        // Use thread_id directly from response to avoid race condition on re-fetch
-        if (res.data?.thread_id) {
-          t = {
-            id: res.data.thread_id,
-            booking_id: booking.id,
-            parent_user_id: booking.parent_user_id,
-            caregiver_user_id: booking.caregiver_user_id,
-            is_active: true
-          };
-        }
-        if (!t) {
-          setLoading(false);
-          return;
-        }
+        setLoading(false);
+        return;
       }
       setThread(t);
 

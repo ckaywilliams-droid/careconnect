@@ -71,19 +71,9 @@ export default function MessagingTab({ user, profile }) {
     setError(null);
     setLoading(true);
     try {
-      // Fetch caregiver's profile to support ownership fallback
-      let caregiverUserId = user.id;
-      if (profile?.user_id) {
-        caregiverUserId = profile.user_id;
-      } else {
-        const profiles = await base44.entities.CaregiverProfile.filter({ user_id: user.id });
-        if (profiles[0]?.user_id) caregiverUserId = profiles[0].user_id;
-      }
-
-      // Fetch all threads where caregiver is a participant (with fallback)
-      const allThreads = await base44.entities.MessageThread.filter({ 
-        caregiver_user_id: caregiverUserId 
-      });
+      // Fetch all threads via service role (bypasses RLS)
+      const threadsRes = await base44.functions.invoke('getCaregiverThreads', {});
+      const allThreads = threadsRes.data?.threads || [];
 
       // Sort by last message timestamp
       const sorted = allThreads.sort((a, b) => {
