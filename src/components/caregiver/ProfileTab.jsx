@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { computeCompletionPct } from '@/lib/profileCompletion';
 import { base44 } from '@/api/base44Client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -177,7 +178,8 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
   };
 
   const handleSave = () => {
-    updateProfileMutation.mutate(formData);
+    const completion_pct = computeCompletionPct({ ...formData, is_verified: profile.is_verified });
+    updateProfileMutation.mutate({ ...formData, completion_pct });
   };
 
   const handleCancel = () => {
@@ -208,14 +210,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
     togglePublishMutation.mutate(checked);
   };
 
-  const getCompletionPercentage = () => {
-    const fields = [
-      'display_name', 'bio', 'experience_years', 'hourly_rate_cents',
-      'services_offered', 'age_groups', 'languages', 'city', 'state', 'profile_photo_url'
-    ];
-    const completed = fields.filter(field => formData[field]).length;
-    return Math.round((completed / fields.length) * 100);
-  };
+
 
 
 
@@ -237,7 +232,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
     );
   }
 
-  const completion = getCompletionPercentage();
+  const computedCompletion = computeCompletionPct({ ...formData, is_verified: profile?.is_verified });
 
   return (
     <div className="space-y-6">
@@ -245,7 +240,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
       <ProfileCompletion profile={profile} />
 
       {/* Profile Publish Control — only shown when not yet published */}
-      {profile.completion_pct === 100 && !profile.is_published && (
+      {computedCompletion === 100 && !profile.is_published && (
         <Card className="border-green-200 bg-green-50">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -269,11 +264,11 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
         </Card>
       )}
 
-      {profile.completion_pct < 100 && (
+      {computedCompletion < 100 && (
         <Alert className="border-amber-200 bg-amber-50">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
-            Complete all fields to publish your profile. You're at {profile.completion_pct}% — scroll down to fill in any missing information.
+            Complete all fields to publish your profile. You're at {computedCompletion}% — scroll down to fill in any missing information.
           </AlertDescription>
         </Alert>
       )}

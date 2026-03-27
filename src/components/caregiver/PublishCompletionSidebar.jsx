@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { computeCompletionPct } from '@/lib/profileCompletion';
 import { useMutation } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -53,7 +54,7 @@ export default function PublishCompletionSidebar({ profile, onPublishChange }) {
   ];
 
   const allComplete = checklistItems.every(item => item.complete);
-  const completionPercent = profile.completion_pct || 0;
+  const completionPercent = computeCompletionPct(profile);
 
   // Publish mutation
   const publishMutation = useMutation({
