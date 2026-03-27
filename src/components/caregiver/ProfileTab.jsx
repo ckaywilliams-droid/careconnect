@@ -232,7 +232,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
     );
   }
 
-  const computedCompletion = computeCompletionPct({ ...formData, is_verified: profile?.is_verified });
+  const computedCompletion = computeCompletionPct(profile);
 
   return (
     <div className="space-y-6">
@@ -264,7 +264,7 @@ export default function ProfileTab({ user, profile, onProfileUpdate, isEditMode,
         </Card>
       )}
 
-      {computedCompletion < 100 && (
+      {computedCompletion < 100 && !profile.is_published && (
         <Alert className="border-amber-200 bg-amber-50">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
           <AlertDescription className="text-amber-800">
