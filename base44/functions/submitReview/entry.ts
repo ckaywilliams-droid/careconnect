@@ -24,8 +24,9 @@ Deno.serve(async (req) => {
     }
 
     // Use service role to bypass RLS, then do manual ownership check
-    const bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
-    const booking = bookings[0];
+    // Note: SDK filter does not support built-in `id` field directly, so filter by parent_user_id and find by id
+    const allBookings = await base44.asServiceRole.entities.BookingRequest.filter({ parent_user_id: user.id });
+    const booking = allBookings.find(b => b.id === booking_request_id);
 
     if (!booking) {
       return Response.json({ error: 'Booking not found.' }, { status: 404 });
