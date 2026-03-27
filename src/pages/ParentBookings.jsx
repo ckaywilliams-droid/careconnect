@@ -415,6 +415,7 @@ export default function ParentBookings() {
               </DialogTitle>
             </DialogHeader>
             <div className="flex-1 overflow-hidden p-4">
+              {console.log('[ParentBookings] MessageThread booking prop:', threadModal.booking)}
               <MessageThread booking={threadModal.booking} currentUser={user} />
             </div>
           </DialogContent>
