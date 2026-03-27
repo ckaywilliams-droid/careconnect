@@ -6,6 +6,7 @@ import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import BookingDetails from './pages/BookingDetails';
+import BookingStatsAgent from './pages/BookingStatsAgent';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
@@ -59,6 +60,11 @@ const AuthenticatedApp = () => {
           }
         />
       ))}
+      <Route path="/booking-stats-agent" element={
+        <LayoutWrapper currentPageName="BookingStatsAgent">
+          <BookingStatsAgent />
+        </LayoutWrapper>
+      } />
       <Route path="/bookings/:id" element={
         <LayoutWrapper currentPageName="BookingDetails">
           <BookingDetails />
