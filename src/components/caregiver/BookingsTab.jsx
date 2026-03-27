@@ -124,10 +124,8 @@ export default function BookingsTab({ user, profile }) {
     queryKey: ['caregiver-bookings', profile?.id],
     queryFn: async () => {
       if (!profile) return [];
-      return await base44.entities.BookingRequest.filter(
-        { caregiver_profile_id: profile.id },
-        '-created_date'
-      );
+      const res = await base44.functions.invoke('getCaregiverBookings', {});
+      return res.data?.bookings ?? [];
     },
     enabled: !!profile,
     refetchInterval: 30000
@@ -159,22 +157,22 @@ export default function BookingsTab({ user, profile }) {
     if (type === 'accept') {
       setLoading(true);
       try {
-        await base44.entities.BookingRequest.update(booking.id, { status: 'accepted' });
+        await invoke('acceptBooking', { booking_request_id: booking.id });
         toast.success('Booking accepted!');
         queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
-        toast.error(e.response?.data?.error || 'Failed to accept booking');
+        toast.error(e.data?.error || e.message || 'Failed to accept booking');
       } finally { setLoading(false); }
       return;
     }
     if (type === 'decline') {
       setLoading(true);
       try {
-        await base44.entities.BookingRequest.update(booking.id, { status: 'declined' });
+        await invoke('declineBooking', { booking_request_id: booking.id });
         toast.success('Booking declined.');
         queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
-        toast.error(e.response?.data?.error || 'Failed to decline booking');
+        toast.error(e.data?.error || e.message || 'Failed to decline booking');
       } finally { setLoading(false); }
       return;
     }
