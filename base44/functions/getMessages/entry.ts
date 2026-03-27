@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.21';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 Deno.serve(async (req) => {
   try {
@@ -16,8 +16,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'thread_id is required.' }, { status: 400 });
     }
 
-    // Use asServiceRole to look up the MessageThread
-    const thread = await base44.asServiceRole.entities.MessageThread.get(thread_id);
+    // Use asServiceRole to look up the MessageThread via filter (more resilient than .get())
+    const threads = await base44.asServiceRole.entities.MessageThread.filter({ id: thread_id });
+    const thread = threads[0] || null;
 
     if (!thread) {
       return Response.json({ error: 'Thread not found.', debug: { thread_id_received: thread_id } }, { status: 404 });

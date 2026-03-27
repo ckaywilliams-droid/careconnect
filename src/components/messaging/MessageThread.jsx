@@ -168,29 +168,18 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
       const sorted = (res.data?.messages || []).sort((a, b) => new Date(a.sent_at || a.created_date) - new Date(b.sent_at || b.created_date));
       setMessages(sorted);
 
-      // Use provided name or fetch other party's name
+      // Use provided name or look up via profile (never query User entity directly — causes 401)
       if (otherPartyNameProp) {
         setOtherPartyName(otherPartyNameProp);
       } else {
         const otherPartyId = booking.parent_user_id === currentUser.id ? booking.caregiver_user_id : booking.parent_user_id;
         const isOtherPartyCaregiver = otherPartyId === booking.caregiver_user_id;
-        
         if (isOtherPartyCaregiver) {
           const profiles = await base44.entities.CaregiverProfile.filter({ user_id: otherPartyId });
-          if (profiles[0]?.display_name) {
-            setOtherPartyName(profiles[0].display_name);
-          } else {
-            const users = await base44.entities.User.filter({ id: otherPartyId });
-            setOtherPartyName(users[0]?.full_name || 'Caregiver');
-          }
+          setOtherPartyName(profiles[0]?.display_name || 'Caregiver');
         } else {
           const profiles = await base44.entities.ParentProfile.filter({ user_id: otherPartyId });
-          if (profiles[0]?.display_name) {
-            setOtherPartyName(profiles[0].display_name);
-          } else {
-            const users = await base44.entities.User.filter({ id: otherPartyId });
-            setOtherPartyName(users[0]?.full_name || 'Parent');
-          }
+          setOtherPartyName(profiles[0]?.display_name || 'Parent');
         }
       }
     } catch (err) {

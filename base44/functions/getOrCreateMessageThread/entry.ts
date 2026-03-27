@@ -19,8 +19,8 @@ Deno.serve(async (req) => {
   const isParty = booking.parent_user_id === user.id || booking.caregiver_user_id === user.id;
   if (!isParty) return Response.json({ error: 'Not found.' }, { status: 404 });
 
-  // Find existing thread
-  const existing = await base44.asServiceRole.entities.MessageThread.filter({ booking_id });
+  // Find existing thread (exclude soft-deleted)
+  const existing = await base44.asServiceRole.entities.MessageThread.filter({ booking_id, is_deleted: false });
   if (existing.length > 0) {
     return Response.json({ thread: existing[0] });
   }
