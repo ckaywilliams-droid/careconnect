@@ -10,21 +10,31 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json();
-  const { booking_id } = body;
+  const { booking_id: rawBookingId } = body;
+  const booking_id = rawBookingId ? String(rawBookingId).trim() : null;
 
   if (!booking_id) {
     console.error('[getOrCreateMessageThread] Missing booking_id in request body');
     return Response.json({ error: 'booking_id is required.' }, { status: 400 });
   }
 
-  console.log(`[getOrCreateMessageThread] Looking up booking ${booking_id} for user ${user.id}`);
+  console.log(`[getOrCreateMessageThread] Looking up booking ${booking_id} (raw: ${rawBookingId}) for user ${user.id}`);
 
   // Fetch booking via service role to bypass RLS
   let booking = null;
   try {
     booking = await base44.asServiceRole.entities.BookingRequest.get(booking_id);
+    console.log(`[getOrCreateMessageThread] get() result keys: ${booking ? Object.keys(booking).join(',') : 'null'}`);
   } catch (e) {
-    booking = null;
+    console.error(`[getOrCreateMessageThread] get() threw: ${e.message}`);
+    // Fallback: try filter by id
+    try {
+      const results = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_id });
+      booking = results[0] || null;
+      console.log(`[getOrCreateMessageThread] filter() fallback found ${results.length} results`);
+    } catch (e2) {
+      console.error(`[getOrCreateMessageThread] filter() fallback also threw: ${e2.message}`);
+    }
   }
 
   if (!booking) {
