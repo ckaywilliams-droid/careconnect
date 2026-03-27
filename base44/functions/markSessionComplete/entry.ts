@@ -4,6 +4,7 @@ Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   try {
     const user = await base44.auth.me();
+    console.log('User:', user?.id, 'role:', user?.app_role);
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (user.app_role !== 'caregiver') {
       return Response.json({ error: 'Only caregivers may mark sessions as complete.' }, { status: 403 });
@@ -11,16 +12,25 @@ Deno.serve(async (req) => {
 
     const body = await req.json();
     const { booking_request_id } = body;
+    console.log('booking_request_id received:', booking_request_id);
     if (!booking_request_id) {
       return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
     }
 
     // Parallel fetch: booking by ID + caregiver profile
-    const [booking, profileRes] = await Promise.all([
-      base44.asServiceRole.entities.BookingRequest.get(booking_request_id),
-      base44.asServiceRole.entities.CaregiverProfile.filter({ user_id: user.id })
-    ]);
+    let booking, profileRes;
+    try {
+      [booking, profileRes] = await Promise.all([
+        base44.asServiceRole.entities.BookingRequest.get(booking_request_id),
+        base44.asServiceRole.entities.CaregiverProfile.filter({ user_id: user.id })
+      ]);
+    } catch (fetchErr) {
+      console.error('Fetch error:', fetchErr?.message, fetchErr?.status);
+      throw fetchErr;
+    }
     const myProfile = profileRes[0];
+    console.log('booking:', JSON.stringify(booking));
+    console.log('myProfile:', JSON.stringify(myProfile));
 
     // Idempotency: already completed → quiet success
     if (booking?.status === 'completed') {
@@ -31,6 +41,9 @@ Deno.serve(async (req) => {
     const isOwner = booking?.caregiver_user_id === user.id
                  || (myProfile && booking?.caregiver_profile_id === myProfile.id);
     const isReady = booking?.end_time && new Date(booking.end_time) <= new Date();
+    console.log('isOwner:', isOwner, 'isReady:', isReady, 'booking.status:', booking?.status);
+    console.log('booking.caregiver_user_id:', booking?.caregiver_user_id, 'user.id:', user.id);
+    console.log('booking.caregiver_profile_id:', booking?.caregiver_profile_id, 'myProfile.id:', myProfile?.id);
 
     if (!booking || !isOwner) {
       return Response.json({ error: 'Booking not found or access denied.' }, { status: 404 });
@@ -105,7 +118,7 @@ Deno.serve(async (req) => {
     }, { status: 200 });
 
   } catch (err) {
-    console.error('markSessionComplete error:', err?.message);
-    return Response.json({ error: 'An unexpected error occurred. Please try again.' }, { status: 500 });
+    console.error('markSessionComplete error:', err?.message, err?.status);
+    return Response.json({ error: err?.message || 'An unexpected error occurred. Please try again.' }, { status: 500 });
   }
 });
