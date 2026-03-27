@@ -4,6 +4,7 @@ Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
+    console.log('[submitReview] user:', user ? { id: user.id, email: user.email, app_role: user.app_role } : null);
 
     if (!user || user.app_role !== 'parent') {
       return Response.json({ error: 'Only parents can submit reviews.' }, { status: 403 });
@@ -14,6 +15,7 @@ Deno.serve(async (req) => {
       payload = await req.json();
     }
     const { booking_request_id, rating, body } = payload;
+    console.log('[submitReview] payload:', { booking_request_id, rating, body });
 
     if (!booking_request_id || !rating) {
       return Response.json({ error: 'booking_request_id and rating are required.' }, { status: 400 });
@@ -27,6 +29,8 @@ Deno.serve(async (req) => {
     // Note: SDK filter does not support built-in `id` field directly, so filter by parent_user_id and find by id
     const allBookings = await base44.asServiceRole.entities.BookingRequest.filter({ parent_user_id: user.id });
     const booking = allBookings.find(b => b.id === booking_request_id);
+    console.log('[submitReview] bookings found for parent:', allBookings.length);
+    console.log('[submitReview] matched booking:', booking ? { id: booking.id, status: booking.status, parent_user_id: booking.parent_user_id } : null);
 
     if (!booking) {
       return Response.json({ error: 'Booking not found.' }, { status: 404 });
@@ -38,6 +42,7 @@ Deno.serve(async (req) => {
 
     // Allow review if status is 'completed' or 'accepted' (frontend treats both as reviewable)
     const isReviewable = booking.status === 'completed' || booking.status === 'accepted';
+    console.log('[submitReview] booking status:', booking.status, '| isReviewable:', isReviewable);
     if (!isReviewable) {
       return Response.json({ error: 'You can only review completed bookings.' }, { status: 400 });
     }
