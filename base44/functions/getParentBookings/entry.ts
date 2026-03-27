@@ -60,8 +60,9 @@ Deno.serve(async (req) => {
       });
 
     console.log('getParentBookings: matched', bookings.length, 'bookings');
+    console.log('getParentBookings: bookings.length > 0 =', bookings.length > 0);
 
-    return Response.json({ bookings }, { status: 200 });
+    return Response.json({ bookings, debug: { total_in_db: all.length, matched: bookings.length, has_results: bookings.length > 0, user_id: user.id } }, { status: 200 });
   } catch (error) {
     console.error('getParentBookings ERROR:', error);
     return Response.json({ 
