@@ -17,6 +17,11 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { createPageUrl } from '@/utils';
 import LeaveReviewModal from '@/components/LeaveReviewModal';
+
+const isAutoCompleted = (b) => {
+  if (b.status !== 'accepted') return false;
+  try { return new Date(b.end_time) <= new Date(); } catch { return false; }
+};
 import MessageThread from '@/components/messaging/MessageThread';
 import AccountSettingsTab from '@/components/parent/AccountSettingsTab';
 
@@ -71,7 +76,7 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
     end = new Date(booking.end_time.slice(0, 19));
     now = new Date();
     isPast = start < now;
-    isAfterEnd = end < now;
+    isAfterEnd = isAutoCompleted(booking);
     isNoShowVisible = now > new Date(start.getTime() + 15 * 60 * 1000);
   } catch (e) {
     start = new Date();
@@ -107,7 +112,7 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
             {booking.num_children} {booking.num_children === 1 ? 'child' : 'children'}
           </p>
         </div>
-        <StatusBadge status={booking.status} />
+        <StatusBadge status={isAfterEnd ? 'completed' : booking.status} />
       </div>
 
       {/* Action buttons */}
@@ -131,10 +136,10 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
           <p className="text-xs text-gray-400 w-full">The "Report No-Show" button will appear 15 minutes after the session start time.</p>
         )}
         {booking.status === 'accepted' && isAfterEnd && (
-          <p className="text-xs text-amber-600 font-medium w-full mt-1">Session ended — awaiting caregiver confirmation</p>
+          <p className="text-xs text-gray-400 w-full mt-1">Session completed</p>
         )}
         {/* Leave a review for completed bookings */}
-        {booking.status === 'completed' && !reviewed && (
+        {(booking.status === 'completed' || (booking.status === 'accepted' && isAfterEnd)) && !reviewed && (
           <Button size="sm" className="bg-yellow-500 hover:bg-yellow-600 text-white"
             onClick={() => onAction('leave_review', booking)}>
             <Star className="w-4 h-4 mr-1" /> Leave Review
@@ -225,7 +230,7 @@ export default function ParentBookings() {
   const cgProfiles = Object.fromEntries(cgProfilesList.map(p => [p.id, p]));
 
   // Track already-reviewed bookings for the current user
-  const completedIds = bookings.filter(b => b.status === 'completed').map(b => b.id);
+  const completedIds = bookings.filter(b => b.status === 'completed' || isAutoCompleted(b)).map(b => b.id);
   const { data: existingReviews = [], refetch: refetchReviews } = useQuery({
     queryKey: ['my-reviews', user?.id],
     queryFn: () => base44.entities.Review.filter({ parent_user_id: user.id }),
@@ -234,8 +239,8 @@ export default function ParentBookings() {
   const reviewedBookingIds = new Set(existingReviews.map(r => r.booking_request_id));
 
   const filterMap = {
-    active:    b => ['pending', 'accepted', 'cancellation_requested_by_caregiver'].includes(b.status),
-    completed: b => ['completed'].includes(b.status),
+    active:    b => ['pending', 'cancellation_requested_by_caregiver'].includes(b.status) || (b.status === 'accepted' && !isAutoCompleted(b)),
+    completed: b => b.status === 'completed' || isAutoCompleted(b),
     cancelled: b => ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired', 'no_show_reported', 'under_review', 'resolved'].includes(b.status),
   };
 

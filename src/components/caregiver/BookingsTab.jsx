@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +14,11 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+
+const isAutoCompleted = (b) => {
+  if (b.status !== 'accepted') return false;
+  try { return new Date(b.end_time) <= new Date(); } catch { return false; }
+};
 
 const STATUS_CONFIG = {
   pending:                              { label: 'Pending',              color: 'bg-yellow-100 text-yellow-800' },
@@ -40,7 +45,7 @@ function BookingCard({ booking, onAction }) {
   const end = new Date(booking.end_time.slice(0, 19));
   const now = new Date();
   const isPast = start < now;
-  const isAfterEnd = end < now;
+  const isAfterEnd = isAutoCompleted(booking);
 
   return (
     <div className="border border-gray-200 rounded-xl p-4 bg-white hover:border-gray-300 transition-colors">
@@ -58,7 +63,7 @@ function BookingCard({ booking, onAction }) {
             {booking.num_children} {booking.num_children === 1 ? 'child' : 'children'}
           </p>
         </div>
-        <StatusBadge status={booking.status} />
+        <StatusBadge status={isAfterEnd ? 'completed' : booking.status} />
       </div>
 
       {booking.special_requests && (
@@ -97,17 +102,6 @@ function BookingCard({ booking, onAction }) {
             <Flag className="w-4 h-4 mr-1" /> Report No-Show
           </Button>
         )}
-        {booking.status === 'accepted' && isAfterEnd && (
-          <p className="text-xs text-amber-600 font-medium w-full mt-1">
-            Session ended — please mark as complete
-          </p>
-        )}
-        {booking.status === 'accepted' && isAfterEnd ? (
-          <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            onClick={() => onAction('mark_complete', booking)}>
-            <CheckCircle className="w-4 h-4 mr-1" /> Mark as Complete
-          </Button>
-        ) : null}
         <Button size="sm" variant="ghost" asChild>
           <Link to={`/bookings/${booking.id}`}>
             View Details <ExternalLink className="w-3.5 h-3.5 ml-1" />
@@ -141,8 +135,8 @@ export default function BookingsTab({ user, profile }) {
 
   const filterMap = {
     needs_action: b => ['pending', 'cancellation_requested_by_caregiver'].includes(b.status),
-    upcoming:     b => ['accepted'].includes(b.status),
-    completed:    b => ['completed'].includes(b.status),
+    upcoming:     b => b.status === 'accepted' && !isAutoCompleted(b),
+    completed:    b => b.status === 'completed' || isAutoCompleted(b),
     cancelled:    b => ['declined', 'cancelled_by_parent', 'cancelled_by_caregiver', 'expired', 'no_show_reported', 'under_review', 'resolved'].includes(b.status),
   };
 
@@ -181,24 +175,6 @@ export default function BookingsTab({ user, profile }) {
         queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
       } catch (e) {
         toast.error(e.response?.data?.error || 'Failed to decline booking');
-      } finally { setLoading(false); }
-      return;
-    }
-    if (type === 'mark_complete') {
-      setLoading(true);
-      try {
-        // Proactive auth check — token may have expired during a long session
-        const currentUser = await base44.auth.me();
-        if (!currentUser) {
-          toast.error('Your session has expired. Please reload the page to re-authenticate.');
-          setLoading(false);
-          return;
-        }
-        await invoke('markSessionComplete', { booking_request_id: booking.id });
-        toast.success('Session marked as complete!');
-        queryClient.invalidateQueries({ queryKey: ['caregiver-bookings', profile?.id] });
-      } catch (e) {
-        toast.error(e.data?.error || e.message || 'Failed to mark complete');
       } finally { setLoading(false); }
       return;
     }
