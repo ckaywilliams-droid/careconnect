@@ -1,20 +1,8 @@
-/**
- * F-3002: Mark Session Complete — Caregiver-Led Session Completion
- *
- * Changes vs previous version:
- * - Idempotency: returns success immediately if already completed
- * - Parallel fetch: booking + caregiver profile fetched simultaneously
- * - Combined ownership + status + time gate (no redundant checks)
- * - Removed spurious re-fetch verification after .update() (caused false 409s)
- * - Timezone fix: uses new Date(iso) directly instead of .slice(0, 19)
- */
-
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   try {
-    // Auth
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
     if (user.app_role !== 'caregiver') {
@@ -27,26 +15,25 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
     }
 
-    // Step 1 — Parallel fetch: booking + caregiver profile
-    const [bookingRes, profileRes] = await Promise.all([
-      base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id }),
+    // Parallel fetch: booking by ID + caregiver profile
+    const [booking, profileRes] = await Promise.all([
+      base44.asServiceRole.entities.BookingRequest.get(booking_request_id),
       base44.asServiceRole.entities.CaregiverProfile.filter({ user_id: user.id })
     ]);
-    const booking   = bookingRes[0];
     const myProfile = profileRes[0];
 
-    // Step 2 — Idempotency: already completed → quiet success
+    // Idempotency: already completed → quiet success
     if (booking?.status === 'completed') {
       return Response.json({ success: true, booking_request_id, status: 'completed' });
     }
 
-    // Step 3 — Combined ownership + status + time gate
+    // Combined ownership + status + time gate
     const isOwner = booking?.caregiver_user_id === user.id
                  || (myProfile && booking?.caregiver_profile_id === myProfile.id);
     const isReady = booking?.end_time && new Date(booking.end_time) <= new Date();
 
     if (!booking || !isOwner) {
-      return Response.json({ error: 'Not found.' }, { status: 404 });
+      return Response.json({ error: 'Booking not found or access denied.' }, { status: 404 });
     }
     if (booking.status !== 'accepted') {
       return Response.json({
@@ -61,14 +48,14 @@ Deno.serve(async (req) => {
       }, { status: 409 });
     }
 
-    // Step 4 — Transition: accepted → completed (no re-fetch verification)
+    // Transition: accepted → completed
     const now = new Date();
     await base44.asServiceRole.entities.BookingRequest.update(booking_request_id, {
       status: 'completed',
       check_out_time: now.toISOString()
     });
 
-    // Step 5 — Fire-and-forget emails & audit
+    // Fire-and-forget emails & audit
     const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
     const caregiverUserId = myProfile?.user_id || booking.caregiver_user_id;
     const startTime = new Date(booking.start_time);
@@ -118,7 +105,7 @@ Deno.serve(async (req) => {
     }, { status: 200 });
 
   } catch (err) {
-    console.error('markSessionComplete unhandled error:', err?.message);
+    console.error('markSessionComplete error:', err?.message);
     return Response.json({ error: 'An unexpected error occurred. Please try again.' }, { status: 500 });
   }
 });
