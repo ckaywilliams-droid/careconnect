@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, Circle, Info, Globe, AlertCircle, ExternalLink, Loader2 } from 'lucide-react';
+import { computeCompletionPct } from '@/lib/profileCompletion';
 
 export default function PublishCompletionSidebar({ profile, onPublishChange }) {
   const [showError, setShowError] = useState(null);
@@ -53,7 +54,7 @@ export default function PublishCompletionSidebar({ profile, onPublishChange }) {
   ];
 
   const allComplete = checklistItems.every(item => item.complete);
-  const completionPercent = profile.completion_pct || 0;
+  const completionPercent = computeCompletionPct(profile);
 
   // Publish mutation
   const publishMutation = useMutation({

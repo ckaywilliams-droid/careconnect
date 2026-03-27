@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle2, Circle, Lock } from 'lucide-react';
+import { computeCompletionPct } from '@/lib/profileCompletion';
 
 export default function ProfileCompletion({ profile }) {
-    const completionPct = profile?.completion_pct || 0;
+    const completionPct = computeCompletionPct(profile);
     const storageKey = `profileCompleteBanner_${profile?.id}`;
 
     const [showBanner, setShowBanner] = useState(() => {
