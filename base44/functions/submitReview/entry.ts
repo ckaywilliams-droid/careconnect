@@ -1,4 +1,4 @@
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
 
 Deno.serve(async (req) => {
   try {
@@ -23,8 +23,8 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Rating must be an integer between 1 and 5.' }, { status: 400 });
     }
 
-    // Verify booking exists, belongs to this parent, and is completed
-    const bookings = await base44.entities.BookingRequest.filter({ id: booking_request_id });
+    // Use service role to bypass RLS, then do manual ownership check
+    const bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
     const booking = bookings[0];
 
     if (!booking) {
@@ -35,11 +35,14 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You can only review your own bookings.' }, { status: 403 });
     }
 
-    if (booking.status !== 'completed') {
+    // Allow review if status is 'completed' OR if status is 'accepted' and end_time has passed
+    const isCompleted = booking.status === 'completed';
+    const isAutoCompleted = booking.status === 'accepted' && new Date(booking.end_time) <= new Date();
+    if (!isCompleted && !isAutoCompleted) {
       return Response.json({ error: 'You can only review completed bookings.' }, { status: 400 });
     }
 
-    // Duplicate check — one review per booking per parent (both fields)
+    // Duplicate check — one review per booking per parent
     const existing = await base44.asServiceRole.entities.Review.filter({
       booking_request_id,
       parent_user_id: user.id,
@@ -53,8 +56,8 @@ Deno.serve(async (req) => {
       ? body.replace(/<[^>]*>/g, '').replace(/&/g, '&amp;').slice(0, 1000)
       : null;
 
-    // Create the review
-    const review = await base44.entities.Review.create({
+    // Create the review using service role
+    const review = await base44.asServiceRole.entities.Review.create({
       booking_request_id,
       caregiver_profile_id: booking.caregiver_profile_id,
       caregiver_user_id: booking.caregiver_user_id,
@@ -64,7 +67,7 @@ Deno.serve(async (req) => {
       is_suppressed: false,
     });
 
-    // Recalculate caregiver average_rating and total_reviews using service role for full visibility
+    // Recalculate caregiver average_rating and total_reviews
     const allReviews = await base44.asServiceRole.entities.Review.filter({
       caregiver_profile_id: booking.caregiver_profile_id,
     });
