@@ -28,16 +28,44 @@ Deno.serve(async (req) => {
     return Response.json({ error: 'Booking not found.' }, { status: 404 });
   }
 
-  console.log(`[getOrCreateMessageThread] Booking found. parent_user_id=${booking.parent_user_id}, caregiver_user_id=${booking.caregiver_user_id}, status=${booking.status}`);
+  console.log(`[getOrCreateMessageThread] Booking found. parent_profile_id=${booking.parent_profile_id}, caregiver_profile_id=${booking.caregiver_profile_id}, status=${booking.status}`);
 
-  // Verify requesting user is a party to this booking
-  const isParty = booking.parent_user_id === user.id || booking.caregiver_user_id === user.id;
+  // Always resolve user IDs via profile lookup — do NOT trust booking.parent_user_id/caregiver_user_id directly
+  // as those denormalized fields may be null on older records.
+  let parentUserId = null;
+  let caregiverUserId = null;
+
+  if (booking.parent_profile_id) {
+    const parentProfiles = await base44.asServiceRole.entities.ParentProfile.filter({ id: booking.parent_profile_id });
+    parentUserId = parentProfiles[0]?.user_id || null;
+    console.log(`[getOrCreateMessageThread] Resolved parentUserId=${parentUserId} from ParentProfile ${booking.parent_profile_id}`);
+  } else {
+    console.warn(`[getOrCreateMessageThread] No parent_profile_id on booking ${booking_id}, falling back to booking.parent_user_id=${booking.parent_user_id}`);
+    parentUserId = booking.parent_user_id || null;
+  }
+
+  if (booking.caregiver_profile_id) {
+    const caregiverProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
+    caregiverUserId = caregiverProfiles[0]?.user_id || null;
+    console.log(`[getOrCreateMessageThread] Resolved caregiverUserId=${caregiverUserId} from CaregiverProfile ${booking.caregiver_profile_id}`);
+  } else {
+    console.warn(`[getOrCreateMessageThread] No caregiver_profile_id on booking ${booking_id}, falling back to booking.caregiver_user_id=${booking.caregiver_user_id}`);
+    caregiverUserId = booking.caregiver_user_id || null;
+  }
+
+  if (!parentUserId || !caregiverUserId) {
+    console.error(`[getOrCreateMessageThread] Could not resolve participant IDs. parentUserId=${parentUserId}, caregiverUserId=${caregiverUserId}`);
+    return Response.json({ error: 'Cannot resolve participant IDs for this booking.', detail: `parentUserId=${parentUserId}, caregiverUserId=${caregiverUserId}` }, { status: 500 });
+  }
+
+  // Verify requesting user is a party using the resolved IDs
+  const isParty = parentUserId === user.id || caregiverUserId === user.id;
   if (!isParty) {
-    console.error(`[getOrCreateMessageThread] User ${user.id} is not a party to booking ${booking_id}`);
+    console.error(`[getOrCreateMessageThread] User ${user.id} is not a party to booking ${booking_id}. parentUserId=${parentUserId}, caregiverUserId=${caregiverUserId}`);
     return Response.json({ error: 'Not found.' }, { status: 404 });
   }
 
-  // Find existing thread (use filter, not .get(), for robustness)
+  // Find existing thread
   console.log(`[getOrCreateMessageThread] Searching for existing thread for booking ${booking_id}`);
   const existing = await base44.asServiceRole.entities.MessageThread.filter({ booking_id });
   const activeThread = existing.find(t => !t.is_deleted);
@@ -54,30 +82,8 @@ Deno.serve(async (req) => {
     return Response.json({ thread: null, reason: 'terminal_booking' });
   }
 
-  // Self-heal: resolve user IDs — handles old booking records with null user ID fields
-  let parentUserId = booking.parent_user_id;
-  let caregiverUserId = booking.caregiver_user_id;
-
-  if (!parentUserId && booking.parent_profile_id) {
-    console.warn(`[getOrCreateMessageThread] parent_user_id is null for booking ${booking_id}, resolving from ParentProfile ${booking.parent_profile_id}`);
-    const profiles = await base44.asServiceRole.entities.ParentProfile.filter({ id: booking.parent_profile_id });
-    parentUserId = profiles[0]?.user_id || null;
-    console.log(`[getOrCreateMessageThread] Resolved parentUserId=${parentUserId}`);
-  }
-
-  if (!caregiverUserId && booking.caregiver_profile_id) {
-    console.warn(`[getOrCreateMessageThread] caregiver_user_id is null for booking ${booking_id}, resolving from CaregiverProfile ${booking.caregiver_profile_id}`);
-    const profiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
-    caregiverUserId = profiles[0]?.user_id || null;
-    console.log(`[getOrCreateMessageThread] Resolved caregiverUserId=${caregiverUserId}`);
-  }
-
-  if (!parentUserId || !caregiverUserId) {
-    console.error(`[getOrCreateMessageThread] Cannot resolve participant IDs for booking ${booking_id}. parentUserId=${parentUserId}, caregiverUserId=${caregiverUserId}`);
-    return Response.json({ error: 'Cannot resolve participant IDs for this booking.', detail: `parentUserId=${parentUserId}, caregiverUserId=${caregiverUserId}` }, { status: 500 });
-  }
-
-  console.log(`[getOrCreateMessageThread] Creating new thread for booking ${booking_id}`);
+  // Create missing thread using resolved user IDs
+  console.log(`[getOrCreateMessageThread] Creating new thread for booking ${booking_id} (parentUserId=${parentUserId}, caregiverUserId=${caregiverUserId})`);
   const thread = await base44.asServiceRole.entities.MessageThread.create({
     booking_id,
     parent_user_id: parentUserId,
