@@ -169,6 +169,7 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
       });
       const t = threadRes.data?.thread || null;
       if (!t) {
+        setError('Conversation unavailable for this booking.');
         setLoading(false);
         return;
       }

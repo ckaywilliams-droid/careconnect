@@ -72,8 +72,8 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
   const cgProfile = cgProfiles[booking.caregiver_profile_id];
   let start, end, now, isPast, isAfterEnd, isNoShowVisible;
   try {
-    start = new Date(booking.start_time.slice(0, 19));
-    end = new Date(booking.end_time.slice(0, 19));
+    start = new Date(booking.start_time);
+    end = new Date(booking.end_time);
     now = new Date();
     isPast = start < now;
     isAfterEnd = isAutoCompleted(booking);
@@ -146,7 +146,7 @@ function BookingCard({ booking, cgProfiles, onAction, reviewed }) {
           </Button>
         )}
         {/* View conversation */}
-        {(booking.status !== 'declined' && booking.status !== 'expired') && (
+        {(!['declined', 'expired', 'cancelled_by_parent', 'cancelled_by_caregiver'].includes(booking.status)) && (
           <Button size="sm" variant="outline" onClick={() => onAction('view_thread', booking)}>
             View Conversation
           </Button>
