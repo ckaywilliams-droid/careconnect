@@ -1,13 +1,12 @@
 /**
  * F-3002: Mark Session Complete — Caregiver-Led Session Completion
  *
- * Flow:
- * - Only the caregiver may call this endpoint
- * - Booking must be in 'accepted' status
- * - Current time must be >= booking end_time
- * - Transitions booking accepted → completed
- * - Sends completion emails to both parties
- * - Logs audit event
+ * Changes vs previous version:
+ * - Idempotency: returns success immediately if already completed
+ * - Parallel fetch: booking + caregiver profile fetched simultaneously
+ * - Combined ownership + status + time gate (no redundant checks)
+ * - Removed spurious re-fetch verification after .update() (caused false 409s)
+ * - Timezone fix: uses new Date(iso) directly instead of .slice(0, 19)
  */
 
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.23';
@@ -28,102 +27,88 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'booking_request_id is required.' }, { status: 400 });
     }
 
-    // Fetch booking
-    const _bookings = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
-    const booking = _bookings[0];
-    if (!booking) return Response.json({ error: 'Booking not found.' }, { status: 404 });
+    // Step 1 — Parallel fetch: booking + caregiver profile
+    const [bookingRes, profileRes] = await Promise.all([
+      base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id }),
+      base44.asServiceRole.entities.CaregiverProfile.filter({ user_id: user.id })
+    ]);
+    const booking   = bookingRes[0];
+    const myProfile = profileRes[0];
 
-    // Verify caregiver ownership
-    let isCaregiverOwner = booking.caregiver_user_id === user.id;
-    if (!isCaregiverOwner && booking.caregiver_profile_id) {
-      const _cgProfiles = await base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id });
-      const cgProfile = _cgProfiles[0];
-      isCaregiverOwner = cgProfile?.user_id === user.id;
+    // Step 2 — Idempotency: already completed → quiet success
+    if (booking?.status === 'completed') {
+      return Response.json({ success: true, booking_request_id, status: 'completed' });
     }
-    if (!isCaregiverOwner) return Response.json({ error: 'Not found.' }, { status: 404 });
 
-    // Status gate — must be accepted
+    // Step 3 — Combined ownership + status + time gate
+    const isOwner = booking?.caregiver_user_id === user.id
+                 || (myProfile && booking?.caregiver_profile_id === myProfile.id);
+    const isReady = booking?.end_time && new Date(booking.end_time) <= new Date();
+
+    if (!booking || !isOwner) {
+      return Response.json({ error: 'Not found.' }, { status: 404 });
+    }
     if (booking.status !== 'accepted') {
       return Response.json({
         error: `Mark as Complete is only available for accepted bookings. Current status: ${booking.status}.`,
         current_status: booking.status
       }, { status: 409 });
     }
-
-    // Time gate — session end_time must have passed
-    const endTime = new Date(booking.end_time.slice(0, 19));
-    const now = new Date();
-    if (now < endTime) {
+    if (!isReady) {
       return Response.json({
         error: 'The session has not ended yet. You may mark it complete once the scheduled end time has passed.',
         end_time: booking.end_time
       }, { status: 409 });
     }
 
-    // Transition: accepted → completed
-    try {
-      await base44.asServiceRole.entities.BookingRequest.update(booking_request_id, {
-        status: 'completed',
-        check_out_time: now.toISOString()
-      });
-    } catch (err) {
-      return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
-    }
+    // Step 4 — Transition: accepted → completed (no re-fetch verification)
+    const now = new Date();
+    await base44.asServiceRole.entities.BookingRequest.update(booking_request_id, {
+      status: 'completed',
+      check_out_time: now.toISOString()
+    });
 
-    // Verify the update
-    const verify = await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id });
-    if (!verify[0] || verify[0].status !== 'completed') {
-      return Response.json({ error: 'This booking has already been modified. Please refresh and try again.' }, { status: 409 });
-    }
-
-    // Emails to both parties
+    // Step 5 — Fire-and-forget emails & audit
     const baseUrl = Deno.env.get('BASE_URL') || 'https://your-app.base44.app';
-    const [cgUsers, parentUsers, cgProfiles] = await Promise.all([
-      base44.asServiceRole.entities.User.filter({ id: booking.caregiver_user_id }),
-      base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id }),
-      base44.asServiceRole.entities.CaregiverProfile.filter({ id: booking.caregiver_profile_id })
-    ]);
-    const cgUser = cgUsers[0];
-    const parentUser = parentUsers[0];
-    const cgProf = cgProfiles[0];
-
-    // Duration calculation from scheduled start/end
-    const startTime = new Date(booking.start_time.slice(0, 19));
-    const durationMs = endTime - startTime;
+    const caregiverUserId = myProfile?.user_id || booking.caregiver_user_id;
+    const startTime = new Date(booking.start_time);
+    const endTime   = new Date(booking.end_time);
+    const durationMs  = endTime - startTime;
     const durationHrs = durationMs > 0 ? (durationMs / 3600000).toFixed(1) : 'N/A';
-    const totalCents = durationMs > 0 ? Math.round((durationMs / 3600000) * (booking.hourly_rate_snapshot || 0)) : 0;
+    const totalCents  = durationMs > 0 ? Math.round((durationMs / 3600000) * (booking.hourly_rate_snapshot || 0)) : 0;
     const totalDisplay = totalCents > 0 ? `$${(totalCents / 100).toFixed(2)}` : 'N/A';
+
+    const [cgUsers, parentUsers] = await Promise.all([
+      base44.asServiceRole.entities.User.filter({ id: caregiverUserId }),
+      base44.asServiceRole.entities.User.filter({ id: booking.parent_user_id })
+    ]);
+    const cgUser     = cgUsers[0];
+    const parentUser = parentUsers[0];
 
     await Promise.allSettled([
       cgUser && base44.asServiceRole.integrations.Core.SendEmail({
         to: cgUser.email,
         subject: 'Session Complete — Thank You!',
-        body: `Hi ${cgProf?.display_name || ''},\n\nYou have marked the session as complete.\n\nDuration: ${durationHrs} hours\nTotal: ${totalDisplay}\n\nThank you for using CareNest!\n${baseUrl}/CaregiverProfile\n\n– CareNest`
+        body: `Hi ${myProfile?.display_name || ''},\n\nYou have marked the session as complete.\n\nDuration: ${durationHrs} hours\nTotal: ${totalDisplay}\n\nThank you for using CareNest!\n${baseUrl}/CaregiverProfile\n\n– CareNest`
       }),
       parentUser && base44.asServiceRole.integrations.Core.SendEmail({
         to: parentUser.email,
         subject: 'Session Complete — Your Caregiver Has Marked It Done',
-        body: `Hi,\n\nYour session with ${cgProf?.display_name || 'your caregiver'} has been marked as complete by the caregiver.\n\nDuration: ${durationHrs} hours\nTotal: ${totalDisplay}\n\nWe'd love your feedback! Visit your bookings to leave a review.\n${baseUrl}/ParentBookings\n\n– CareNest`
+        body: `Hi,\n\nYour session with ${myProfile?.display_name || 'your caregiver'} has been marked as complete by the caregiver.\n\nDuration: ${durationHrs} hours\nTotal: ${totalDisplay}\n\nWe'd love your feedback! Visit your bookings to leave a review.\n${baseUrl}/ParentBookings\n\n– CareNest`
+      }),
+      base44.functions.invoke('logBookingEvent', {
+        event_type: 'session_marked_complete',
+        booking_id: booking_request_id,
+        actor_user_id: user.id,
+        actor_role: 'caregiver',
+        old_status: 'accepted',
+        new_status: 'completed',
+        caregiver_profile_id: booking.caregiver_profile_id,
+        parent_user_id: booking.parent_user_id,
+        caregiver_user_id: booking.caregiver_user_id,
+        meta: { completed_at: now.toISOString(), duration_hrs: durationHrs, total_display: totalDisplay }
       })
     ]);
-
-    // Audit log
-    await base44.functions.invoke('logBookingEvent', {
-      event_type: 'session_marked_complete',
-      booking_id: booking_request_id,
-      actor_user_id: user.id,
-      actor_role: 'caregiver',
-      old_status: 'accepted',
-      new_status: 'completed',
-      caregiver_profile_id: booking.caregiver_profile_id,
-      parent_user_id: booking.parent_user_id,
-      caregiver_user_id: booking.caregiver_user_id,
-      meta: {
-        completed_at: now.toISOString(),
-        duration_hrs: durationHrs,
-        total_display: totalDisplay
-      }
-    }).catch(() => {});
 
     return Response.json({
       success: true,
