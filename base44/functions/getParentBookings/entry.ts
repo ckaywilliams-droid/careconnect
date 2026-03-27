@@ -12,12 +12,17 @@ Deno.serve(async (req) => {
     console.log('[getParentBookings] Fetching bookings for parent_user_id:', user.id);
 
     const allForParent = await base44.asServiceRole.entities.BookingRequest.filter(
-      { parent_user_id: user.id },
-      '-created_date',
-      100
+      { parent_user_id: user.id }
     );
 
-    const bookings = allForParent.filter(b => b.is_deleted !== true);
+    const bookings = allForParent
+      .filter(b => b.is_deleted !== true)
+      .sort((a, b) => {
+        const dateA = a.created_date ? new Date(a.created_date).getTime() : 0;
+        const dateB = b.created_date ? new Date(b.created_date).getTime() : 0;
+        return dateB - dateA;
+      })
+      .slice(0, 100);
 
     console.log('[getParentBookings] matched', bookings.length, 'bookings');
 
