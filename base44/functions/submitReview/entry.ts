@@ -6,8 +6,9 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     console.log('[submitReview] user:', user ? { id: user.id, email: user.email, app_role: user.app_role } : null);
 
-    if (!user || user.app_role !== 'parent') {
-      return Response.json({ error: 'Only parents can submit reviews.' }, { status: 403 });
+    const allowedRoles = ['parent', 'admin', 'super_admin'];
+    if (!user || !allowedRoles.includes(user.app_role)) {
+      return Response.json({ error: 'Unauthorized: Only parents, admins, or super admins can submit reviews.' }, { status: 403 });
     }
 
     let payload = {};
@@ -27,7 +28,10 @@ Deno.serve(async (req) => {
 
     // Use service role to bypass RLS, then do manual ownership check
     // Note: SDK filter does not support built-in `id` field directly, so filter by parent_user_id and find by id
-    const allBookings = await base44.asServiceRole.entities.BookingRequest.filter({ parent_user_id: user.id });
+    const isAdmin = ['admin', 'super_admin'].includes(user.app_role);
+    const allBookings = isAdmin
+      ? await base44.asServiceRole.entities.BookingRequest.filter({ id: booking_request_id })
+      : await base44.asServiceRole.entities.BookingRequest.filter({ parent_user_id: user.id });
     const booking = allBookings.find(b => b.id === booking_request_id);
     console.log('[submitReview] bookings found for parent:', allBookings.length);
     console.log('[submitReview] matched booking:', booking ? { id: booking.id, status: booking.status, parent_user_id: booking.parent_user_id } : null);
@@ -36,7 +40,7 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Booking not found.' }, { status: 404 });
     }
 
-    if (booking.parent_user_id !== user.id) {
+    if (!isAdmin && booking.parent_user_id !== user.id) {
       return Response.json({ error: 'You can only review your own bookings.' }, { status: 403 });
     }
 
