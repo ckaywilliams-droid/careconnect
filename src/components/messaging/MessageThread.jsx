@@ -168,8 +168,16 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
           parent_user_id: booking.parent_user_id,
           caregiver_user_id: booking.caregiver_user_id,
         });
-        const newThreads = await base44.entities.MessageThread.filter({ booking_id: booking.id });
-        t = newThreads[0];
+        // Use thread_id directly from response to avoid race condition on re-fetch
+        if (res.data?.thread_id) {
+          t = {
+            id: res.data.thread_id,
+            booking_id: booking.id,
+            parent_user_id: booking.parent_user_id,
+            caregiver_user_id: booking.caregiver_user_id,
+            is_active: true
+          };
+        }
         if (!t) {
           setLoading(false);
           return;
