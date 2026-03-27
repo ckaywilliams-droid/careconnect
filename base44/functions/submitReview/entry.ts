@@ -35,10 +35,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'You can only review your own bookings.' }, { status: 403 });
     }
 
-    // Allow review if status is 'completed' OR if status is 'accepted' and end_time has passed
-    const isCompleted = booking.status === 'completed';
-    const isAutoCompleted = booking.status === 'accepted' && new Date(booking.end_time) <= new Date();
-    if (!isCompleted && !isAutoCompleted) {
+    // Allow review if status is 'completed' or 'accepted' (frontend treats both as reviewable)
+    const isReviewable = booking.status === 'completed' || booking.status === 'accepted';
+    if (!isReviewable) {
       return Response.json({ error: 'You can only review completed bookings.' }, { status: 400 });
     }
 
