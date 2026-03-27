@@ -153,9 +153,19 @@ export default function MessageThread({ booking, currentUser, otherPartyName: ot
   const loadThread = async () => {
     setError(null);
     try {
-      // Use service-role backend function to bypass RLS and self-heal missing threads
+      // Explicitly use booking.id (the BookingRequest's own record ID)
+      // DO NOT use booking.parent_profile_id, booking.caregiver_profile_id, or any other field
+      const bookingRecordId = booking?.id;
+      console.log('[MessageThread] Calling getOrCreateMessageThread with booking_id =', bookingRecordId, '| parent_profile_id =', booking?.parent_profile_id, '| caregiver_profile_id =', booking?.caregiver_profile_id);
+
+      if (!bookingRecordId) {
+        setError('Invalid booking: missing record ID.');
+        setLoading(false);
+        return;
+      }
+
       const threadRes = await base44.functions.invoke('getOrCreateMessageThread', {
-        booking_id: booking.id,
+        booking_id: bookingRecordId,
       });
       const t = threadRes.data?.thread || null;
       if (!t) {
