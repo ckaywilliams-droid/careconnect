@@ -228,7 +228,7 @@ export default function MessagingTab({ user, profile }) {
                 </p>
               </CardHeader>
               <CardContent>
-                {console.log('[MessagingTab] MessageThread booking prop:', selectedBooking)}
+                {console.log('[MessagingTab] MessageThread booking prop:', selectedBooking, '| booking.id =', selectedBooking?.id)}
                 <MessageThread 
                   booking={selectedBooking} 
                   currentUser={user}
