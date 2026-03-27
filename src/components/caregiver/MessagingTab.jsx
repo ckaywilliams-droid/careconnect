@@ -89,18 +89,15 @@ export default function MessagingTab({ user, profile }) {
       const bookingIds = sorted.map(t => t.booking_id).filter(Boolean);
       const parentUserIds = [...new Set(sorted.map(t => t.parent_user_id))];
 
-      const [allMessages, allBookings, allParentProfiles, allParentUsers] = await Promise.all([
-        threadIds.length > 0 
+      const [allMessages, allBookings, allParentProfiles] = await Promise.all([
+        threadIds.length > 0
           ? base44.entities.Message.filter({ thread_id__in: threadIds })
           : Promise.resolve([]),
-        bookingIds.length > 0 
+        bookingIds.length > 0
           ? base44.entities.BookingRequest.filter({ id__in: bookingIds })
           : Promise.resolve([]),
         parentUserIds.length > 0
           ? base44.entities.ParentProfile.filter({ user_id__in: parentUserIds })
-          : Promise.resolve([]),
-        parentUserIds.length > 0
-          ? base44.entities.User.filter({ id__in: parentUserIds })
           : Promise.resolve([])
       ]);
 
@@ -123,9 +120,6 @@ export default function MessagingTab({ user, profile }) {
         const parentProfile = allParentProfiles.find(p => p.user_id === thread.parent_user_id);
         if (parentProfile?.display_name) {
           parentName = parentProfile.display_name;
-        } else {
-          const parentUser = allParentUsers.find(u => u.id === thread.parent_user_id);
-          if (parentUser) parentName = parentUser.full_name || 'Parent';
         }
 
         previewMap[thread.id] = { lastMessage, parentName };
